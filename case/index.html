@@ -326,7 +326,7 @@ addEventListener("load",function(){ setTimeout(function(){ if(!location.hash) wi
     mock.classList.remove("is-off"); ctrl.classList.remove("is-on");
     heard=false; on=true; t0=Date.now();
   });
-  var TOTAL=45000, heard=false, t0=Date.now(), on=true;
+  var TOTAL=25800, heard=false, t0=Date.now(), on=true;   /* = Demo.totalMs в прототипе; уточняется первым сообщением */
   function fmt(ms){var s=Math.max(0,Math.round(ms/1000));return Math.floor(s/60)+":"+String(s%60).padStart(2,"0")}
   function draw(el,total){
     fill.style.width=Math.min(100,(el/total)*100)+"%";
