@@ -1080,7 +1080,7 @@ const DEMO = {
   skipped:{12:0, 36:3, 38:1},       // день → сколько кадров той даты лежит в библиотеке
   /* upgradeToday снят решением 17.14: карточка задаёт вопрос, а не вешает ярлык функции */
   upgradeTomorrow:"ANOTHER UPGRADE",
-  countdownStart:14*3600 + 32*60 + 6, // NEXT UPGRADE IN 14:32:06
+  countdownStart:14*3600 + 32*60 + 6, // FREE UPGRADE RENEWS IN 14:32:06
   coinsStart:8,
   periodEnd:new Date(2026,10,12),   // Nov 12
   weeks:15
@@ -1260,35 +1260,35 @@ const FIXTURES = {
 "daily-frame/success":{scenario:"daily_frame",fixture:"success",tier:"fast",latency_ms:4000,
   slow_threshold_ms:12000,cancelable_until:"developing",
   stages:[{id:"reading",label:"Reading your frame",ms:900},
-          {id:"rendering",label:"Rendering…",ms:2100},
+          {id:"rendering",label:"Developing…",ms:2100},
           {id:"developing",label:"Developing",ms:1000}],
   result:{preset:"UPGRADED",asset:"today",confidence:"ok"}},
 "daily-frame/slow":{scenario:"daily_frame",fixture:"slow",tier:"fast",latency_ms:15000,
   slow_threshold_ms:12000,cancelable_until:"developing",
   stages:[{id:"reading",label:"Reading your frame",ms:1200},
-          {id:"rendering",label:"Rendering…",ms:11000},
+          {id:"rendering",label:"Developing…",ms:11000},
           {id:"developing",label:"Developing",ms:2800}],
   slow_notice:"Taking longer than usual. Your daily frame isn’t used until it’s done.",
   result:{preset:"UPGRADED",asset:"today",confidence:"ok"}},
 "daily-frame/error":{scenario:"daily_frame",fixture:"error",error_type:"network",fail_after_ms:2600,
-  quota_spent:false,title:"Couldn’t render.",body:"Your daily frame is still yours.",
+  quota_spent:false,title:"Couldn’t develop this one.",body:"Your daily frame is still yours.",
   actions:[{id:"retry",label:"Try again",variant:"primary"},
            {id:"nofilter",label:"Keep without the upgrade",variant:"secondary"}]},
 "daily-frame/refusal":{scenario:"daily_frame",fixture:"refusal",error_type:"refusal",fail_after_ms:2200,
-  quota_spent:false,title:"This one can’t be rendered.",body:"Keep it as it is, or pick another.",
+  quota_spent:false,title:"This one can’t be developed.",body:"Keep it as it is, or pick another.",
   actions:[{id:"nofilter",label:"Keep without the upgrade",variant:"primary"},
            {id:"another",label:"Choose another photo",variant:"secondary"}]},
 "daily-frame/low-confidence":{scenario:"daily_frame",fixture:"low-confidence",tier:"fast",latency_ms:3600,
   slow_threshold_ms:12000,cancelable_until:"developing",
   stages:[{id:"reading",label:"Reading your frame",ms:900},
-          {id:"rendering",label:"Rendering…",ms:1900},
+          {id:"rendering",label:"Developing…",ms:1900},
           {id:"developing",label:"Developing",ms:800}],
   result:{preset:"UPGRADED",asset:"today",confidence:"low"},
-  notice:"Not our best. Render once more — on us."},
+  notice:"Not our best. Develop again — on us."},
 "daily-frame/small-delta":{scenario:"daily_frame",fixture:"small-delta",tier:"fast",latency_ms:3400,
   slow_threshold_ms:12000,cancelable_until:"developing",
   stages:[{id:"reading",label:"Reading your frame",ms:800},
-          {id:"rendering",label:"Rendering…",ms:1800},
+          {id:"rendering",label:"Developing…",ms:1800},
           {id:"developing",label:"Developing",ms:800}],
   /* штатное состояние, не ошибка: кадр снят удачно, честнее показать маленькую разницу */
   result:{preset:"UPGRADED",asset:"today",confidence:"ok",delta:"small"},
@@ -1347,18 +1347,18 @@ const FIXTURES = {
 "effect/success":{scenario:"effect",fixture:"success",tier:"quality",latency_ms:6000,
   slow_threshold_ms:12000,cancelable_until:"developing",preset_id:"snow_globe",preset:"Snow globe",
   stages:[{id:"reading",label:"Reading your day…",ms:1400},
-          {id:"rendering",label:"Rendering Snow globe…",ms:3200},
+          {id:"rendering",label:"Developing Snow globe…",ms:3200},
           {id:"developing",label:"Developing",ms:1400}],
   result:{preset:"SNOW GLOBE",asset:"fx-after",confidence:"ok"}},
 "effect/slow":{scenario:"effect",fixture:"slow",tier:"quality",latency_ms:15000,slow_threshold_ms:12000,
   cancelable_until:"developing",preset_id:"snow_globe",preset:"Snow globe",
   stages:[{id:"reading",label:"Reading your day…",ms:1600},
-          {id:"rendering",label:"Rendering Snow globe…",ms:10500},
+          {id:"rendering",label:"Developing Snow globe…",ms:10500},
           {id:"developing",label:"Developing",ms:2900}],
   slow_notice:"Taking longer than usual. Your coins aren’t spent until it’s done.",
   result:{preset:"SNOW GLOBE",asset:"fx-after",confidence:"ok"}},
 "effect/error":{scenario:"effect",fixture:"error",error_type:"network",fail_after_ms:3000,charged:false,
-  preset:"Snow globe",title:"Couldn’t render.",body:"Nothing was charged.",
+  preset:"Snow globe",title:"Couldn’t develop this one.",body:"Nothing was charged.",
   actions:[{id:"retry",label:"Try again",variant:"primary"},
            {id:"back",label:"Back to today",variant:"secondary"}]},
 "effect/refusal":{scenario:"effect",fixture:"refusal",error_type:"refusal",fail_after_ms:2600,charged:false,
@@ -1368,10 +1368,10 @@ const FIXTURES = {
 "effect/low-confidence":{scenario:"effect",fixture:"low-confidence",tier:"quality",latency_ms:5200,
   slow_threshold_ms:12000,cancelable_until:"developing",preset_id:"snow_globe",preset:"Snow globe",
   stages:[{id:"reading",label:"Reading your day…",ms:1200},
-          {id:"rendering",label:"Rendering Snow globe…",ms:2800},
+          {id:"rendering",label:"Developing Snow globe…",ms:2800},
           {id:"developing",label:"Developing",ms:1200}],
   result:{preset:"SNOW GLOBE",asset:"fx-after",confidence:"low"},
-  notice:"Not our best. Render once more — on us."},
+  notice:"Not our best. Develop again — on us."},
 "effect/empty":{scenario:"effect",fixture:"empty",error_type:"empty",fail_after_ms:3400,charged:false,
   preset:"Snow globe",title:"Nothing changed on this one.",body:"Nothing was charged.",
   actions:[{id:"back",label:"Back to effects",variant:"primary"}]}
@@ -2259,8 +2259,8 @@ Screens["01"]=s=>{
   f.style.borderRadius="var(--radius-lg)"; f.style.marginTop="var(--space-6)";
   w.append(f);
   const t=el("div","stack gap3 mt6");
-  t.append(assign(el("div","t-h1"),"Everyone gets one upgrade a day."),
-           assign(el("div","t-body c-secondary"),"One frame a day. Your period composes itself."));
+  t.append(assign(el("div","t-h1"),"One frame a day, developed for free."),
+           assign(el("div","t-body c-secondary"),"Shoot it or pick it. Your days compose themselves."));
   w.append(t);
   const a=el("div","stack gap3 mt8");
   a.append(UI.Button({label:"Start today",onTap:()=>Sheets.period(true)}),
@@ -2285,9 +2285,9 @@ Screens["03"]=s=>{
     it.append(assign(el("div","t-h1"), "What does today look like?"));
     img.append(it); card.append(img);
     const foot=el("div","FilterCard__foot");
-    foot.append(assign(el("div","t-body c-secondary"),"One upgrade a day, on us — the same one for everyone."));
+    foot.append(assign(el("div","t-body c-secondary"),"Shoot one frame. We develop it — light, colour, grain — free, once a day. The same look for everyone."));
     const r=el("div","row gap2");
-    r.append(metaLine("NEXT UPGRADE IN","t-counter-meta c-tertiary"), counterEl());
+    r.append(metaLine("FREE UPGRADE RENEWS IN","t-counter-meta c-tertiary"), counterEl());
     foot.append(r);
     card.append(foot); w.append(card);
 
@@ -2296,7 +2296,7 @@ Screens["03"]=s=>{
     a.append(UI.Button({label:"Pick from today’s photos",variant:"secondary",onTap:()=>Sheets.gallery("suggested")}));
     /* решение 17.20 — числа в подписи нет: в галерее один кадр, и «1 photo today»
        читалось бы извинением. Подпись объясняет механику, а не считает файлы */
-    a.append(assign(el("div","t-caption c-tertiary center"),"Meantime chooses"));
+    a.append(assign(el("div","t-caption c-tertiary center"),"Meantime picks the best one"));
     a.append(UI.Button({label:"Choose from library",variant:"text",onTap:()=>Sheets.gallery("library")}));
     w.append(a);
   }else{
@@ -2307,7 +2307,7 @@ Screens["03"]=s=>{
     w.append(kb.seg, kb.box, kb.meta);
 
     const q=el("button","row gap2 mt3"); q.style.justifyContent="space-between"; q.style.width="100%";
-    q.append(assign(el("span","t-body c-secondary"),"Today’s render used · more with coins"),
+    q.append(assign(el("span","t-body c-secondary"),"Today’s free upgrade is used · more with coins"),
              assign(el("span","t-body c-accent"),"›"));
     q.addEventListener("click",()=>Router.tab("effects"));
     w.append(q);
@@ -2392,7 +2392,7 @@ Screens["05"]=s=>{
   hero.append(reveal, el("div","Hero__glow"), el("div","Scrim7"));
   const ht=el("div","Hero__text stack gap2");
   const kick=assign(el("div","t-meta c-on-image"), fmtMDup(DEMO.today)+(isEffect?" · "+effectUpper():""));
-  const title=assign(el("div","t-h1 c-on-image"),"Rendering…");
+  const title=assign(el("div","t-h1 c-on-image"),"Developing…");
   ht.append(kick,title); hero.append(ht);
   w.append(hero);
 
@@ -2408,7 +2408,7 @@ Screens["05"]=s=>{
     panel.append(rs);
     if(!isEffect && !S._serverNoteSeen){
       panel.append(assign(el("div","t-caption c-tertiary"),
-        "Your frame goes to our servers to render, and is deleted within 24 hours."));
+        "Your frame goes to our servers to be developed and is deleted within 24 hours."));
       S._serverNoteSeen=true;
     }
     const actions=el("div","stack gap2"); panel.append(actions);
@@ -2528,12 +2528,12 @@ Screens._dailyDone=(box, f)=>{
     Router.resetTo("03","06");
   }}));
   if(f.result.confidence==="low")
-    box.append(UI.Button({label:"Render once more — on us",variant:"text",onTap:()=>{
+    box.append(UI.Button({label:"Develop again — on us",variant:"text",onTap:()=>{
       Analytics.track("result_regenerated",{reason:"low_confidence"});
       S._fixture="daily-frame/success"; Router.swapTop("05");
     }}));
   else if(S.attempts>=3)
-    box.append(UI.Button({label:"Render again · ◎ 2",variant:"text",
+    box.append(UI.Button({label:"Develop again · ◎ 2",variant:"text",
       onTap:()=>Sheets.confirmCoins({name:"Upgrade again",price:2,extra:true})}));
 };
 Screens._effectDone=(box, f)=>{
@@ -2589,12 +2589,12 @@ function keptScreen(s, extra){
   if(extra){
     const r=el("div","row"); r.style.justifyContent="space-between";
     const d=UI.Button({label:"Discard",variant:"text",onTap:()=>actionSheet([
-      {label:"Discard this render",role:"destructive",onTap:()=>{
+      {label:"Discard this one",role:"destructive",onTap:()=>{
         Analytics.track("effect_discarded",{preset_id:presetId(effectTitle())});
         S.todayPreset="upgraded"; saveState(); Router.resetTo("03","06"); }},
       {label:"Cancel",role:"cancel"}])});
     d.style.width="auto"; d.style.color="var(--color-text-secondary)";
-    const g=UI.Button({label:"Render again · ◎ "+effectPrice(),variant:"text",
+    const g=UI.Button({label:"Develop again · ◎ "+effectPrice(),variant:"text",
       onTap:()=>Sheets.confirmCoins({name:effectTitle(),price:effectPrice()})});
     g.style.width="auto";
     r.append(d,g); a.append(r);
@@ -2859,8 +2859,8 @@ Screens["11"]=s=>{
   w.append(UI.BalanceChip({coins:S.coins,sub:S.subscriber,onGet:()=>Sheets.coinPacks()}));
   w.querySelector(".BalanceChip").classList.add("mt4");
   w.append(assign(el("div","t-body c-secondary mt4"),
-    S.todayKept ? "More than one a day. Render today’s frame again — another world, another look."
-                : "Keep today’s frame first — effects render your day."));
+    S.todayKept ? "More than one a day. Develop today’s frame again — another world, another look."
+                : "Keep today’s frame first — effects develop your day."));
   const grid=el("div"); grid.style.cssText="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3)";
   grid.classList.add("mt4");
   [["Anime world",3,"fx-anime"],["Your street in 1995",4,"fx-1995"],
@@ -2899,11 +2899,11 @@ Screens["14"]=s=>{
   a.append(UI.Button({label:"Share",variant:"secondary",onTap:()=>goShare(DEMO.dayIndex,true)}));
   const r=el("div","row"); r.style.justifyContent="space-between";
   const d=UI.Button({label:"Discard",variant:"text",onTap:()=>actionSheet([
-    {label:"Discard this render",role:"destructive",onTap:()=>{
+    {label:"Discard this one",role:"destructive",onTap:()=>{
       Analytics.track("effect_discarded",{preset_id:presetId(effectTitle())}); Router.tab("effects"); }},
     {label:"Cancel",role:"cancel"}])});
   d.style.width="auto"; d.style.color="var(--color-text-secondary)";
-  const g=UI.Button({label:"Render again · ◎ "+effectPrice(),variant:"text",
+  const g=UI.Button({label:"Develop again · ◎ "+effectPrice(),variant:"text",
     onTap:()=>Sheets.confirmCoins({name:effectTitle(),price:effectPrice()})});
   g.style.width="auto";
   r.append(d,g); a.append(r); w.append(a);
@@ -3061,7 +3061,7 @@ Sheets.softPaywall = (trigger)=>{
     b.append(assign(el("div","t-h1"),"Save in full quality"));
     const ul=el("ul","Bullets");
     ["Full resolution, no watermark","Recaps every week, every month — and at day 100",
-     "Every past upgrade — bring in the photos you already took","Replace your photo, any day",
+     "Past days too — bring in the photos you already took","Replace your photo, any day",
      "20 coins every month, for special days","Your 100 days, composed when they end"]
       .forEach(t=>{ const li=el("li"); li.append(assign(el("span","t-caption"),t)); ul.append(li); });
     b.append(ul);
@@ -3082,7 +3082,7 @@ Sheets.strongPaywall = (delay)=>{
                "This week, every Sunday after — and your 100 days, when they end."));
     const ul=el("ul","Bullets");
     ["Recaps every week, every month — and at day 100",
-     "Every past upgrade — bring in the 2 photos you took",
+     "Past days too — bring in the 2 photos you took",
      "Full resolution, no watermark",
      "20 coins every month, for special days"]
       .forEach(t=>{ const li=el("li"); li.append(assign(el("span","t-caption"),t)); ul.append(li); });
@@ -3133,7 +3133,7 @@ Sheets.plan = ()=>{
     col.append(y,m); b.append(col);
     const ul=el("ul","Bullets");
     ["Full quality, no watermark","Recaps, past days, replace your photo",
-     "20 coins a month for extra renders"].forEach(t=>{
+     "20 coins a month for extra develops"].forEach(t=>{
       const li=el("li"); li.append(assign(el("span","t-caption"),t)); ul.append(li); });
     b.append(ul);
     const sp=el("div"); sp.style.flex="1"; b.append(sp);
@@ -3169,7 +3169,7 @@ Sheets.missedDay = (i)=>{
   UI.Sheet({detent:"medium", build(b, api){
     b.append(assign(el("div","t-h1"),"You took "+n+" photo"+(n>1?"s":"")+" on "+fmtMD(d)+"."),
              assign(el("div","t-body c-secondary"),
-               "Bring one into the diary — it gets the upgrade that day had."));
+               "Bring one into the diary — it gets that day’s upgrade."));
     b.append(plansRow());
     const sp=el("div"); sp.style.flex="1"; b.append(sp);
     b.append(UI.Button({label:S.subscriber?"Bring it in":"Continue with a plan",onTap:()=>{
@@ -3203,7 +3203,7 @@ Sheets.whyCoins = ()=>{
   UI.Sheet({detent:"medium", build(b, api){
     b.append(assign(el("div","t-h1"),"Why effects cost coins"),
       assign(el("div","t-body c-secondary"),
-        "One upgrade a day is on us — the same one for everyone. Every render beyond that one is an extra "+
+        "One upgrade a day is on us — the same for everyone. Every extra one is another "+
         "trip to the servers, and coins pay for it. A plan includes 20 coins a month."));
     const sp=el("div"); sp.style.flex="1"; b.append(sp);
     b.append(UI.Button({label:"Got it",variant:"text",onTap:api.close}));
@@ -3220,16 +3220,16 @@ Sheets.confirmCoins = ({name, price, extra})=>{
     const tx=el("div","stack gap1");
     tx.append(assign(el("div","t-h2"),name),
               assign(el("div","t-caption c-secondary"),"on today’s frame · "+fmtMDup(DEMO.today)),
-              assign(el("div","t-meta c-tertiary"),"EXTRA RENDER · BEYOND TODAY’S FREE ONE"));
+              assign(el("div","t-meta c-tertiary"),"EXTRA DEVELOP · BEYOND TODAY’S FREE ONE"));
     head.append(th,tx); b.append(head);
     const enough=S.coins>=price;
     b.append(assign(el("div","t-counter"+(enough?"":" c-error")),
       enough ? "◎ "+price+" coins → "+(S.coins-price)+" left after" : "◎ "+price+" coins · you have "+S.coins));
-    b.append(assign(el("div","t-caption c-tertiary"),"This photo leaves your phone to be rendered."),
+    b.append(assign(el("div","t-caption c-tertiary"),"This photo leaves your phone to be developed."),
              assign(el("div","t-caption c-tertiary"),"Effects change what’s in the frame. Your original stays."));
     const sp=el("div"); sp.style.flex="1"; b.append(sp);
     if(enough){
-      b.append(UI.Button({label:"Render · "+price+" coins",onTap:()=>{
+      b.append(UI.Button({label:"Develop · "+price+" coins",onTap:()=>{
         Analytics.track("effect_confirmed",{preset_id:presetId(name),
           price, balance_after:S.coins-price});
         S.coins-=price; S.effectSpent=price;

@@ -15,7 +15,7 @@
     },
     {
       "id": "rendering",
-      "label": "Rendering Snow globe…",
+      "label": "Developing Snow globe…",
       "ms": 2800
     },
     {
@@ -29,5 +29,5 @@
     "asset": "fx-after",
     "confidence": "low"
   },
-  "notice": "Not our best. Render once more — on us."
+  "notice": "Not our best. Develop again — on us."
 }

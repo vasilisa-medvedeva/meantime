@@ -13,7 +13,7 @@
     },
     {
       "id": "rendering",
-      "label": "Rendering…",
+      "label": "Developing…",
       "ms": 1900
     },
     {
@@ -27,5 +27,5 @@
     "asset": "today",
     "confidence": "low"
   },
-  "notice": "Not our best. Render once more — on us."
+  "notice": "Not our best. Develop again — on us."
 }
