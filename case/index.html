@@ -123,10 +123,12 @@ ul.l b{color:var(--ink-strong);font-weight:600}
 .block--day .inner,.block--keep .inner{text-align:center}
 .phones{display:flex;gap:26px;justify-content:center;align-items:flex-start;
   padding:4px 0 2px;margin:28px auto 0;flex-wrap:nowrap}
-.ph{flex:0 0 auto;width:212px}
-.ph__f{box-sizing:border-box;width:212px;padding:7px;border-radius:32px;background:#0B0D13;
+/* пропорции от макета 390×844: k = 212/390 = 0.5436.
+   экран 212×458.8 · радиус экрана 47k = 25.5 · корпус 12k = 6.5 · внешняя 225 · внешний радиус 59k = 32 */
+.ph{flex:0 0 auto;width:225px}
+.ph__f{box-sizing:border-box;width:225px;padding:6.5px;border-radius:32px;background:#0B0D13;
   box-shadow:0 14px 32px rgba(20,25,40,.22)}
-.ph img{display:block;width:100%;height:auto;border-radius:25px}
+.ph img{display:block;width:212px;height:458.8px;border-radius:25.5px}
 .case-label{font-size:13px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--night);opacity:.55}
 .case-t{font-size:27px;color:var(--night);margin:8px 0 12px}
 .case-p{font-size:17px;color:var(--night);opacity:.82;max-width:520px;margin:0 auto}
@@ -168,9 +170,9 @@ ul.l b{color:var(--ink-strong);font-weight:600}
   .thanks-t{font-size:26px}
   .bub{padding:17px 18px;border-radius:18px 18px 18px 6px}
   .phones{gap:12px}
-  .ph,.ph__f{width:132px}
-  .ph__f{padding:5px;border-radius:22px}
-  .ph img{border-radius:17px}
+  .ph,.ph__f{width:140px}
+  .ph__f{padding:4px;border-radius:20px}
+  .ph img{width:132px;height:285.6px;border-radius:15.9px}
     }
 </style>
 
