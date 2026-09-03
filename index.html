@@ -255,7 +255,7 @@ h1,h2,h3,p,ul,ol{margin:0;padding:0}
    что не прокрутится сама страница. Скроллится только .Screen__scroll внутри. */
 /* решение 17.39 — мобильная ветка включается и по сенсорному экрану: часть телефонов отдаёт
    вьюпорт шире 460 (Android с крупным экраном), и они попадали в витрину с устройством 390 по центру */
-@media (max-width:620px),(max-height:900px),((hover:none) and (pointer:coarse)){
+@media (max-width:620px),(max-height:900px),(hover:none) and (pointer:coarse){
   .Stage{gap:0}
   .Device{
     position:fixed;inset:0;
