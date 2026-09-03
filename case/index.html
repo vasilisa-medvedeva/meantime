@@ -121,12 +121,15 @@ ul.l b{color:var(--ink-strong);font-weight:600}
 
 /* экраны */
 .block--day .inner,.block--keep .inner{text-align:center}
+.phones{display:flex;gap:26px;justify-content:center;align-items:flex-start;
+  padding:4px 0 2px;margin:28px auto 0;flex-wrap:nowrap}
+.ph{flex:0 0 auto;width:212px}
+.ph__f{box-sizing:border-box;width:212px;padding:7px;border-radius:32px;background:#0B0D13;
+  box-shadow:0 14px 32px rgba(20,25,40,.22)}
+.ph img{display:block;width:100%;height:auto;border-radius:25px}
 .case-label{font-size:13px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--night);opacity:.55}
 .case-t{font-size:27px;color:var(--night);margin:8px 0 12px}
 .case-p{font-size:17px;color:var(--night);opacity:.82;max-width:520px;margin:0 auto}
-.phones{display:flex;gap:26px;justify-content:center;padding:4px 0 2px;margin:28px auto 0;max-width:900px;flex-wrap:nowrap}
-.ph{flex:0 0 auto;width:212px}
-.ph img{display:block;width:100%;border-radius:22px;box-shadow:0 10px 26px rgba(20,25,40,.18)}
 .cap{margin-top:12px;font-size:13.5px;line-height:1.4;color:var(--night);opacity:.78;text-align:center}
 .cap b{display:block;font-weight:600;opacity:1}
 
@@ -164,9 +167,11 @@ ul.l b{color:var(--ink-strong);font-weight:600}
   .case-t{font-size:23px}
   .thanks-t{font-size:26px}
   .bub{padding:17px 18px;border-radius:18px 18px 18px 6px}
-  .phones{gap:10px}
-  .ph{max-width:none}
-}
+  .phones{gap:12px}
+  .ph,.ph__f{width:132px}
+  .ph__f{padding:5px;border-radius:22px}
+  .ph img{border-radius:17px}
+    }
 </style>
 
 <section class="block block--cover">
