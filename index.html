@@ -137,9 +137,9 @@
   --motion-reveal-hold:600ms;  /* решение 17.2 — оригинал стоит чётким до кросс-фейда */
   --motion-viewfinder:20000ms; /* решение 17.19 — 1.0 → 1.04 в видоискателе, туда и обратно */
   /* однократный показ дельты после проявления (решение 17.32) */
-  --motion-delta-hold-result:600ms;    /* результат стоит, прежде чем показать оригинал */
-  --motion-delta-fade:350ms;           /* кросс-фейд туда и обратно */
-  --motion-delta-hold-original:1000ms; /* оригинал стоит */
+  --motion-delta-hold-result:900ms;    /* результат стоит, прежде чем показать оригинал */
+  --motion-delta-fade:600ms;           /* кросс-фейд туда и обратно */
+  --motion-delta-hold-original:1200ms; /* оригинал стоит */
   --ease-standard:cubic-bezier(.32,.72,0,1);
   --ease-sheet:cubic-bezier(.34,1.2,.64,1);
   --ease-accel:cubic-bezier(.3,0,.8,.15);
@@ -2440,7 +2440,15 @@ Screens["05"]=s=>{
         panel.insertBefore(n, actions);
       },
       onDone(f){
-        rs.finish(); rs.remove();
+        /* решение 17.42 — «готово» без рывка: стадии гаснут по --motion-menu, заголовок меняется
+           через короткий провал прозрачности, переключатель и кнопки проявляются по --motion-sheet-in,
+           автопоказ дельты стартует уже на спокойном экране */
+        const ease=getComputedStyle(document.documentElement).getPropertyValue("--ease-standard");
+        const DM=MS("--motion-menu"), DI=MS("--motion-sheet-in");
+        rs.finish();
+        rs.style.transition="opacity "+DM+"ms "+ease; rs.style.opacity="0";
+        setTimeout(()=>rs.remove(), DM+20);
+        [title,kick].forEach(n=>{ n.style.transition="opacity "+DM+"ms "+ease; n.style.opacity="0"; });
         /* проявка кончилась — сводим два слоя в один: дальше кадром правит переключатель */
         after.style.transition=""; after.style.opacity="1";
         after.classList.remove("Reveal__after");
@@ -2451,8 +2459,11 @@ Screens["05"]=s=>{
           const ph=after.querySelector(".Frame__ph");
           if(ph) ph.setAttribute("style", Img.phVars("today-original","small-delta"));
         }
-        title.textContent = fmtMD(DEMO.today)+(isEffect?" · "+effectTitle():" · Upgraded");
-        kick.textContent = f.result.confidence==="low" ? "LOW CONFIDENCE" : "READY";
+        setTimeout(()=>{
+          title.textContent = fmtMD(DEMO.today)+(isEffect?" · "+effectTitle():" · Upgraded");
+          kick.textContent = f.result.confidence==="low" ? "LOW CONFIDENCE" : "READY";
+          [title,kick].forEach(n=>{ n.style.opacity="1"; });
+        }, DM);
         /* решения 15.6, 17.1 — пара «до / после» доступна и на бесплатном пути.
            На 05 переключатель стоит ПОД кадром, а не над ним, как на 03/06/08/14:
            кадр здесь во всю ширину и прижат к верхнему краю, над ним только
@@ -2461,10 +2472,15 @@ Screens["05"]=s=>{
           const seg=versionSegment(["Original","Upgraded"], 1, ()=>reveal,
             small ? {1:{seed:"today-original",variant:"small-delta"}} : null);
           seg.style.marginBottom="var(--space-4)";
-          panel.insertBefore(seg, panel.firstChild);
-          deltaPeek(seg);                       /* решение 17.32 */
+          seg.style.opacity="0"; seg.style.transition="opacity "+DI+"ms "+ease;
+          panel.insertBefore(seg, panel.firstChild); void seg.offsetWidth;
+          setTimeout(()=>{ seg.style.opacity="1"; }, DM);
+          setTimeout(()=>{ seg.style.transition=""; deltaPeek(seg); }, DM+DI);   /* решение 17.32 — после того как панель успокоилась */
         }
         actions.innerHTML="";
+        actions.style.opacity="0"; actions.style.transition="opacity "+DI+"ms "+ease;
+        setTimeout(()=>{ actions.style.opacity="1"; }, DM);
+        setTimeout(()=>{ actions.style.transition=""; }, DM+DI+20);
         if(f.notice) actions.append(assign(el("div","t-body c-thinking"), f.notice));
         if(isEffect) Screens._effectDone(actions, f);
         else Screens._dailyDone(actions, f);
@@ -3305,7 +3321,7 @@ const Demo = {
   /* Полный период круга вместе с паузой 1200 мс между кругами — замерено прогоном,
      два круга подряд дали одно и то же: 25.8 с (сам круг 25.4 с). Полоса на странице кейса
      берёт длительность отсюда, поэтому число обязано быть измеренным, а не прикинутым. */
-  totalMs:33800,   /* 17.41: 25.8 + 1.5 + 2.5 + 2.5 + 1.5 */
+  totalMs:35500,   /* 17.42: 33.8 + плавное «готово» и медленный показ ≈ 1.7 */
   t0:0, step:"", beat:null,
 
   tick(){
