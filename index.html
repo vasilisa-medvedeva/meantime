@@ -109,6 +109,13 @@
   --size-tomorrow-h:56px;        /* ui-spec §06 — блок TOMORROW сжат до 56 */
   --size-lens-mark:64px;         /* решение 17.13 — диафрагма в заглушке карточки дня */
   --size-shutter:72px;           /* решение 17.19 — спуск, как в системной камере iOS */
+  /* Решение 17.33 — видоискатель перестал быть полноэкранным.
+     Превью 3:4 по ширине: 390 × 520. Верхнее поле = safe top 59 + тулбар 44 = 103 → 104
+     (кратно 8). Нижнее = 844 − 520 − 104 = 220: в нём спуск 72 и safe bottom 34,
+     поэтому оно вдвое выше верхнего — так же устроена системная камера.
+     Числа из hig-numbers.md: safe 59/34, тулбар 44, тап-зона 44. */
+  --size-camera-preview-h:520px;
+  --size-camera-top:104px;
   --size-shutter-ring:3px;       /* толщина кольца спуска */
   /* шит шеринга (решение 17) — имитация системного листа iOS в токенах проекта */
   --size-share-thumb-h:96px;       /* высота миниатюры карточки в строке превью */
@@ -129,6 +136,10 @@
   --motion-stream-char:22ms;
   --motion-reveal-hold:600ms;  /* решение 17.2 — оригинал стоит чётким до кросс-фейда */
   --motion-viewfinder:20000ms; /* решение 17.19 — 1.0 → 1.04 в видоискателе, туда и обратно */
+  /* однократный показ дельты после проявления (решение 17.32) */
+  --motion-delta-hold-result:600ms;    /* результат стоит, прежде чем показать оригинал */
+  --motion-delta-fade:350ms;           /* кросс-фейд туда и обратно */
+  --motion-delta-hold-original:1000ms; /* оригинал стоит */
   --ease-standard:cubic-bezier(.32,.72,0,1);
   --ease-sheet:cubic-bezier(.34,1.2,.64,1);
   --ease-accel:cubic-bezier(.3,0,.8,.15);
@@ -774,8 +785,12 @@ h1,h2,h3,p,ul,ol{margin:0;padding:0}
    Видоискатель во весь кадр, без скруглений: он не карточка, он изображение.
    Ни вспышки, ни переключения камер, ни режимов — нерабочая кнопка приглашает
    на тап, который ничего не делает; лучше пусто. */
-.Camera{position:absolute;inset:0;background:var(--color-bg-primary);overflow:hidden}
-.Camera__view{position:absolute;inset:0}
+.Camera{position:absolute;inset:0;background:var(--color-bg-primary);overflow:hidden;
+  display:flex;flex-direction:column}
+/* поля сверху и снизу — на них живут элементы; раньше они лежали поверх изображения */
+.Camera__top{flex:0 0 var(--size-camera-top);display:flex;align-items:center;
+  padding:var(--size-safe-top) var(--space-4) 0}
+.Camera__view{position:relative;flex:0 0 var(--size-camera-preview-h);overflow:hidden}
 .Camera__view .Frame{border-radius:0}
 /* очень медленный масштаб: изображение читается живым, а не фотографией.
    alternate вместо простого повтора — иначе на 20-й секунде кадр скачком возвращается в 1.0 */
@@ -785,7 +800,7 @@ h1,h2,h3,p,ul,ol{margin:0;padding:0}
 }
 @keyframes viewfinder{from{transform:scale(1)}to{transform:scale(1.04)}}
 .Camera__close{
-  position:absolute;top:calc(var(--size-safe-top) + var(--space-2));left:var(--space-4);z-index:3;
+  position:relative;z-index:3;
   width:var(--size-tap-min);height:var(--size-tap-min);border-radius:var(--radius-full);
   display:flex;align-items:center;justify-content:center;color:var(--color-text-on-image);
   background:var(--color-glass-fill);backdrop-filter:var(--effect-glass);
@@ -795,8 +810,7 @@ h1,h2,h3,p,ul,ol{margin:0;padding:0}
   background:var(--color-glass-floor);z-index:-1}
 .Camera__close:active{transform:scale(.97);opacity:.8}
 .Camera__bar{
-  position:absolute;left:var(--size-gutter);right:var(--size-gutter);z-index:3;
-  bottom:calc(var(--size-safe-bottom) + var(--space-4));
+  flex:1;z-index:3;padding:0 var(--size-gutter) var(--size-safe-bottom);
   display:grid;grid-template-columns:1fr auto 1fr;align-items:center}
 .Camera__thumb{
   justify-self:start;width:var(--size-tap-min);height:var(--size-tap-min);
@@ -2123,19 +2137,50 @@ function effectFixture(fx){
    hostFn возвращает контейнер, первый ребёнок которого — текущий кадр.
    Подмена кросс-фейдом в том же размере: «свет изменился», а не прыжок вёрстки. */
 function versionSegment(labels, sel, hostFn, override){
-  return segment(labels, sel, (i)=>{
+  const swap = (i, ms)=>{
     const host = hostFn(); if(!host) return;
     const v = FRAME_VERSIONS[i]; if(!v) return;
     const old = host.firstChild;
     const nf = Img.make(v.src, null, (override && override[i]) || v.opts);
     nf.classList.add("Frame--fade");
+    if(ms) nf.style.transitionDuration=ms+"ms";
     host.insertBefore(nf, old ? old.nextSibling : null);
     requestAnimationFrame(()=>nf.classList.add("is-in"));
     setTimeout(()=>{
       if(old && old.parentNode===host) old.remove();
-      nf.classList.remove("Frame--fade","is-in");
-    }, MS("--motion-menu")+40);
-  });
+      nf.classList.remove("Frame--fade","is-in"); nf.style.transitionDuration="";
+    }, (ms || MS("--motion-menu"))+40);
+  };
+  const g = segment(labels, sel, (i)=>swap(i));
+  /* кадр и подложка едут вместе — этим пользуется показ дельты (17.32) */
+  g.swapTo = (i, ms)=>{ g.select(i, ms); swap(i, ms); };
+  return g;
+}
+
+/* Однократный показ дельты (решение 17.32). Проявление кончилось — кадр сам один раз
+   показывает оригинал и возвращается к результату. Разницу иначе видит только тот,
+   кто сам нашёл переключатель, а дельта — главный аргумент продукта (решение 15.6).
+   Отмена любым касанием: слушатель на фазе захвата, как у перехвата автодемо,
+   поэтому срабатывает раньше обработчиков экрана, а само касание идёт дальше.
+   При prefers-reduced-motion показ не запускается вовсе: мигание кадром — ровно то,
+   от чего эта настройка защищает; мгновенная подмена была бы тем же миганием. */
+function deltaPeek(seg){
+  if(matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const dev=document.getElementById("device");
+  const F=MS("--motion-delta-fade"),
+        H1=MS("--motion-delta-hold-result"),
+        H2=MS("--motion-delta-hold-original");
+  let live=true; const timers=[];
+  const stop=()=>{ if(!live) return; live=false;
+    timers.forEach(clearTimeout);
+    ["pointerdown","touchstart","mousedown"].forEach(t=>dev.removeEventListener(t,stop,true)); };
+  ["pointerdown","touchstart","mousedown"].forEach(t=>
+    dev.addEventListener(t,stop,{capture:true,passive:true}));
+  /* экран мог смениться раньше, чем показ отыграл — тогда просто гасим таймеры */
+  const alive=()=>live && document.contains(seg);
+  timers.push(setTimeout(()=>{ if(alive()) seg.swapTo(0,F); else stop(); }, H1));
+  timers.push(setTimeout(()=>{ if(alive()) seg.swapTo(1,F); else stop(); }, H1+F+H2));
+  timers.push(setTimeout(stop, H1+F+H2+F+80));
 }
 
 const Screens = {};
@@ -2235,16 +2280,19 @@ function shoot(source){
 Screens["04a"]=s=>{
   const w=el("div","Camera"); s.append(w);
 
-  const view=el("div","Camera__view");
-  view.append(Img.make("today-original"));
-  w.append(view);
-
+  /* решение 17.33 — превью 3:4 между чёрными полями, элементы лежат на полях */
+  const top=el("div","Camera__top");
   const x=el("button","Camera__close");
   x.setAttribute("aria-label","Close camera");
   x.innerHTML='<svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" '+
     'stroke-width="1.8" stroke-linecap="round"><path d="M5 5l10 10M15 5L5 15"/></svg>';
   x.addEventListener("click",()=>Router.back());
-  w.append(x);
+  top.append(x);
+  w.append(top);
+
+  const view=el("div","Camera__view");
+  view.append(Img.make("today-original"));
+  w.append(view);
 
   const bar=el("div","Camera__bar");
   const thumb=el("button","Camera__thumb");
@@ -2347,6 +2395,7 @@ Screens["05"]=s=>{
             small ? {1:{seed:"today-original",variant:"small-delta"}} : null);
           seg.style.marginBottom="var(--space-4)";
           panel.insertBefore(seg, panel.firstChild);
+          deltaPeek(seg);                       /* решение 17.32 */
         }
         actions.innerHTML="";
         if(f.notice) actions.append(assign(el("div","t-body c-thinking"), f.notice));
@@ -2471,10 +2520,7 @@ function segment(items, sel, onChange){
   items.forEach((t,i)=>{
     const b=el("button","Segment__item t-caption"); b.textContent=t;
     b.setAttribute("aria-selected", String(i===sel));
-    b.addEventListener("click",()=>{
-      [...g.querySelectorAll(".Segment__item")].forEach((x,j)=>x.setAttribute("aria-selected",String(j===i)));
-      place(i); onChange && onChange(i,t);
-    });
+    b.addEventListener("click",()=>{ g.select(i); onChange && onChange(i,t); });
     g.append(b);
   });
   function place(i){
@@ -2482,6 +2528,15 @@ function segment(items, sel, onChange){
     const r=items2[i].getBoundingClientRect(), gr=g.getBoundingClientRect();
     ind.style.left=(r.left-gr.left)+"px"; ind.style.width=r.width+"px";
   }
+  /* Внешнее переключение: нужно показу дельты (17.32), чтобы подложка ехала вместе
+     с кадром и теми же длительностями. Иначе контрол врёт: кадр показывает одно,
+     подпись другое — и заодно теряется подсказка, что переключатель вообще есть. */
+  g.select=(i, ms)=>{
+    [...g.querySelectorAll(".Segment__item")].forEach((x,j)=>x.setAttribute("aria-selected",String(j===i)));
+    if(ms){ ind.style.transitionDuration=ms+"ms";
+            setTimeout(()=>{ ind.style.transitionDuration=""; }, ms+40); }
+    place(i);
+  };
   requestAnimationFrame(()=>place(sel));
   return g;
 }
@@ -3179,9 +3234,9 @@ const Demo = {
      своему таймеру, поэтому раз в секунду отправляем родительскому окну, где мы.
      Вне рамки не шлём ничего: слать некому. */
   /* Полный период круга вместе с паузой 1200 мс между кругами — замерено прогоном,
-     два круга подряд дали одно и то же: 26.4 с (сам круг 25.6 с). Полоса на странице кейса
+     два круга подряд дали одно и то же: 25.8 с (сам круг 25.4 с). Полоса на странице кейса
      берёт длительность отсюда, поэтому число обязано быть измеренным, а не прикинутым. */
-  totalMs:26400,
+  totalMs:25800,
   t0:0, step:"", beat:null,
 
   tick(){
@@ -3269,6 +3324,19 @@ const Demo = {
 
   async tap(node){ await this.point(node); if(!this.on) throw "stopped"; node.click(); },
 
+  /* Перезапуск круга должен быть виден. Мгновенная подмена через Router.reset в записи
+     читается как поломка, даже когда всё работает: экран просто перескакивает.
+     Кросс-фейд по --motion-alert (в демо 320 мс) — короткий, но достаточный,
+     чтобы глаз понял, что это переход, а не сбой. */
+  async fade(to){
+    const st=document.getElementById("stack"), D=MS("--motion-alert");
+    st.style.transition="opacity "+D+"ms "+
+      getComputedStyle(document.documentElement).getPropertyValue("--ease-standard");
+    st.style.opacity=String(to);
+    await this.sleep(D);
+    if(to===1){ st.style.transition=""; st.style.opacity=""; }
+  },
+
   btn(label){
     const n=[...document.querySelectorAll(".Button__label")]
       .find(x=>x.textContent.trim()===label);
@@ -3289,7 +3357,7 @@ const Demo = {
     try{
       while(this.on){
         await this.run();
-        await this.sleep(800);
+        await this.sleep(400);          /* стык кругов: экран уже погашен, ждать нечего */
       }
     }catch(e){ if(e!=="stopped" && this.on){ console.warn("demo:",e); this.stop(); } }
   },
@@ -3297,6 +3365,7 @@ const Demo = {
   /* сквозной путь ядра. Паузы стоят там, где есть что прочесть. ~45 с круг. */
   async run(){
     this.t0=Date.now(); this.at("today");
+    /* экран уже затемнён хвостом прошлого круга; на первом круге гасить нечего */
     /* сброс в начало */
     Object.assign(S,{todayKept:false,todayPreset:null,attempts:0,subscriber:false,
       coins:DEMO.coinsStart,onboarded:true});
@@ -3304,6 +3373,7 @@ const Demo = {
     document.querySelectorAll("#sheetLayer .Sheet,#sheetLayer .Scrim,.StoreKit").forEach(n=>n.remove());
     document.getElementById("sheetLayer").style.pointerEvents="none";
     Router.reset("03");
+    await this.fade(1);                 /* круг открывается видимым переходом */
 
     /* Темп круга (решения 17.28, 17.29). Выдержки стоят ТОЛЬКО на содержательных экранах:
        поле дней, оба пейвола, композиция рекапа, результат проявления, сохранённый день.
@@ -3332,7 +3402,11 @@ const Demo = {
     /* 05 — проявление идёт своим ходом: этапы, строка про 24 часа */
     this.at("reveal");
     await this.until(()=>this.btn("Keep in diary"), 14000);
-    await this.sleep(2500);          /* результат с переключателем «до / после» */
+    /* Ждём, пока отыграет показ дельты (17.32), и только потом уходим: при короткой
+       выдержке демо покидало 05 раньше, чем показ успевал начаться, и зритель его не видел.
+       Считаем от токенов, а не числом, чтобы не разъехалось при следующей правке темпа. */
+    await this.sleep(MS("--motion-delta-hold-result")+MS("--motion-delta-fade")*2
+                     +MS("--motion-delta-hold-original")+500);
     await this.tap(this.btn("Keep in diary"));
 
     /* 06 — день сохранён: подпись кадра, счётчик, блок TOMORROW */
@@ -3372,10 +3446,10 @@ const Demo = {
     await this.until(()=>document.querySelector("#sheetLayer .Sheet"), 4000);
     await this.sleep(1000);           /* цены и список видны с первого взгляда; читают на живом прототипе */
     this.at("paywall");
-    const yearly=[...document.querySelectorAll("#sheetLayer .PlanRow")][1];
-    if(yearly) { await this.tap(yearly); await this.sleep(400); }
+    /* Тап по годовому плану убран: он выбран по умолчанию, нажатие ничего не меняло,
+       и зритель считывал это как «нажали, а экран не отреагировал». */
     await this.tap(await this.until(()=>this.btn("Not now")));
-    await this.sleep(400);
+    await this.fade(0);                 /* гасим сразу, без паузы на пустом экране */
   }
 };
 /* Панель витрины (решение 17.31). Строка состояния и доступность кнопки идут за Demo:
