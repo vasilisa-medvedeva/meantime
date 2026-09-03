@@ -122,9 +122,9 @@ ul.l b{color:var(--ink-strong);font-weight:600}
 /* экраны */
 /* ширина полосы = ширине ряда телефонов: 3×246 + 2×60 = 858 — одинаковые поля с боков */
 .case-head{width:min(858px,94vw);margin:0 auto 28px;padding:0;text-align:left;
-  display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:12px 56px;align-items:start}
+  display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:12px 56px;align-items:end}
 .case-head__t{display:flex;flex-direction:column;gap:6px}
-.case-head__p{display:flex;flex-direction:column;gap:12px;padding-top:4px}
+.case-head__p{display:flex;flex-direction:column;gap:12px;padding-top:0}
 @media (max-width:900px){.case-head{grid-template-columns:1fr;padding:0 18px;width:auto}}
 .case-body{display:flex;flex-direction:column;gap:12px;padding-top:6px}
 .phones{display:flex;gap:60px;justify-content:center;align-items:flex-start;
