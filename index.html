@@ -1870,6 +1870,31 @@ const Router = {
     this.current=route; location.hash="#/"+route;
   },
 
+  /* решение 17.35 — после «Keep in diary» человек уезжает сразу в дневник: экран приходит
+     слайдом поверх проявления, а после анимации становится корнем вкладки Diary */
+  switchTo(id){
+    if(this.busy) return; this.busy=true;
+    const route=this.root[id];
+    const D=MS("--motion-screen");
+    const ease=getComputedStyle(document.documentElement).getPropertyValue("--ease-standard");
+    const old=this.stack.slice(), top=old[old.length-1];
+    const s=this.build(route);
+    s.style.transform="translateX(100%)"; s.style.willChange="transform";
+    this.el().append(s); void s.offsetWidth;
+    this.stack=old.concat([{route, el:s, mode:"slide"}]);
+    requestAnimationFrame(()=>{
+      s.style.transition="transform "+D+"ms "+ease; s.style.transform="translateX(0)";
+      if(top){ top.el.style.transition="transform "+D+"ms "+ease+", opacity "+D+"ms "+ease;
+        top.el.style.transform="translateX(-30%)"; top.el.style.opacity=".6"; }
+    });
+    setTimeout(()=>{
+      old.forEach(f=>f.el.remove());
+      this.stack=[{route, el:s, mode:"root"}];
+      s.style.transition=""; s.style.willChange=""; this.busy=false;
+    }, D+20);
+    this.current=route; location.hash="#/"+route;
+  },
+
   reset(route){
     this.stack.forEach(f=>f.el.remove());
     const s=this.build(route); this.el().append(s);
@@ -2712,7 +2737,9 @@ Screens["09"]=s=>{
   a.append(UI.Button({label:"Save image",variant:"secondary",onTap:()=>{
     Analytics.track("result_shared",{artifact:"day",destination:"photos",watermark:!S.subscriber});
     if(S.subscriber) Analytics.track("quality_render",{trigger:"export",count_this_month:1});
-    banner("Saved to Photos"); }}));
+    /* решение 17.35 — сохранил кадр → сразу в дневник, где он уже стоит среди накопленного */
+    banner("Saved to Photos");
+    setTimeout(()=>Router.switchTo("diary"), MS("--motion-alert")+120); }}));
   w.append(a);
 };
 
