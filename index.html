@@ -3009,7 +3009,10 @@ const Demo = {
      рядом идёт полоса прогресса. Полоса должна идти по настоящему кругу, а не по
      своему таймеру, поэтому раз в секунду отправляем родительскому окну, где мы.
      Вне рамки не шлём ничего: слать некому. */
-  totalMs:45000,          /* полная длительность круга; замерено прогоном, ~45 с */
+  /* Полный период круга вместе с паузой 1200 мс между кругами — замерено прогоном,
+     два круга подряд дали одно и то же: 43.6 с. Полоса на странице кейса берёт длительность
+     отсюда, поэтому число обязано быть измеренным, а не прикинутым. */
+  totalMs:43600,
   t0:0, step:"", beat:null,
 
   tick(){
@@ -3129,16 +3132,27 @@ const Demo = {
     document.getElementById("sheetLayer").style.pointerEvents="none";
     Router.reset("03");
 
-    /* 03 — карточка фильтра дня: имя фильтра, обещание квоты, тикающий отсчёт */
+    /* 03 — карточка дня: вопрос, обещание квоты, тикающий отсчёт */
     await this.sleep(4200);
-    await this.tap(await this.until(()=>this.btn("Pick from today’s photos")));
+    await this.tap(await this.until(()=>this.btn("Take a photo")));
 
-    /* 04 — галерея дня: один снимок, тот же кадр настоящей пары (решение 17.19) */
+    /* 04a — камера: пауза, чтобы зритель понял, что это видоискатель, а не фотография */
+    this.at("camera");
+    await this.until(()=>document.querySelector(".Camera__shutter"), 4000);
+    await this.sleep(1600);
+
+    /* 04 — вторая дверь в проявление: галерея из одного снимка (решение 17.19).
+       Показываем и закрываем — снимать всё равно будем спуском */
     this.at("gallery");
-    await this.sleep(1500);
-    const pick=await this.until(()=>document.querySelector("#sheetLayer .GalleryOne:not(.Skeleton)"));
-    await this.sleep(900);
-    await this.tap(pick);
+    await this.tap(document.querySelector(".Camera__thumb"));
+    await this.until(()=>document.querySelector("#sheetLayer .GalleryOne:not(.Skeleton)"), 4000);
+    await this.sleep(1600);
+    await this.tap(await this.until(()=>this.btn("Cancel")));
+    await this.sleep(700);
+
+    /* спуск — первый шаг core-flow, ради которого и заведён экран камеры */
+    this.at("shutter");
+    await this.tap(await this.until(()=>document.querySelector(".Camera__shutter")));
 
     /* 05 — проявление идёт своим ходом: этапы, строка про 24 часа */
     this.at("reveal");
