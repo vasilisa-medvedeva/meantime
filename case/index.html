@@ -43,7 +43,15 @@ a:focus-visible{outline:2px solid var(--blue);outline-offset:3px;border-radius:4
 .cover-grid{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:64px;align-items:stretch;max-width:1000px;margin:0 auto}
 .cover-txt{min-width:0;container-type:inline-size;display:flex;flex-direction:column}
 .cover-mid{margin-block:auto;padding:26px 0}
-.mock-col{display:flex;flex-direction:column;align-items:center;gap:14px}
+.mock-col{display:flex;flex-direction:row;align-items:flex-end;gap:18px}
+.mock-stack{display:flex;flex-direction:column;align-items:center;gap:12px}
+.ctrl{display:flex;flex-direction:column;align-items:flex-start;gap:10px;width:116px;padding-bottom:26px}
+.ctrl__s{font-size:13px;line-height:1.35;color:var(--night);opacity:.6}
+.ctrl__b{display:inline-flex;align-items:center;gap:7px;padding:9px 15px;border-radius:999px;
+  font-family:var(--body);font-size:13.5px;font-weight:600;color:var(--night);background:#fff;
+  border:1px solid rgba(43,53,80,.14);cursor:pointer;transition:transform .16s ease,box-shadow .16s ease}
+.ctrl__b:hover{transform:translateY(-1px);box-shadow:0 5px 14px rgba(20,25,40,.12)}
+.ctrl__b[disabled]{opacity:.4;cursor:default;transform:none;box-shadow:none}
 .mock{position:relative;width:248px;height:538px;border-radius:38px;padding:7px;
   background:#0B0D13;box-shadow:0 18px 44px rgba(20,25,40,.28);flex:none}
 .mock__vp{position:relative;width:234px;height:524px;border-radius:32px;overflow:hidden;background:#05070C}
@@ -142,6 +150,8 @@ ul.l b{color:var(--ink-strong);font-weight:600}
 
 @media (max-width:900px){
   .cover-grid{grid-template-columns:1fr;gap:32px;justify-items:center;text-align:center}
+  .mock-col{flex-direction:column;align-items:center}
+  .ctrl{flex-direction:row;align-items:center;width:auto;padding:0}
   .cover-txt{max-width:460px}
   .cover-sub{margin-left:auto;margin-right:auto}
   .try{justify-content:center}
@@ -180,6 +190,7 @@ ul.l b{color:var(--ink-strong);font-weight:600}
       </div>
     </div>
     <div class="mock-col">
+      <div class="mock-stack">
       <div class="mock" id="mock">
         <div class="mock__vp">
           <iframe id="proto" src="../?demo&v=202609032009" title="Прототип Meantime" loading="lazy" scrolling="no"></iframe>
@@ -189,6 +200,11 @@ ul.l b{color:var(--ink-strong);font-weight:600}
       <div class="bar" id="bar">
         <div class="bar__track"><div class="bar__fill" id="fill"></div></div>
         <div class="bar__meta"><b id="clock">0:00 / 0:45</b></div>
+      </div>
+      </div>
+      <div class="ctrl">
+        <div class="ctrl__s" id="state">Прототип идёт сам</div>
+        <button class="ctrl__b" id="replay" type="button" disabled>Демо ↻</button>
       </div>
     </div>
   </div>
@@ -281,9 +297,15 @@ ul.l b{color:var(--ink-strong);font-weight:600}
 /* живой мокап: полоса идёт по сообщениям от прототипа, при их отсутствии — по своему таймеру */
 (function(){
   var mock=document.getElementById("mock"), fill=document.getElementById("fill"),
-      clock=document.getElementById("clock"),
-      frame=document.getElementById("proto");
+      clock=document.getElementById("clock"), state=document.getElementById("state"),
+      replay=document.getElementById("replay"), frame=document.getElementById("proto");
   if(!mock) return;
+  var base=frame.getAttribute("src");
+  replay.addEventListener("click",function(){
+    frame.setAttribute("src", base+"&r="+Date.now());
+    mock.classList.remove("is-off"); replay.disabled=true;
+    state.textContent="Прототип идёт сам"; heard=false; on=true; t0=Date.now();
+  });
   var TOTAL=45000, heard=false, t0=Date.now(), on=true;
   function fmt(ms){var s=Math.max(0,Math.round(ms/1000));return Math.floor(s/60)+":"+String(s%60).padStart(2,"0")}
   function draw(el,total){
@@ -294,7 +316,7 @@ ul.l b{color:var(--ink-strong);font-weight:600}
     var d=e.data; if(!d||d.source!=="meantime-demo") return;
     heard=true; on=d.on!==false; TOTAL=d.total||TOTAL;
     draw(d.elapsed||0,TOTAL);
-    if(!on){ mock.classList.add("is-off"); }
+    if(!on){ mock.classList.add("is-off"); state.textContent="Управление у вас"; replay.disabled=false; }
   });
   setInterval(function(){
     if(heard||!on) return;
@@ -307,6 +329,7 @@ ul.l b{color:var(--ink-strong);font-weight:600}
     if(!ok){
       mock.classList.add("is-static");
       document.getElementById("bar").style.display="none";
+      document.querySelector(".ctrl").style.display="none";
     }
   },3500);
 })();
