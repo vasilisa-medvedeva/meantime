@@ -217,7 +217,7 @@ ul.l b{color:var(--ink-strong);font-weight:600}
       </div>
       <div class="bar" id="bar">
         <div class="bar__track"><div class="bar__fill" id="fill"></div></div>
-        <div class="bar__meta"><b id="clock">0:00 / 0:36</b></div>
+        <div class="bar__meta"><b id="clock">0:00 / 0:28</b></div>
       </div>
       </div>
     </div>
@@ -329,7 +329,7 @@ addEventListener("load",function(){ setTimeout(function(){ if(!location.hash) wi
     mock.classList.remove("is-off"); ctrl.classList.remove("is-on");
     heard=false; on=true; t0=Date.now();
   });
-  var TOTAL=35500, heard=false, t0=Date.now(), on=true;   /* = Demo.totalMs в прототипе; уточняется первым сообщением */
+  var TOTAL=28100, heard=false, t0=Date.now(), on=true;   /* = Demo.totalMs в прототипе; уточняется первым сообщением */
   function fmt(ms){var s=Math.max(0,Math.round(ms/1000));return Math.floor(s/60)+":"+String(s%60).padStart(2,"0")}
   function draw(el,total){
     fill.style.width=Math.min(100,(el/total)*100)+"%";
