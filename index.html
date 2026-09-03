@@ -81,6 +81,9 @@
   --size-effect-prev-h:108px;    /* ux-brief §11 — превью 145×108 */
   --size-share-card-w:252px;     /* ux-brief §09 — карточка 9:16 */
   --size-share-card-h:448px;     /* ux-brief §09 */
+  --size-sharecard-mark:26px;    /* решение 17.12 — вордмарк на карточке 252×448, ориентир 24–28 */
+  --share-thumb-scale:.214;      /* 96 / 448 — во столько ужата карточка в превью шита.
+                                    Ширина при этом 252 × .214 = 54 = --size-share-thumb-day-w */
   --size-pick-tile:110px;        /* ux-brief §04 — плитки ряда 110×110 */
   --size-pick-cell:94px;         /* ux-brief §04 — ячейка сетки 94 */
   --size-tomorrow-h:56px;        /* ui-spec §06 — блок TOMORROW сжат до 56 */
@@ -528,7 +531,7 @@ h1,h2,h3,p,ul,ol{margin:0;padding:0}
    переключателя читалась бы как «ничего не произошло». Берём today.jpg и гоним через
    выраженный холодный сдвиг, подъём яркости и размытие по краям. Заменить настоящим
    рендером по промпту из assets/PROMPTS.md — см. «известные срезы» в component-map.md. */
-.Frame--fx .Frame__img{filter:hue-rotate(-38deg) saturate(1.55) brightness(1.16) contrast(1.06)}
+.Frame--fx .Frame__img{filter:hue-rotate(165deg) saturate(1.45) brightness(1.18) contrast(1.05)}
 .Frame--fx::after{
   content:"";position:absolute;inset:0;pointer-events:none;z-index:1;
   backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);
@@ -652,6 +655,12 @@ h1,h2,h3,p,ul,ol{margin:0;padding:0}
 .ShareCard{position:relative;width:var(--size-share-card-w);height:var(--size-share-card-h);
   border-radius:var(--radius-lg);overflow:hidden;margin:0 auto}
 .ShareCard__text{position:absolute;left:var(--space-4);right:var(--space-4);bottom:var(--space-5);z-index:2}
+/* решение 17.12 — вотермарк стал вордмарком: тот же начерк, что t-display на 01 и 03,
+   размер под карточку. У неподписчика он же служит меткой, у подписчика снимается. */
+.ShareCard__mark{
+  font-size:var(--size-sharecard-mark);line-height:1.08;font-weight:700;letter-spacing:-.3px;
+  text-shadow:0 1px 10px var(--color-scrim-image-strong);
+}
 .TapRow{display:flex;align-items:center;justify-content:space-between;width:100%;
   min-height:var(--size-tap-min);padding:0 var(--space-4);border-radius:var(--radius-md);
   background:var(--color-surface-raised);border:var(--size-hairline) solid var(--color-border-default);
@@ -668,9 +677,10 @@ h1,h2,h3,p,ul,ol{margin:0;padding:0}
   height:var(--size-share-thumb-h);border-radius:var(--radius-md);overflow:hidden}
 .ShareSheet[data-kind="day"]  .ShareSheet__thumb{width:var(--size-share-thumb-day-w)}
 .ShareSheet[data-kind="week"] .ShareSheet__thumb{width:var(--size-share-thumb-week-w)}
-/* вотермарк на миниатюре — тот же знак, ужатый до масштаба превью, а не другой элемент */
-.ShareSheet__thumb .Watermark{transform:scale(.5);transform-origin:100% 100%;white-space:nowrap;
-  right:var(--space-1);bottom:var(--space-1)}
+/* превью повторяет композицию карточки один в один: та же разметка, ужатая трансформом.
+   Своей разметки у превью нет намеренно — иначе оно расходится с тем, что уйдёт в шеринг. */
+.ShareSheet__thumb .ShareCard--mini{position:absolute;top:0;left:0;margin:0;
+  transform-origin:0 0;transform:scale(var(--share-thumb-scale))}
 .ShareSheet__dests{display:flex;gap:var(--space-3);overflow-x:auto;scrollbar-width:none;
   padding:0 var(--size-gutter)}
 .ShareSheet__dests::-webkit-scrollbar{display:none}
@@ -1428,8 +1438,8 @@ const UI = {
 
     const prev=el("div","ShareSheet__prev");
     const th=el("div","ShareSheet__thumb");
+    /* метку рисует сам thumb: с решения 17.12 ею служит вордмарк на карточке */
     if(thumb) th.append(thumb);
-    if(watermark) th.append(el("div","CornerScrim"), watermarkEl());
     const txt=el("div","stack gap1");
     txt.append(assign(el("div","t-h2"),title), assign(el("div","t-caption c-secondary"),sub));
     prev.append(th, txt);
@@ -1893,7 +1903,7 @@ Screens["03"]=s=>{
     w.append(tm);
 
     const a=el("div","stack gap3 mt4");
-    a.append(UI.Button({label:"Share today",onTap:()=>Router.go("09")}));
+    a.append(UI.Button({label:"Share today",onTap:()=>goShare(DEMO.dayIndex)}));
     /* решение 17.8 — `Open diary` здесь дубль: под ней таб-бар с вкладкой DIARY.
        На 06 кнопка остаётся, там таб-бара нет */
     a.append(UI.Button({label:"Replace photo",variant:"text",onTap:()=>Sheets.softPaywall("replace_photo")}));
@@ -2083,7 +2093,7 @@ function keptScreen(s, extra){
   w.append(tm);
 
   const a=el("div","stack gap2 mt4");
-  a.append(UI.Button({label:"Share today",onTap:()=>Router.go("09")}));
+  a.append(UI.Button({label:"Share today",onTap:()=>goShare(DEMO.dayIndex)}));
   a.append(UI.Button({label:"Open diary",variant:"secondary",onTap:()=>Router.tab("diary")}));
   if(extra){
     const r=el("div","row"); r.style.justifyContent="space-between";
@@ -2196,10 +2206,44 @@ Screens["08"]=s=>{
            assign(el("div","t-caption c-secondary"), WD[d.getDay()]+". Kept at 22:40."));
   w.append(m);
   const a=el("div","stack gap3 mt5");
-  a.append(UI.Button({label:"Share this day",onTap:()=>Router.go("09")}));
+  a.append(UI.Button({label:"Share this day",onTap:()=>goShare(i)}));
   a.append(UI.Button({label:"Replace photo",variant:"text",onTap:()=>Sheets.softPaywall("replace_photo")}));
   w.append(a);
 };
+
+/* Карточка шеринга: одна разметка на экран 09 и на превью в шите (решение 17.12).
+   Метка неподписчика — сам вордмарк; у подписчика карточка уходит чистой. */
+function shareCard(ctx, mini){
+  const c=el("div","ShareCard"+(mini?" ShareCard--mini":" mt4"));
+  c.append(Img.make(ctx.asset, null, ctx.opts), el("div","Scrim7"));
+  const t=el("div","ShareCard__text stack gap2");
+  t.append(assign(el("div","t-counter-meta c-on-image"),
+    "DAY "+ctx.index+(ctx.extra?" · "+effectUpper():"")+" · "+fmtMDup(ctx.date)));
+  if(!S.subscriber) t.append(assign(el("div","ShareCard__mark c-on-image"),"meantime"));
+  c.append(t);
+  return c;
+}
+
+/* Контекст шеринга: 09 берёт день из входа, а не всегда «сегодня» (дефект владельца).
+   03 и 06 → сегодняшний день, 08 → S._viewDay, 14 → ветка эффекта до сохранения. */
+function shareCtx(){
+  const i = S._shareDay || DEMO.dayIndex;
+  const isToday = (i===DEMO.dayIndex);
+  const extra = isToday && (S._shareExtra || isExtra());
+  return {
+    index:i, date:dayDate(i), extra,
+    asset: extra ? "fx-after" : (isToday ? "today" : frameOf(i)),
+    opts:  extra ? VERSION_OPTS[2] : (isToday ? VERSION_OPTS[1] : null)
+  };
+}
+/* На 09 нельзя попасть без кадра: все четыре входа лежат на экранах, где кадр уже есть.
+   Защита на случай, если вход появится в другом месте. */
+function goShare(dayIndex, extra){
+  const i = dayIndex || DEMO.dayIndex;
+  if(i===DEMO.dayIndex && !S.todayKept && !extra){ banner("Keep today’s frame first"); return; }
+  S._shareDay=i; S._shareExtra=!!extra;
+  Router.go("09");
+}
 
 /* --- 09 · Карточка дня для шеринга ------------------------------------- */
 Screens["09"]=s=>{
@@ -2210,19 +2254,7 @@ Screens["09"]=s=>{
   n.append(x, assign(el("div","NavBar__title t-h2"),"Share"));
   w.append(n);
 
-  const card=el("div","ShareCard mt4");
-  card.append(Img.make(isExtra()?"fx-after":"today", null,
-    isExtra()?VERSION_OPTS[2]:VERSION_OPTS[1]), el("div","Scrim7"));
-  const t=el("div","ShareCard__text stack gap2");
-  t.append(assign(el("div","t-counter-meta c-on-image"),
-             "DAY "+DEMO.dayIndex+(isExtra()?" · "+effectUpper():"")+" · "+fmtMDup(DEMO.today)),
-           assign(el("div","t-h2 c-on-image"),
-             isExtra()
-               ? "Everyone gets one upgrade a day — this one went further."
-               : "Everyone gets one upgrade a day."));
-  card.append(t);
-  if(!S.subscriber) card.append(watermarkEl());
-  w.append(card);
+  w.append(shareCard(shareCtx()));
 
   const row=el("button","TapRow mt5");
   if(S.subscriber){
@@ -2365,7 +2397,7 @@ Screens["14"]=s=>{
     Analytics.track("effect_kept",{preset_id:presetId(effectTitle())});
     Router.resetTo("03","06a");
   }}));
-  a.append(UI.Button({label:"Share",variant:"secondary",onTap:()=>Router.go("09")}));
+  a.append(UI.Button({label:"Share",variant:"secondary",onTap:()=>goShare(DEMO.dayIndex,true)}));
   const r=el("div","row"); r.style.justifyContent="space-between";
   const d=UI.Button({label:"Discard",variant:"text",onTap:()=>actionSheet([
     {label:"Discard this render",role:"destructive",onTap:()=>{
@@ -2520,8 +2552,7 @@ Sheets.share = (kind, fx)=>{
     b.style.paddingLeft="0"; b.style.paddingRight="0";
     let thumb;
     if(day){
-      thumb=Img.make(isExtra()?"fx-after":"today", null,
-        isExtra()?VERSION_OPTS[2]:VERSION_OPTS[1]);
+      thumb=shareCard(shareCtx(), true);
     }else{
       thumb=el("div","RecapComp");
       ["TL","TR","BL","BR"].forEach(q=>{
@@ -2541,7 +2572,7 @@ Sheets.share = (kind, fx)=>{
     };
     b.append(UI.ShareSheet({
       kind: day?"day":"week", watermark:wm, thumb,
-      title: day ? "Meantime · Day "+DEMO.dayIndex+" of "+DEMO.periodLength
+      title: day ? "Meantime · Day "+shareCtx().index+" of "+DEMO.periodLength
                  : "Week "+((fx&&fx.week)||6)+" · Meantime",
       sub:   wm ? "Image · watermark on" : "Image · full quality",
       onPick: fire
@@ -2788,9 +2819,16 @@ const EventLogView = {
 
   Analytics.track("session_started",{returning:false,day_index:DEMO.dayIndex,period:S.period});
 
-  const hash=(location.hash||"").replace("#/","");
-  const start = hash && Screens[hash] ? hash : "03";
-  Router.reset(start);
+  /* решение 17.11 — экран из адреса не восстанавливается: `Router` пишет hash на каждом
+     переходе, и обновление страницы открывало, например, модальный 09 без таб-бара.
+     Старт всегда с пустого Today; hash чистится, чтобы следующее обновление тоже начало с нуля.
+     Отладочный вход — явный `?screen=NN`. Запись hash во время работы остаётся:
+     на ней держится кнопка «назад» в браузере. */
+  const forced=qs.get("screen");
+  Router.reset(forced && Screens[forced] ? forced : "03");
+  /* hash, записанный первым же reset, сразу стираем: обновление страницы обязано
+     начинаться с нуля. Дальнейшие переходы пишут hash как раньше — на нём «назад» браузера. */
+  try{ history.replaceState(null,"",location.pathname+location.search); }catch(e){}
   splash();
 })();
 
