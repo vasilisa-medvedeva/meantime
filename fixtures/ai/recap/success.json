@@ -17,6 +17,7 @@
       "day": 39,
       "asset": "recap-1",
       "luma": 0.58,
+      "luma_text": 0.18,
       "locked": true
     },
     {
@@ -24,6 +25,7 @@
       "day": 40,
       "asset": "recap-2",
       "luma": 0.6,
+      "luma_text": 0.128,
       "locked": true
     },
     {
@@ -31,6 +33,7 @@
       "day": 37,
       "asset": "recap-4",
       "luma": 0.21,
+      "luma_text": 0.042,
       "locked": false
     },
     {
@@ -38,6 +41,7 @@
       "day": 34,
       "asset": "recap-3",
       "luma": 0.63,
+      "luma_text": 0.069,
       "locked": false
     }
   ],

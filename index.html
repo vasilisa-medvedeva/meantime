@@ -87,6 +87,7 @@
   --size-pick-tile:110px;        /* ux-brief §04 — плитки ряда 110×110 */
   --size-pick-cell:94px;         /* ux-brief §04 — ячейка сетки 94 */
   --size-tomorrow-h:56px;        /* ui-spec §06 — блок TOMORROW сжат до 56 */
+  --size-lens-mark:64px;         /* решение 17.13 — диафрагма в заглушке карточки дня */
   /* шит шеринга (решение 17) — имитация системного листа iOS в токенах проекта */
   --size-share-thumb-h:96px;       /* высота миниатюры карточки в строке превью */
   --size-share-thumb-day-w:54px;   /* 96 × 9/16 — карточка дня, ux-brief §09 */
@@ -596,6 +597,18 @@ h1,h2,h3,p,ul,ol{margin:0;padding:0}
 /* --- 03 карточка фильтра --- */
 .FilterCard{border-radius:var(--radius-lg);overflow:hidden;background:var(--color-surface-raised)}
 .FilterCard__img{position:relative;height:var(--size-filter-img-h)}
+/* Заглушка карточки дня (решение 17.13). У дневного апгрейда нет имени и нет превью
+   (решение 15) — фотография здесь читалась бы как образец результата и обещала бы то,
+   чего продукт не обещает. Диафрагма отсылает к съёмке и к оптике направления
+   и при этом не обещает ничего. Скрима под текстом нет: кадра под ним тоже нет. */
+.FilterCard__blank{
+  position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  background:linear-gradient(180deg,var(--color-bg-gradient-top) 0%,transparent 72%),
+             var(--color-surface-raised);
+  color:var(--color-text-tertiary);
+}
+.FilterCard__blank svg{width:var(--size-lens-mark);height:var(--size-lens-mark);
+  margin-bottom:var(--space-10)}
 .FilterCard__text{position:absolute;left:var(--space-4);right:var(--space-4);bottom:var(--space-4);z-index:2}
 .FilterCard__foot{padding:var(--space-4);display:flex;flex-direction:column;gap:var(--space-3)}
 
@@ -708,6 +721,19 @@ h1,h2,h3,p,ul,ol{margin:0;padding:0}
 
 /* --- 10 композиция рекапа --- */
 .RecapFull{position:relative;height:var(--size-recap-comp-h);border-radius:var(--radius-lg);overflow:hidden}
+/* Усиление скрима под текстовым блоком. Плашка запрещена решением 10.11, поэтому тянем
+   тот же градиент — но только снизу: к границе квадрантов (50 % высоты) слой уходит в ноль,
+   верхний ряд с размытыми квадрантами пейвола не трогается вовсе.
+   Нужно потому, что текст шириной 310 лежит на обоих нижних кадрах, и правило тёмного ряда
+   даёт запас всего 4.76:1 в худшей точке — на пороге. С усилением запас 5.5–6:1. */
+.RecapFull .Scrim7::after,.RecapCard .Scrim7::after{
+  content:"";position:absolute;left:0;right:0;bottom:0;height:50%;
+  background:linear-gradient(0deg,
+    var(--color-scrim-image-3) 0%,
+    var(--color-scrim-image-3) 45%,
+    var(--color-scrim-image-4) 92%,
+    var(--color-scrim-image-zero) 100%);
+}
 .RecapFull .RecapComp .Frame[data-locked="1"]{filter:blur(9px) saturate(.5)}
 .RecapFull__text{position:absolute;left:var(--space-4);right:var(--space-4);bottom:var(--space-4);z-index:2}
 
@@ -852,7 +878,7 @@ const DEMO = {
   dayIndex:40,
   kept:37,                          // 40 прошедших − 3 пропущенных; на всех экранах постоянно
   skipped:{12:0, 36:3, 38:1},       // день → сколько кадров той даты лежит в библиотеке
-  upgradeToday:"TODAY’S UPGRADE",     // решение 15 — один апгрейд в сутки, имён пресетов нет
+  /* upgradeToday снят решением 17.14: карточка задаёт вопрос, а не вешает ярлык функции */
   upgradeTomorrow:"ANOTHER UPGRADE",
   countdownStart:14*3600 + 32*60 + 6, // NEXT UPGRADE IN 14:32:06
   coinsStart:8,
@@ -1090,14 +1116,19 @@ const FIXTURES = {
   stat:"5 OF 7 KEPT · 2 MORE ARE ON YOUR PHONE",
   /* решение 10.14 — самый тёмный кадр в нижний левый квадрант, под кикер и заголовок */
   /* Имена recap-N позиционные: 1=TL, 2=TR, 3=BL, 4=BR (assets/FRAMES.md).
-     Нижние квадранты обменяны содержимым целиком — кадр, день и luma переехали вместе,
-     фотография осталась при своём дне. Причина: в макете под кикером лежал самый СВЕТЛЫЙ
-     кадр (кухня, 63 %), а решение 10.14 требует там самый тёмный (горы, 21 %).
-     luma — измеренные значения из assets/FRAMES.md п. 1, а не прежние выдуманные. */
-  quadrants:[{q:"TL",day:39,asset:"recap-1",luma:0.58,locked:true},
-             {q:"TR",day:40,asset:"recap-2",luma:0.60,locked:true},
-             {q:"BL",day:37,asset:"recap-4",luma:0.21,locked:false},
-             {q:"BR",day:34,asset:"recap-3",luma:0.63,locked:false}],
+     Правило 10.14 — про НИЖНИЙ РЯД целиком: текстовый блок шириной 310 при композиции 342
+     пересекает границу квадрантов, поэтому «тёмный квадрант» описывает ряд, а не клетку.
+     Ранжируем по `luma_text` — яркости ПОЛОСЫ, на которой лежит текст, а не по средней
+     по кадру: они дают противоположный порядок. Кухня (recap-3) — самый светлый кадр недели
+     в среднем (0.63) и при этом второй самый ТЁМНЫЙ в полосе кикера (0.069), потому что
+     верх кадра занимает тёмная стена; сёрфер (recap-1) наоборот — 0.58 в среднем и 0.180
+     в полосе, там белая пена. Замеры на композите, см. отчёт сборки.
+     Вниз идут два самых тёмных ПО ПОЛОСЕ, самый тёмный — влево, где начинается кикер.
+     Кадр, день и обе luma переставляются вместе — фотография остаётся при своём дне. */
+  quadrants:[{q:"TL",day:39,asset:"recap-1",luma:0.58,luma_text:0.180,locked:true},
+             {q:"TR",day:40,asset:"recap-2",luma:0.60,luma_text:0.128,locked:true},
+             {q:"BL",day:37,asset:"recap-4",luma:0.21,luma_text:0.042,locked:false},
+             {q:"BR",day:34,asset:"recap-3",luma:0.63,luma_text:0.069,locked:false}],
   dark_quadrant:"BL",kicker_scrim_fallback:false},
 "recap/composing":{scenario:"recap",fixture:"composing",period:"week",week:6,latency_ms:8000,
   slow_threshold_ms:20000,
@@ -1110,7 +1141,7 @@ const FIXTURES = {
   title:"Couldn’t compose yet",actions:[{id:"retry",label:"Try again",variant:"primary"}]},
 "recap/single":{scenario:"recap",fixture:"single",period:"week",week:6,frames_in:1,of:7,
   caption:"One frame this week.",kicker:"WEEK 6 · SEP 7 – SEP 13 · BY MEANTIME",
-  stat:"1 OF 7 KEPT",quadrants:[{q:"BL",day:37,asset:"recap-4",luma:0.21,locked:false}]},
+  stat:"1 OF 7 KEPT",quadrants:[{q:"BL",day:37,asset:"recap-4",luma:0.21,luma_text:0.042,locked:false}]},
 
 "effect/success":{scenario:"effect",fixture:"success",tier:"quality",latency_ms:6000,
   slow_threshold_ms:12000,cancelable_until:"developing",preset_id:"snow_globe",preset:"Snow globe",
@@ -1784,6 +1815,18 @@ function navBack(label){
 }
 function counterEl(cls){ const n=el("span",cls||"t-counter c-accent");
   n.dataset.countdown="1"; n.textContent=Countdown.fmt(); return n; }
+/* Диафрагма: шесть лепестков, чистый SVG, обводка 1.5 в системе координат 64 —
+   то есть 1.5 px на экране при размере 64 (решение 17.13). */
+function lensBlank(){
+  const n=el("div","FilterCard__blank");
+  n.innerHTML='<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="1.5" '+
+    'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+
+    '<circle cx="32" cy="32" r="25.3"/>'+
+    '<path d="M44.3 32L38.1 42.6L25.9 42.6L19.7 32L25.9 21.4L38.1 21.4Z"/>'+
+    '<path d="M44.3 32L44.7 53.9M38.1 42.6L19.3 53.9M25.9 42.6L6.7 32'+
+    'M19.7 32L19.3 10.1M25.9 21.4L44.7 10.1M38.1 21.4L57.3 32"/></svg>';
+  return n;
+}
 function watermarkEl(){ const w=el("span","Watermark t-meta"); w.textContent="meantime · AI"; return w; }
 function metaLine(txt,cls){ return assign(el("div",cls||"t-counter-meta c-secondary"), txt); }
 
@@ -1843,7 +1886,9 @@ const Screens = {};
 Screens["01"]=s=>{
   const w=scrollBox(s);
   w.append(assign(el("h1","t-display"),"meantime"));
-  const f=Img.make("day-16"); f.style.height="var(--size-frame-square)";
+  /* решение 17.13 распространено на 01: чужой кадр из сетки заменён своим,
+     необработанным `today-original`. Заглушку сюда не ставлю — см. отчёт сборки. */
+  const f=Img.make("today-original"); f.style.height="var(--size-frame-square)";
   f.style.borderRadius="var(--radius-lg)"; f.style.marginTop="var(--space-6)";
   w.append(f);
   const t=el("div","stack gap3 mt6");
@@ -1865,9 +1910,12 @@ Screens["03"]=s=>{
     /* день ещё не снят — плотная карточка дня с макета 104:47, без изменений */
     const card=el("div","FilterCard mt5");
     const img=el("div","FilterCard__img");
-    img.append(Img.make("day-16"), el("div","Scrim7"));
+    img.append(lensBlank());                       /* решение 17.13 */
     const it=el("div","FilterCard__text stack gap1");
-    it.append(assign(el("div","t-h1 c-on-image"), DEMO.upgradeToday));
+    /* решение 17.14 — карточка спрашивает, а не объявляет. Ответ на вопрос — снятый кадр:
+       поля ввода в продукте нет по решению 4. Ярлык `TODAY’S UPGRADE` снят совсем,
+       оба триггера решения 15.1 на месте: хроника строкой сверху, апгрейд с отсчётом в подвале. */
+    it.append(assign(el("div","t-h1"), "What does today look like?"));
     img.append(it); card.append(img);
     const foot=el("div","FilterCard__foot");
     foot.append(assign(el("div","t-body c-secondary"),"One upgrade a day, on us — the same one for everyone."));
