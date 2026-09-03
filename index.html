@@ -243,7 +243,10 @@ h1,h2,h3,p,ul,ol{margin:0;padding:0}
 .Stage{position:relative;display:flex;flex-direction:column;align-items:center;gap:0}
 .Device{
   position:fixed;inset:0;
-  width:auto;height:100vh;height:100dvh;
+  width:auto;height:auto;      /* решение 17.47 — без явной высоты: устройство привязано к верху и низу
+                                  окна и следует за ним непрерывно. Явный 100dvh считался один раз при
+                                  первой отрисовке в Chrome на Android, когда панель браузера ещё в переходном
+                                  состоянии, и застывал на 5/6; перезагрузка давала уже верное значение */
   border-radius:0;overflow:hidden;
   background:var(--color-bg-primary);
   box-shadow:none;
