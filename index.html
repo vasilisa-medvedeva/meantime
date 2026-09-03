@@ -105,6 +105,9 @@
   --size-pick-cell:94px;         /* ux-brief §04 — ячейка сетки 94 */
   --size-tomorrow-h:56px;        /* ui-spec §06 — блок TOMORROW сжат до 56 */
   --size-lens-mark:64px;         /* решение 17.13 — диафрагма в заглушке карточки дня */
+  --size-shutter:72px;           /* решение 17.19 — спуск, как в системной камере iOS */
+  --size-shutter-ring:3px;       /* толщина кольца спуска */
+  --size-gallery-one:300px;      /* единственный снимок дня в галерее, квадрат по ширине поля */
   /* шит шеринга (решение 17) — имитация системного листа iOS в токенах проекта */
   --size-share-thumb-h:96px;       /* высота миниатюры карточки в строке превью */
   --size-share-thumb-day-w:54px;   /* 96 × 9/16 — карточка дня, ux-brief §09 */
@@ -120,6 +123,7 @@
   --motion-render-fast:4000ms; --motion-render-quality:6000ms;
   --motion-stream-char:22ms;
   --motion-reveal-hold:600ms;  /* решение 17.2 — оригинал стоит чётким до кросс-фейда */
+  --motion-viewfinder:20000ms; /* решение 17.19 — 1.0 → 1.04 в видоискателе, туда и обратно */
   --ease-standard:cubic-bezier(.32,.72,0,1);
   --ease-sheet:cubic-bezier(.34,1.2,.64,1);
   --ease-accel:cubic-bezier(.3,0,.8,.15);
@@ -226,6 +230,12 @@ h1,h2,h3,p,ul,ol{margin:0;padding:0}
 .Screen__scroll--flush{padding-left:0;padding-right:0}
 .Screen__scroll--flush > *{padding-left:var(--size-gutter);padding-right:var(--size-gutter)}
 .Screen__scroll--flush > .flush{padding-left:0;padding-right:0}
+/* Центровка по высоте — только 03. Не justify-content:center на скролле:
+   при содержимом выше вьюпорта он обрезал бы верх и до него нельзя было бы доскроллить.
+   Флекс-колонка + min-height:100% у обёртки и margin-block:auto: есть слак — блок
+   встаёт по центру, кончился — обычный скролл сверху вниз, ничего не отрезая. */
+.Screen__scroll--center{display:flex;flex-direction:column}
+.Screen__scroll--center > .Screen__mid{margin-block:auto;display:flex;flex-direction:column}
 
 /* нижний скрим — третья правка решения 10.10: тёмный низ на любом положении скролла */
 .ScrimBottom{
@@ -690,6 +700,60 @@ h1,h2,h3,p,ul,ol{margin:0;padding:0}
   gap:calc(var(--size-day-step) - var(--size-day-cell));justify-content:center}
 .WeekHead > span{text-align:center;color:var(--color-text-tertiary)}
 
+/* --- 04a камера (решение 17.19) ----------------------------------------
+   Видоискатель во весь кадр, без скруглений: он не карточка, он изображение.
+   Ни вспышки, ни переключения камер, ни режимов — нерабочая кнопка приглашает
+   на тап, который ничего не делает; лучше пусто. */
+.Camera{position:absolute;inset:0;background:var(--color-bg-primary);overflow:hidden}
+.Camera__view{position:absolute;inset:0}
+.Camera__view .Frame{border-radius:0}
+/* очень медленный масштаб: изображение читается живым, а не фотографией.
+   alternate вместо простого повтора — иначе на 20-й секунде кадр скачком возвращается в 1.0 */
+.Camera__view .Frame__img{
+  animation:viewfinder var(--motion-viewfinder) linear infinite alternate;
+  transform-origin:50% 50%;
+}
+@keyframes viewfinder{from{transform:scale(1)}to{transform:scale(1.04)}}
+.Camera__close{
+  position:absolute;top:calc(var(--size-safe-top) + var(--space-2));left:var(--space-4);z-index:3;
+  width:var(--size-tap-min);height:var(--size-tap-min);border-radius:var(--radius-full);
+  display:flex;align-items:center;justify-content:center;color:var(--color-text-on-image);
+  background:var(--color-glass-fill);backdrop-filter:var(--effect-glass);
+  -webkit-backdrop-filter:var(--effect-glass);isolation:isolate;
+  transition:transform var(--motion-micro) var(--ease-standard)}
+.Camera__close::before{content:"";position:absolute;inset:0;border-radius:inherit;
+  background:var(--color-glass-floor);z-index:-1}
+.Camera__close:active{transform:scale(.97);opacity:.8}
+.Camera__bar{
+  position:absolute;left:var(--size-gutter);right:var(--size-gutter);z-index:3;
+  bottom:calc(var(--size-safe-bottom) + var(--space-4));
+  display:grid;grid-template-columns:1fr auto 1fr;align-items:center}
+.Camera__thumb{
+  justify-self:start;width:var(--size-tap-min);height:var(--size-tap-min);
+  border-radius:var(--radius-md);overflow:hidden;position:relative;
+  border:var(--size-hairline) solid var(--color-glass-hairline);
+  transition:transform var(--motion-micro) var(--ease-standard)}
+.Camera__thumb:active{transform:scale(.97);opacity:.8}
+/* спуск — белое кольцо с заливкой, как в системной камере */
+.Camera__shutter{
+  justify-self:center;width:var(--size-shutter);height:var(--size-shutter);
+  border-radius:var(--radius-full);
+  border:var(--size-shutter-ring) solid var(--color-text-on-image);
+  display:flex;align-items:center;justify-content:center;background:none}
+.Camera__shutter::after{
+  content:"";width:calc(100% - var(--space-2));height:calc(100% - var(--space-2));
+  border-radius:var(--radius-full);background:var(--color-text-on-image);
+  transition:transform var(--motion-micro) var(--ease-standard)}
+.Camera__shutter:active::after{transform:scale(.88)}
+
+/* единственный снимок дня в галерее (решение 17.19) */
+.GalleryOne{position:relative;display:block;
+  width:calc(100% - var(--size-gutter) * 2);height:var(--size-gallery-one);
+  border-radius:var(--radius-lg);overflow:hidden;margin:0 var(--size-gutter);
+  transition:transform var(--motion-micro) var(--ease-standard)}
+.GalleryOne:active{transform:scale(.98)}
+.GalleryOne .PickTile__badge{display:flex}
+
 /* --- 09 карточка шеринга --- */
 .ShareCard{position:relative;width:var(--size-share-card-w);height:var(--size-share-card-h);
   border-radius:var(--radius-lg);overflow:hidden;margin:0 auto}
@@ -866,7 +930,8 @@ h1,h2,h3,p,ul,ol{margin:0;padding:0}
 @media (prefers-reduced-motion:reduce){
   .Screen,.Sheet,.Banner,.ActionSheet,.StoreKit{transition-duration:var(--motion-alert)!important}
   .RenderStages__row[data-status="active"] .RenderStages__dot,
-  .EffectTile[data-state="rendering"] .EffectTile__prev::after{animation:none}
+  .EffectTile[data-state="rendering"] .EffectTile__prev::after,
+  .Camera__view .Frame__img{animation:none}
   :root{--motion-render-fast:1000ms;--motion-render-quality:1000ms;--motion-stream-char:0ms}
 }
 </style>
@@ -915,8 +980,8 @@ const S = {
   period:"100 days",
   coins:DEMO.coinsStart,
   subscriber:false,
-  photoDatesAllowed:false,
-  diarySeen:false,
+  /* photoDatesAllowed и diarySeen сняты решением 17.21 вместе со шторкой пре-пермишна:
+     доступ к датам считается выданным всегда, показывать шторку при входе в Diary нечему */
   todayKept:false,
   todayPreset:null,       // "upgraded" | "EXTRA" | "none"; имя эффекта — в effectName
   attempts:0,             // попытки рендера сегодня (мягкий потолок 3, решение 8.1)
@@ -938,7 +1003,8 @@ function fmtMDup(d){ return (MONTH[d.getMonth()]+" "+d.getDate()).toUpperCase();
 function dayState(i){
   if(i===DEMO.dayIndex) return S.todayKept ? (isExtra() ? "kept-extra":"kept") : "today";
   if(i>DEMO.dayIndex) return "future";
-  if(i in DEMO.skipped) return DEMO.skipped[i]>0 && S.photoDatesAllowed ? "skipped-available" : "skipped-empty";
+  /* решение 17.21 — доступ к датам выдан по умолчанию, метки +N видны всегда */
+  if(i in DEMO.skipped) return DEMO.skipped[i]>0 ? "skipped-available" : "skipped-empty";
   return "kept";
 }
 /* решение 15.10 — первый СОХРАНЁННЫЙ кадр месяца несёт метку месяца вместо числа.
@@ -1127,10 +1193,9 @@ const FIXTURES = {
   actions:[{id:"nofilter",label:"Keep today without the upgrade",variant:"primary"}]},
 
 "gallery-pick/success":{scenario:"gallery_pick",fixture:"success",on_device:true,latency_ms:700,
-  count_today:3,confidence:"ok",label:"MEANTIME PICKED · FROM 3 TODAY",
-  hint:"Tap any other frame to pick it yourself",
-  /* решение 17.10 — первым идёт кадр настоящей пары «до / после» */
-  picks:[{rank:1,asset:"today-original"},{rank:2,asset:"day-11"},{rank:3,asset:"day-06"}]},
+  /* решение 17.19 — на телефоне сегодня один кадр. Подпись числа не обещает (17.20) */
+  count_today:1,confidence:"ok",label:"MEANTIME PICKED · TODAY",
+  picks:[{rank:1,asset:"today-original"}]},
 "gallery-pick/none":{scenario:"gallery_pick",fixture:"none",on_device:true,count_today:0,confidence:"none",
   fallback_line:"Allow photo dates to get suggestions"},
 "gallery-pick/low-confidence":{scenario:"gallery_pick",fixture:"low-confidence",on_device:true,
@@ -1568,7 +1633,8 @@ function assign(n, txt){ n.textContent=txt; return n; }
 function dragToDismiss(sheet, close){
   let y0=0,t0=0,dy=0,active=false;
   const down=e=>{ const p=e.touches?e.touches[0]:e;
-    if(sheet.querySelector(".Sheet__body").scrollTop>0 && !e.target.closest(".Sheet__grab")) return;
+    const body=sheet.querySelector(".Sheet__body");   /* у камеры тела шторки нет */
+    if(body && body.scrollTop>0 && !e.target.closest(".Sheet__grab")) return;
     active=true; y0=p.clientY; t0=Date.now(); dy=0; sheet.style.transition="none"; };
   const move=e=>{ if(!active) return; const p=e.touches?e.touches[0]:e;
     dy=Math.max(0,p.clientY-y0); sheet.style.transform="translateY("+dy+"px)";
@@ -1690,9 +1756,20 @@ const Router = {
     const s=this.build(route);
     const D=MS("--motion-screen"), DZ=MS("--motion-sheet-in");
     const ease=getComputedStyle(document.documentElement).getPropertyValue("--ease-standard");
-    let mode = opts.from ? "zoom" : "slide", origin=null;
+    let mode = opts.cover ? "cover" : (opts.from ? "zoom" : "slide"), origin=null;
 
-    if(mode==="zoom"){
+    /* HIG Modality — полноэкранная модалка приходит снизу и снизу же уходит.
+       Экран под ней остаётся на месте: он не «уехал назад», он накрыт (реестр №37). */
+    if(mode==="cover"){
+      const easeSheet=getComputedStyle(document.documentElement).getPropertyValue("--ease-sheet");
+      s.style.transform="translateY(100%)";
+      this.el().append(s);
+      requestAnimationFrame(()=>{
+        s.style.transition="transform "+DZ+"ms "+easeSheet;
+        s.style.transform="translateY(0)";
+      });
+      setTimeout(()=>{ s.style.transition=""; this.busy=false; }, DZ+20);
+    }else if(mode==="zoom"){
       const dev=document.getElementById("device").getBoundingClientRect();
       const r=opts.from.getBoundingClientRect();
       origin={cx:r.left-dev.left+r.width/2, cy:r.top-dev.top+r.height/2, scale:Math.max(.08, r.width/dev.width)};
@@ -1726,9 +1803,17 @@ const Router = {
     const top=this.stack.pop(), below=this.stack[this.stack.length-1];
     const D=MS("--motion-screen"), DZ=MS("--motion-sheet-in");
     const ease=getComputedStyle(document.documentElement).getPropertyValue("--ease-standard");
-    below.el.style.transition="transform "+D+"ms "+ease+", opacity "+D+"ms "+ease;
-    below.el.style.transform="translateX(0)"; below.el.style.opacity="1";
-    if(top.mode==="zoom" && top.origin){
+    if(top.mode!=="cover"){
+      below.el.style.transition="transform "+D+"ms "+ease+", opacity "+D+"ms "+ease;
+      below.el.style.transform="translateX(0)"; below.el.style.opacity="1";
+    }
+    if(top.mode==="cover"){
+      const OUT=MS("--motion-sheet-out");
+      const easeAccel=getComputedStyle(document.documentElement).getPropertyValue("--ease-accel");
+      top.el.style.transition="transform "+OUT+"ms "+easeAccel;
+      top.el.style.transform="translateY(100%)";
+      setTimeout(()=>{ top.el.remove(); this.busy=false; }, OUT+20);
+    }else if(top.mode==="zoom" && top.origin){
       top.el.style.transition="transform "+DZ+"ms "+ease+", opacity "+DZ+"ms "+ease;
       top.el.style.transform="scale("+top.origin.scale+")"; top.el.style.opacity="0";
       setTimeout(()=>{ top.el.remove(); this.busy=false; }, DZ+20);
@@ -1826,6 +1911,16 @@ setInterval(()=>Countdown.tick(), 1000);
 /* ============================================================================
    §10 · ЭКРАНЫ
    ========================================================================= */
+/* Центровка содержимого по высоте — применяется только к 03 (правка владельца).
+   Оборачивает уже собранное содержимое в .Screen__mid: есть слак — блок встаёт по центру,
+   кончился — обычный скролл сверху вниз. justify-content:center здесь нельзя,
+   он обрезал бы верх при длинном содержимом. */
+function centerBox(w){
+  const mid=el("div","Screen__mid");
+  while(w.firstChild) mid.append(w.firstChild);
+  w.append(mid);
+  w.classList.add("Screen__scroll--center");
+}
 function scrollBox(s, tabId, flush){
   const w=el("div","Screen__scroll"+(tabId?" Screen__scroll--tab":"")+(flush?" Screen__scroll--flush":""));
   s.append(w);
@@ -1952,11 +2047,12 @@ Screens["03"]=s=>{
     card.append(foot); w.append(card);
 
     const a=el("div","stack gap3 mt5");
-    a.append(UI.Button({label:"Take a photo",onTap:()=>Sheets.picker("camera")}));
-    a.append(UI.Button({label:"Pick from today’s photos",variant:"secondary",onTap:()=>Sheets.picker("suggested")}));
-    a.append(assign(el("div","t-caption c-tertiary center"),
-      S.photoDatesAllowed ? "Meantime chooses · 3 photos today" : "Meantime chooses"));
-    a.append(UI.Button({label:"Choose from library",variant:"text",onTap:()=>Sheets.picker("library")}));
+    a.append(UI.Button({label:"Take a photo",onTap:()=>Router.go("04a",{cover:true})}));
+    a.append(UI.Button({label:"Pick from today’s photos",variant:"secondary",onTap:()=>Sheets.gallery("suggested")}));
+    /* решение 17.20 — числа в подписи нет: в галерее один кадр, и «1 photo today»
+       читалось бы извинением. Подпись объясняет механику, а не считает файлы */
+    a.append(assign(el("div","t-caption c-tertiary center"),"Meantime chooses"));
+    a.append(UI.Button({label:"Choose from library",variant:"text",onTap:()=>Sheets.gallery("library")}));
     w.append(a);
   }else{
     /* решение 17.5 — день сохранён: та же раскладка, что на 06 (110:91), внутри вкладки.
@@ -1984,7 +2080,49 @@ Screens["03"]=s=>{
     a.append(UI.Button({label:"Replace photo",variant:"text",onTap:()=>Sheets.softPaywall("replace_photo")}));
     w.append(a);
   }
+  centerBox(w);
   Analytics.track("filter_revealed",{filter_id:"daily_upgrade",missing:false});
+};
+
+/* Один вход в проявление на все три источника: спуск камеры, галерея, библиотека.
+   Кадр всегда `today-original` — единственная настоящая пара «до / после» (решения 17.1, 17.19). */
+function shoot(source){
+  S.pickedFrame="today-original";
+  Analytics.track("photo_selected",{source, attempt:S.attempts+1});
+  S._fixture = S._fixtureOverride || "daily-frame/success";
+  Router.go("05");
+}
+
+/* --- 04a · Камера (решение 17.19) --------------------------------------
+   Полноэкранная модалка: отдельная задача с началом и концом (HIG Modality).
+   Нерабочих кнопок нет — ни вспышки, ни переключения камер, ни режимов. */
+Screens["04a"]=s=>{
+  const w=el("div","Camera"); s.append(w);
+
+  const view=el("div","Camera__view");
+  view.append(Img.make("today-original"));
+  w.append(view);
+
+  const x=el("button","Camera__close");
+  x.setAttribute("aria-label","Close camera");
+  x.innerHTML='<svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" '+
+    'stroke-width="1.8" stroke-linecap="round"><path d="M5 5l10 10M15 5L5 15"/></svg>';
+  x.addEventListener("click",()=>Router.back());
+  w.append(x);
+
+  const bar=el("div","Camera__bar");
+  const thumb=el("button","Camera__thumb");
+  thumb.setAttribute("aria-label","Open gallery");
+  thumb.append(Img.make("today-original"));
+  thumb.addEventListener("click",()=>Sheets.gallery("camera"));
+  const shutter=el("button","Camera__shutter");
+  shutter.setAttribute("aria-label","Take a photo");
+  shutter.addEventListener("click",()=>shoot("camera"));
+  bar.append(thumb, shutter, el("div"));
+  w.append(bar);
+
+  /* свайп вниз закрывает — тот же жест, что у шторок (реестр №7) */
+  dragToDismiss(s, ()=>Router.back());
 };
 
 /* --- 05 · Проявление --------------------------------------------------- */
@@ -2104,7 +2242,7 @@ Screens._dailyDone=(box, f)=>{
   }}));
   box.append(UI.Button({label:"Choose another photo",variant:"secondary",onTap:()=>{
     if(S.attempts>=3){ Sheets.confirmCoins({name:"Upgrade again",price:2,extra:true}); return; }
-    Router.back(); Sheets.picker("library");
+    Router.back(); Sheets.gallery("library");
   }}));
   box.append(UI.Button({label:"Keep without the upgrade",variant:"text",onTap:()=>{
     S.todayKept=true; S.todayPreset="none"; saveState();
@@ -2130,7 +2268,7 @@ Screens._failAction=(id, f)=>{
     Router.swapTop("05"); return; }
   if(id==="nofilter"){ S.todayKept=true; S.todayPreset="none"; saveState();
     Analytics.track("day_kept",{with_filter:false,restored:false}); Router.resetTo("03","06"); return; }
-  if(id==="another"){ Router.back(); Sheets.picker("library"); return; }
+  if(id==="another"){ Router.back(); Sheets.gallery("library"); return; }
   if(id==="back"){ Router.tab("effects"); return; }
 };
 
@@ -2257,7 +2395,7 @@ Screens["07"]=s=>{
   }
   w.append(field);
 
-  if(!S.diarySeen){ S.diarySeen=true; saveState(); setTimeout(()=>Sheets.photoAccess(), 260); }
+  /* шторка пре-пермишна снята решением 17.21 — Diary открывается сразу полем дней */
 };
 
 /* --- 08 · Просмотр дня ------------------------------------------------- */
@@ -2517,104 +2655,54 @@ Sheets.period = (isStart)=>{
   }});
 };
 
-/* 04 · Системный пикер + ряд Meantime picked */
-Sheets.picker = (source)=>{
-  UI.Sheet({detent:"large", build(b, api){
+/* 04 · Галерея дня — ровно один снимок (решение 17.19).
+   Сетки из шестнадцати кадров больше нет: на телефоне сегодня снят один кадр,
+   и что бы ни выбрали, дальше идёт единственная настоящая пара «до / после».
+   Ряд `MEANTIME PICKED` остался механикой и именем, но числа больше не обещает. */
+Sheets.gallery = (source)=>{
+  UI.Sheet({detent:"medium", build(b, api){
     b.style.paddingLeft="0"; b.style.paddingRight="0";
     const bar=el("div","row"); bar.style.cssText="justify-content:space-between;padding:0 var(--size-gutter)";
     const cancel=UI.Button({label:"Cancel",variant:"text",onTap:api.close}); cancel.style.width="auto";
-    const add=UI.Button({label:"Add",variant:"text",onTap:()=>pick(chosen, hasPicks?1:null)}); add.style.width="auto";
+    const add=UI.Button({label:"Add",variant:"text",onTap:()=>pick(1)}); add.style.width="auto";
     bar.append(cancel, assign(el("div","t-h2"),"Photos"), add);
     b.append(bar);
-    const seg=segment(["Photos","Albums"],0); seg.style.margin="0 var(--size-gutter)"; b.append(seg);
 
-    const rowWrap=el("div","stack gap2"); b.append(rowWrap);
     const label=el("div","t-meta c-tertiary"); label.style.padding="0 var(--size-gutter)";
-    const row=el("div","PickRow");
-    const hint=el("div","t-caption c-tertiary"); hint.style.padding="0 var(--size-gutter)";
-    rowWrap.append(label,row,hint);
-    let chosen="today", hasPicks=false;
-
     label.textContent="LOOKING THROUGH TODAY…";
-    for(let i=0;i<3;i++){ const sk=el("div","PickTile Skeleton"); row.append(sk); }
+    const holder=el("div"); 
+    const sk=el("div","GalleryOne Skeleton"); holder.append(sk);
+    b.append(label, holder);
 
-    const fx = !S.photoDatesAllowed ? "gallery-pick/none" : "gallery-pick/success";
-    AI.load(fx).then(f=>{
+    AI.load("gallery-pick/success").then(f=>{
       setTimeout(()=>{
-        row.innerHTML="";
-        if(f.confidence==="none"){
-          label.textContent=""; rowWrap.remove();
-          const line=el("div","t-caption c-accent"); line.style.padding="0 var(--size-gutter)";
-          line.textContent=f.fallback_line; b.insertBefore(line, b.children[2]);
-          Analytics.track("frame_suggested",{count_today:0,confidence:"none"});
-          return;
-        }
-        label.textContent=f.label; hint.textContent=f.hint||""; hasPicks=(f.picks||[]).length>0;
+        holder.innerHTML="";
+        label.textContent=f.label;
         Analytics.track("frame_suggested",{count_today:f.count_today,confidence:f.confidence});
-        (f.picks||[]).forEach((p,i)=>{
-          const t=el("button","PickTile"); t.setAttribute("aria-selected",String(i===0));
-          t.append(Img.make(p.asset));
-          const bg=el("span","PickTile__badge"); bg.textContent=String(p.rank); t.append(bg);
-          t.addEventListener("click",()=>{
-            row.querySelectorAll(".PickTile").forEach(x=>x.setAttribute("aria-selected","false"));
-            t.setAttribute("aria-selected","true"); chosen=p.asset;
-            pick(p.asset, p.rank);
-          });
-          row.append(t);
-        });
+        const p=(f.picks||[])[0]; if(!p) return;
+        const t=el("button","GalleryOne"); t.setAttribute("aria-selected","true");
+        t.setAttribute("aria-label","Today’s photo");
+        t.append(Img.make(p.asset));
+        const bg=el("span","PickTile__badge"); bg.textContent=String(p.rank); t.append(bg);
+        t.addEventListener("click",()=>pick(p.rank));
+        holder.append(t);
       }, f.latency_ms||300);
     });
 
-    const rec=assign(el("div","t-h2"),"Recents");
-    rec.style.padding="0 var(--size-gutter)"; b.append(rec);
-    const grid=el("div","PickGrid");
-    /* решение 17.10 — первой в Recents стоит настоящая пара «до / после» */
-    const recents=["today-original"];
-    for(let i=1;i<=11;i++) recents.push("day-"+String(i).padStart(2,"0"));
-    recents.forEach(a=>{
-      const c=el("button"); c.style.cssText="padding:0;border:0;background:none";
-      const f=Img.make(a); f.style.height="var(--size-pick-cell)";
-      c.append(f);
-      c.addEventListener("click",()=>pick(a,null));
-      grid.append(c);
-    });
-    b.append(grid);
+    const sp=el("div"); sp.style.flex="1"; b.append(sp);
 
-    function pick(asset, rank){
-      S.pickedFrame=asset;
-      Analytics.track("photo_selected",{source:source==="suggested"?"suggested":(source==="camera"?"camera":"library"),
-        attempt:S.attempts+1});
-      if(rank) Analytics.track("suggestion_accepted",{rank});
+    function pick(rank){
       api.close();
-      S._fixture = S._fixtureOverride || "daily-frame/success";
-      setTimeout(()=>Router.go("05"), 120);
+      if(rank) Analytics.track("suggestion_accepted",{rank});
+      /* решение 17.19 — выбор из галереи логируется как library, даже когда её открыли
+         из камеры: снимок берётся из библиотеки, а не делается заново. `camera` остаётся
+         только за спуском. `suggested` — за своей кнопкой на 03. */
+      setTimeout(()=>shoot(source==="suggested"?"suggested":"library"), 120);
     }
   }});
 };
 
-/* 07a · Доступ к датам фото — причина до системного диалога (решение 6.4) */
-Sheets.photoAccess = ()=>{
-  UI.Sheet({detent:"medium", build(b, api){
-    const ic=el("div"); ic.style.cssText="width:56px;height:56px;border-radius:var(--radius-lg);"+
-      "background:var(--color-accent-wash);display:flex;align-items:center;justify-content:center;"+
-      "box-shadow:var(--effect-glow-accent-sm)";
-    ic.innerHTML='<svg width="28" height="28" viewBox="0 0 20 20" fill="var(--color-accent-default)">'+
-      '<rect x="2" y="4" width="16" height="13" rx="2.5"/><circle cx="10" cy="10.5" r="3" fill="var(--color-bg-primary)"/>'+
-      '<rect x="7" y="2" width="6" height="2.5" rx="1"/></svg>';
-    b.append(ic, assign(el("div","t-h1"),"See what you already have"),
-      assign(el("div","t-body c-secondary"),
-        "Meantime reads only the dates of your photos — enough to mark the days you already shot. "+
-        "Nothing leaves your phone until you pick a frame."),
-      assign(el("div","t-caption c-tertiary"),
-        "Without this, past days look empty."));
-    const sp=el("div"); sp.style.flex="1"; b.append(sp);
-    b.append(UI.Button({label:"Continue",onTap:()=>{
-      S.photoDatesAllowed=true; saveState(); api.close();
-      setTimeout(()=>{ banner("Photo dates allowed"); Router.reset("07"); },320);
-    }}));
-    b.append(UI.Button({label:"Not now",variant:"text",onTap:api.close}));
-  }});
-};
+/* 07a · Шторка пре-пермишна снята решением 17.21 — экрана 07a в сборке больше нет */
 
 /* Шит после шеринга (решение 17) — имитация системного листа iOS в токенах проекта.
    Один и тот же шит на 09 «Share…» и на 10 «Share this week».
@@ -2917,6 +3005,28 @@ const EventLogView = {
 const Demo = {
   on:false, timers:[], badge:null, waiter:null,
 
+  /* Телеметрия для страницы кейса: прототип встраивается как живой мокап с ?demo,
+     рядом идёт полоса прогресса. Полоса должна идти по настоящему кругу, а не по
+     своему таймеру, поэтому раз в секунду отправляем родительскому окну, где мы.
+     Вне рамки не шлём ничего: слать некому. */
+  totalMs:45000,          /* полная длительность круга; замерено прогоном, ~45 с */
+  t0:0, step:"", beat:null,
+
+  tick(){
+    if(window.parent===window) return;
+    try{
+      parent.postMessage({
+        source:"meantime-demo",
+        elapsed:this.on ? Math.min(this.totalMs, Date.now()-this.t0) : 0,
+        total:this.totalMs,
+        on:this.on,
+        step:this.step
+      },"*");
+    }catch(e){}
+  },
+  /* смена шага сообщается сразу, не дожидаясь следующей секунды */
+  at(name){ this.step=name; this.tick(); },
+
   ui(){
     if(this.badge) return;
     const dev=document.getElementById("device");
@@ -2940,6 +3050,8 @@ const Demo = {
     this.ui(); this.arm();
     this.on=true; this.badge.classList.remove("is-on");
     document.querySelectorAll(".DemoTap").forEach(n=>n.remove());
+    if(!this.beat) this.beat=setInterval(()=>this.tick(), 1000);
+    this.tick();
     this.loop();
   },
 
@@ -2950,6 +3062,10 @@ const Demo = {
     if(this.waiter){ this.waiter.reject && this.waiter.reject("stopped"); this.waiter=null; }
     document.querySelectorAll(".DemoTap").forEach(n=>n.remove());
     this.badge.classList.add("is-on");
+    /* последнее сообщение с on:false — по нему полоса на странице гаснет
+       и подпись меняется на «управление у вас». В этом весь смысл перехвата */
+    if(this.beat){ clearInterval(this.beat); this.beat=null; }
+    this.tick();
   },
 
   sleep(ms){
@@ -3004,9 +3120,10 @@ const Demo = {
 
   /* сквозной путь ядра. Паузы стоят там, где есть что прочесть. ~45 с круг. */
   async run(){
+    this.t0=Date.now(); this.at("today");
     /* сброс в начало */
     Object.assign(S,{todayKept:false,todayPreset:null,attempts:0,subscriber:false,
-      coins:DEMO.coinsStart,diarySeen:true,photoDatesAllowed:true,onboarded:true});
+      coins:DEMO.coinsStart,onboarded:true});
     S._fixtureOverride=null; S._fixture="daily-frame/success"; S._recapFixture="recap/success";
     document.querySelectorAll("#sheetLayer .Sheet,#sheetLayer .Scrim,.StoreKit").forEach(n=>n.remove());
     document.getElementById("sheetLayer").style.pointerEvents="none";
@@ -3016,31 +3133,37 @@ const Demo = {
     await this.sleep(4200);
     await this.tap(await this.until(()=>this.btn("Pick from today’s photos")));
 
-    /* 04 — ряд Meantime picked собирается на устройстве */
+    /* 04 — галерея дня: один снимок, тот же кадр настоящей пары (решение 17.19) */
+    this.at("gallery");
     await this.sleep(1500);
-    const pick=await this.until(()=>document.querySelectorAll(".PickRow .PickTile")[0]);
+    const pick=await this.until(()=>document.querySelector("#sheetLayer .GalleryOne:not(.Skeleton)"));
     await this.sleep(900);
     await this.tap(pick);
 
     /* 05 — проявление идёт своим ходом: этапы, строка про 24 часа */
+    this.at("reveal");
     await this.until(()=>this.btn("Keep in diary"), 14000);
     await this.sleep(2600);
     await this.tap(this.btn("Keep in diary"));
 
     /* 06 — день сохранён: подпись кадра, счётчик, блок TOMORROW */
+    this.at("kept");
     await this.sleep(4600);
     await this.tap(await this.until(()=>this.btn("Open diary")));
 
     /* 07 — полка итогов и поле периода */
+    this.at("diary");
     await this.sleep(3800);
     const card=await this.until(()=>document.querySelector(".RecapCard"));
     await this.sleep(1400);
     await this.tap(card);
 
     /* 10 — рекап во весь экран, через 600 мс приходит пейвол */
+    this.at("recap");
     await this.sleep(3000);
     await this.until(()=>document.querySelector("#sheetLayer .Sheet"), 4000);
     await this.sleep(6000);           /* время прочитать список и оба плана */
+    this.at("paywall");
     const yearly=[...document.querySelectorAll("#sheetLayer .PlanRow")][1];
     if(yearly) { await this.tap(yearly); await this.sleep(2200); }
     await this.tap(await this.until(()=>this.btn("Not now")));
