@@ -147,6 +147,9 @@
   --color-stage-ink-dim:#5B6472;
   --color-stage-hairline:rgba(20,25,40,.18);
   --color-stage-chip:rgba(255,255,255,.72);
+  --color-stage-panel:#FFFFFF;                   /* пилюля панели витрины (решение 17.31) */
+  --effect-stage-panel-shadow:0 6px 18px rgba(20,25,40,.14);
+  --size-stage-panel-w:172px;                    /* колонка слева от устройства */
   --size-stage-bezel:12px;     /* внешний радиус = 47 + 12 = 59; см. отчёт про «около 44» */
   --effect-stage-shadow:0 18px 44px rgba(20,25,40,.28);
   --radius-indicator:3px;      /* индикаторы статус-бара — служебный chrome, не продуктовый радиус */
@@ -260,6 +263,10 @@ h1,h2,h3,p,ul,ol{margin:0;padding:0}
   .Device{
     box-shadow:0 0 0 var(--size-stage-bezel) var(--color-stage-bezel), var(--effect-stage-shadow);
   }
+  /* Панель управления витрины (решение 17.31): человек приходит по прямой ссылке
+     из кейса, круг он уже видел и хочет потрогать — поэтому автостарта тут нет,
+     экран открывается обычным и всё кликабельно. Кнопка запускает тот же Demo.start(). */
+  body .StagePanel{display:flex}   /* со `body`: базовое правило описано ниже по файлу */
   /* Дев-панель берёт цвета из тёмной палитры и на светлом фоне пропадает — перекрашиваем.
      Селектор со `body` намеренно: базовые правила .DevBar описаны НИЖЕ по файлу
      и при равной специфичности выигрывали бы по порядку. */
@@ -828,6 +835,28 @@ h1,h2,h3,p,ul,ol{margin:0;padding:0}
   transition:transform var(--motion-micro) var(--ease-standard)}
 .TapRow:active{transform:scale(.98)}
 
+/* --- панель витрины (решение 17.31) -------------------------------------
+   Живёт только в ветке витрины: показывается правилом .StagePanel{display:flex}
+   внутри её медиазапроса. На телефоне, на узком окне и внутри рамки кейса 390
+   ветка не срабатывает и панели нет — там приложение занимает вьюпорт целиком,
+   а в кейсе управление даёт сама страница, дублировать его нельзя. */
+.StagePanel{
+  /* Якорь — центр .Stage, он же центр устройства: сама .Stage шире устройства,
+     потому что снизу в ней лежит дев-бар, и right:100% увёл бы панель за край окна. */
+  display:none;position:absolute;top:0;
+  right:calc(50% + (var(--size-frame-w) / 2) + var(--space-8));
+  width:var(--size-stage-panel-w);flex-direction:column;gap:var(--space-3);
+  align-items:flex-start;font-family:var(--font-ui)}
+.StagePanel__btn{
+  padding:var(--space-3) var(--space-5);border-radius:var(--radius-full);
+  background:var(--color-stage-panel);color:var(--color-stage-ink);
+  box-shadow:var(--effect-stage-panel-shadow);
+  font-size:15px;font-weight:600;white-space:nowrap;
+  transition:transform var(--motion-micro) var(--ease-standard),opacity var(--motion-micro) var(--ease-standard)}
+.StagePanel__btn:active{transform:scale(.97)}
+.StagePanel__btn[disabled]{opacity:.45;cursor:default}
+.StagePanel__note{color:var(--color-stage-ink-dim);font-size:13px;line-height:18px}
+
 /* --- ShareSheet · шит после шеринга (решение 17) ------------------------
    Имитация системного листа iOS в токенах проекта: строка превью,
    ряд адресатов горизонтальным скроллом, группа действий. --------------- */
@@ -1009,6 +1038,10 @@ h1,h2,h3,p,ul,ol{margin:0;padding:0}
     <div class="HomeInd"></div>
     <div class="BannerLayer" id="bannerLayer"></div>
     <div class="EventLog" id="eventLog"></div>
+  </div>
+  <div class="StagePanel" id="stagePanel">
+    <button class="StagePanel__btn" id="stageDemo">Демо ↻</button>
+    <div class="StagePanel__note" id="stageNote"></div>
   </div>
   <div class="DevBar">
     <span>Meantime · prototype</span>
@@ -3117,6 +3150,14 @@ const EventLogView = {
      на ней держится кнопка «назад» в браузере. */
   const forced=qs.get("screen");
   Router.reset(forced && Screens[forced] ? forced : "03");
+
+  /* Пара «до / после» весит 2.4 МБ на двоих, а первый экран, которому она нужна, —
+     видоискатель камеры: до него ни один кадр не показывается, и браузеру нечего кэшировать.
+     На 1.5 Мбит/с это давало ~6.9 с процедурной заглушки в видоискателе (замерено).
+     Греем пару сразу после сборки первого экрана, пока идёт заставка и человек читает 03.
+     Последовательно, а не параллельно: `today-original` нужен первым, и делить
+     на него канал с `today` смысла нет. */
+  Img.probe("today-original").then(()=>Img.probe("today"));
   /* hash, записанный первым же reset, сразу стираем: обновление страницы обязано
      начинаться с нуля. Дальнейшие переходы пишут hash как раньше — на нём «назад» браузера. */
   try{ history.replaceState(null,"",location.pathname+location.search); }catch(e){}
@@ -3138,9 +3179,9 @@ const Demo = {
      своему таймеру, поэтому раз в секунду отправляем родительскому окну, где мы.
      Вне рамки не шлём ничего: слать некому. */
   /* Полный период круга вместе с паузой 1200 мс между кругами — замерено прогоном,
-     два круга подряд дали одно и то же: 36.9 с (сам круг 36.1 с). Полоса на странице кейса
+     два круга подряд дали одно и то же: 26.4 с (сам круг 25.6 с). Полоса на странице кейса
      берёт длительность отсюда, поэтому число обязано быть измеренным, а не прикинутым. */
-  totalMs:36900,
+  totalMs:26400,
   t0:0, step:"", beat:null,
 
   tick(){
@@ -3268,8 +3309,9 @@ const Demo = {
        поле дней, оба пейвола, композиция рекапа, результат проявления, сохранённый день.
        Три служебных места намеренно короткие и не растут: стартовый экран до нажатия,
        видоискатель камеры, пауза перед новым кругом — они ничего не рассказывают.
-       Числа выше потолков из письма координатора: на потолках круг давал 25.9 с
-       при цели 35–40. Отклонение названо в отчёте, каждое место крутится отдельно. */
+       Целевой вилки по длительности больше нет: выдержки выставлены по содержанию,
+       круг получается такой, какой получается. Единственное защищённое место —
+       кросс-фейд оригинала в результат, 2.5 с: там видна разница, ради которой всё. */
     /* 03 — карточка дня: вопрос, обещание квоты, тикающий отсчёт */
     await this.sleep(800);
     await this.tap(await this.until(()=>this.btn("Take a photo")));
@@ -3290,17 +3332,17 @@ const Demo = {
     /* 05 — проявление идёт своим ходом: этапы, строка про 24 часа */
     this.at("reveal");
     await this.until(()=>this.btn("Keep in diary"), 14000);
-    await this.sleep(3500);          /* результат с переключателем «до / после» */
+    await this.sleep(2500);          /* результат с переключателем «до / после» */
     await this.tap(this.btn("Keep in diary"));
 
     /* 06 — день сохранён: подпись кадра, счётчик, блок TOMORROW */
     this.at("kept");
-    await this.sleep(3000);          /* сохранённый день со счётчиком */
+    await this.sleep(2500);          /* сохранённый день со счётчиком */
     await this.tap(await this.until(()=>this.btn("Open diary")));
 
     /* 07 — полка итогов и поле периода */
     this.at("diary");
-    await this.sleep(5000);          /* поле дней — тезис продукта, дни должны успеть прочитаться */
+    await this.sleep(3500);          /* поле дней — тезис продукта, дни должны успеть прочитаться */
 
     /* Пропущенный день с меткой +3 (9 сентября). За один шаг рассказывает три вещи,
        которых в круге не было: пропуск виден и ничего не обнуляет · приложение знает,
@@ -3315,7 +3357,7 @@ const Demo = {
 
     this.at("softPaywall");
     await this.until(()=>document.querySelector("#sheetLayer .Sheet"), 4000);
-    await this.sleep(4000);          /* защищено: текст мягкого пейвола */
+    await this.sleep(2000);          /* пейвол показывает, что экран есть; читать его будут на живом прототипе */
     await this.tap(await this.until(()=>this.btn("Not now")));
     await this.sleep(300);
 
@@ -3326,9 +3368,9 @@ const Demo = {
 
     /* 10 — рекап во весь экран, через 600 мс приходит пейвол */
     this.at("recap");
-    await this.sleep(4500);           /* защищено: композиция рекапа */
+    await this.sleep(3500);           /* композиция рекапа */
     await this.until(()=>document.querySelector("#sheetLayer .Sheet"), 4000);
-    await this.sleep(5500);           /* защищено: список выгод и оба плана */
+    await this.sleep(1000);           /* цены и список видны с первого взгляда; читают на живом прототипе */
     this.at("paywall");
     const yearly=[...document.querySelectorAll("#sheetLayer .PlanRow")][1];
     if(yearly) { await this.tap(yearly); await this.sleep(400); }
@@ -3336,6 +3378,31 @@ const Demo = {
     await this.sleep(400);
   }
 };
+/* Панель витрины (решение 17.31). Строка состояния и доступность кнопки идут за Demo:
+   пока круг крутится — «прототип проходит путь сам», кнопка выключена; как только зритель
+   касается экрана и перехватывает управление — «управление у вас», кнопка снова живая.
+   Перехват уже работает по реестру №31, здесь только отражение состояния. */
+const StagePanel = {
+  btn:null, note:null,
+  init(){
+    this.btn=document.getElementById("stageDemo");
+    this.note=document.getElementById("stageNote");
+    if(!this.btn) return;
+    this.btn.addEventListener("click",()=>{ Demo.start(); this.sync(); });
+    setInterval(()=>this.sync(), 400);
+    this.sync();
+  },
+  sync(){
+    if(!this.btn) return;
+    const on = Demo.on;
+    this.btn.disabled = on;
+    this.btn.textContent = on ? "Идёт демо" : (this._ran ? "Ещё раз ↻" : "Демо ↻");
+    if(on) this._ran = true;
+    this.note.textContent = on ? "Прототип проходит путь сам. Коснитесь экрана — управление вернётся."
+                               : (this._ran ? "Управление у вас." : "Экран кликабельный. Или посмотрите круг целиком.");
+  }
+};
+
 (function demoBoot(){
   const qs=new URLSearchParams(location.search);
   const bar=document.querySelector(".DevBar");
@@ -3345,7 +3412,9 @@ const Demo = {
     b.addEventListener("click",()=>Demo.start());
     bar.append(b);
   }
-  /* автодемо стартует после заставки (решение 17.4), а не поверх неё */
+  StagePanel.init();
+  /* Автодемо стартует само только по ?demo — так кейс встраивает прототип в рамку.
+     По прямой ссылке круг запускает человек кнопкой на панели витрины (решение 17.31). */
   if(qs.get("demo")!==null) setTimeout(()=>Demo.start(), SPLASH_MS()+MS("--motion-alert"));
 })();
 </script>
