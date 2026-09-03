@@ -976,7 +976,8 @@ function saveState(){ try{ localStorage.setItem("meantime.state", JSON.stringify
    Пути только относительные — прототип уезжает на GitHub Pages (решение 12.2).
    ========================================================================= */
 /* Заглушка эффекта: `fx-after` физически не существует, см. assets/FRAMES.md п. 3 */
-const ASSET_ALIAS = {"fx-after":"today"};
+/* решение 17.18 — заглушка снята: настоящие кадры эффектов лежат в assets/ */
+const ASSET_ALIAS = {};
 
 const Img = {
   status:{},   // name -> "ok" | "miss" | Promise
@@ -2602,10 +2603,10 @@ Sheets.photoAccess = ()=>{
       '<rect x="7" y="2" width="6" height="2.5" rx="1"/></svg>';
     b.append(ic, assign(el("div","t-h1"),"See what you already have"),
       assign(el("div","t-body c-secondary"),
-        "Meantime reads only the dates of your photos — to mark the days that already have frames on your phone. "+
-        "The photos themselves stay where they are. Nothing leaves your phone until you pick a frame yourself."),
+        "Meantime reads only the dates of your photos — enough to mark the days you already shot. "+
+        "Nothing leaves your phone until you pick a frame."),
       assign(el("div","t-caption c-tertiary"),
-        "Without this, past days simply look empty. You can change it later in Settings."));
+        "Without this, past days look empty."));
     const sp=el("div"); sp.style.flex="1"; b.append(sp);
     b.append(UI.Button({label:"Continue",onTap:()=>{
       S.photoDatesAllowed=true; saveState(); api.close();
