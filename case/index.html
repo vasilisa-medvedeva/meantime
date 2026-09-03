@@ -120,13 +120,14 @@ ul.l--no li::before{background:var(--ink-muted)}
 ul.l b{color:var(--ink-strong);font-weight:600}
 
 /* экраны */
-.case-head{width:min(1120px,94vw);margin:0 auto 28px;padding:0 40px;text-align:left;
+/* ширина полосы = ширине ряда телефонов: 3×246 + 2×60 = 858 — одинаковые поля с боков */
+.case-head{width:min(858px,94vw);margin:0 auto 28px;padding:0;text-align:left;
   display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:12px 56px;align-items:start}
 .case-head__t{display:flex;flex-direction:column;gap:6px}
 .case-head__p{display:flex;flex-direction:column;gap:12px;padding-top:4px}
-@media (max-width:900px){.case-head{grid-template-columns:1fr;padding:0 18px}}
+@media (max-width:900px){.case-head{grid-template-columns:1fr;padding:0 18px;width:auto}}
 .case-body{display:flex;flex-direction:column;gap:12px;padding-top:6px}
-.phones{display:flex;gap:22px;justify-content:center;align-items:flex-start;
+.phones{display:flex;gap:60px;justify-content:center;align-items:flex-start;
   padding:4px 0 2px;margin:28px auto 0;flex-wrap:nowrap}
 /* пропорции от макета 390×844: k = 232/390 = 0.5949 — тот же масштаб, что на обложке.
    экран 232×502 · радиус экрана 47k = 28 · корпус 12k = 7 · внешняя 246 · внешний радиус 59k = 35 */
