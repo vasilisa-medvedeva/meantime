@@ -94,6 +94,10 @@
   --ease-sheet:cubic-bezier(.34,1.2,.64,1);
   --ease-accel:cubic-bezier(.3,0,.8,.15);
 
+  --blur-tabbar-glow:9px;      /* Figma 90:26 — feGaussianBlur stdDeviation 9; в blur/* такого нет */
+  --size-tabbar-glow:56px;     /* Figma 90:26 — эллипс 56×56, центр на иконке (y −8 + 28 = 20) */
+  --size-daycell-month-label:9px; /* решение 15.10 — «SEP 1» в 11 pt не влезает в ячейку 40;
+                                     9 pt — названный владельцем пол, ниже не опускаемся */
   --size-device-radius:47px;   /* физический радиус угла iPhone — рамка показа, не продукт */
   --radius-indicator:3px;      /* индикаторы статус-бара — служебный chrome, не продуктовый радиус */
   --radius-hairline:1px;
@@ -294,6 +298,25 @@ h1,h2,h3,p,ul,ol{margin:0;padding:0}
 }
 /* Future и Skipped-empty совпадают попиксельно — намеренно (решения 4.5, 10.7) */
 .DayCell[data-state="future"],.DayCell[data-state="skipped-empty"]{background:var(--color-surface-day-empty)}
+/* решение 15.5 — число дня месяца, только на ячейках с кадром.
+   Текст лежит на кадре без плашки (10.11): читаемость угловым скримом,
+   у которого нет видимого начала, — тот же приём, что у вотермарка. */
+.DayCell__num{
+  position:absolute;left:4px;bottom:2px;z-index:2;
+  color:var(--color-text-on-image);
+  text-shadow:0 1px 4px var(--color-scrim-image-strong);
+  pointer-events:none;
+}
+.DayCell__num--month{
+  font-size:var(--size-daycell-month-label);letter-spacing:.4px;
+}
+.DayCell__numScrim--wide{width:100%}
+.DayCell__numScrim{
+  position:absolute;left:0;bottom:0;width:75%;height:55%;z-index:1;pointer-events:none;
+  border-radius:0 0 0 var(--radius-sm);
+  background:radial-gradient(130% 130% at 0% 100%,
+    var(--color-scrim-image-strong) 0%, var(--color-scrim-image-zero) 72%);
+}
 
 /* --- TabBar · 90:56 · Active (3) ---------------------------------------- */
 .TabBar{
@@ -308,10 +331,16 @@ h1,h2,h3,p,ul,ol{margin:0;padding:0}
   display:flex;isolation:isolate;overflow:hidden;
 }
 .TabBar::before{content:"";position:absolute;inset:0;background:var(--color-glass-floor);z-index:-1}
+/* свечение — ровно как в Figma 90:26: круг 56, accent/glow 55 %, размытие 9.
+   Свою версию (жёсткий диск 34 pt + двойная тень) убрал: под стеклом она читалась
+   тёмным пятном, которого в макете нет. Геометрия и поведение прежние — центр на иконке,
+   едет вместе с активным табом. */
 .TabBar__glow{
-  position:absolute;top:20px;width:34px;height:34px;left:0;
+  position:absolute;top:20px;left:0;
+  width:var(--size-tabbar-glow);height:var(--size-tabbar-glow);
   transform:translate(-50%,-50%);border-radius:var(--radius-full);
-  background:var(--color-accent-wash);box-shadow:var(--effect-glow-accent-lg);
+  background:var(--color-accent-glow);opacity:.55;
+  filter:blur(var(--blur-tabbar-glow));
   transition:left var(--motion-menu) var(--ease-standard);pointer-events:none;
 }
 .TabBar__item{
@@ -321,7 +350,7 @@ h1,h2,h3,p,ul,ol{margin:0;padding:0}
   z-index:1;
 }
 .TabBar__item[aria-selected="true"]{color:var(--color-accent-default)}
-.TabBar__icon{width:20px;height:20px;display:block;transition:transform var(--motion-icon) var(--ease-standard)}
+.TabBar__icon{width:22px;height:22px;display:block;transition:transform var(--motion-icon) var(--ease-standard)}
 .TabBar__item:active .TabBar__icon{transform:scale(.9)}
 
 /* --- RecapCard · 91:21 · State (2) -------------------------------------- */
@@ -499,6 +528,11 @@ h1,h2,h3,p,ul,ol{margin:0;padding:0}
   background:repeating-linear-gradient(var(--ang2),
     color-mix(in srgb,var(--color-text-primary) 3%,transparent) 0 1px,
     transparent 1px 3px);
+}
+.Frame__vig{
+  position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(105% 88% at 50% 42%,
+    var(--color-scrim-image-zero) 26%, var(--color-scrim-image-strong) 100%);
 }
 .Frame__img{
   position:absolute;inset:0;background-size:cover;background-position:center;
@@ -760,6 +794,20 @@ function dayState(i){
   if(i in DEMO.skipped) return DEMO.skipped[i]>0 && S.photoDatesAllowed ? "skipped-available" : "skipped-empty";
   return "kept";
 }
+/* решение 15.10 — первый СОХРАНЁННЫЙ кадр месяца несёт метку месяца вместо числа.
+   В демо-состоянии это AUG 5 (старт периода) и SEP 1. Октябрь и ноябрь метки не получают:
+   их дни ещё впереди, кадров у них нет, а пустая ячейка чисел не несёт (решение 16.2). */
+function firstKeptOfMonth(i){
+  const d=dayDate(i), st=dayState(i);
+  if(!(st==="kept"||st==="kept-extra"||(st==="today"&&S.todayKept))) return false;
+  for(let j=1;j<i;j++){
+    const p=dayDate(j), ps=dayState(j);
+    if(p.getMonth()===d.getMonth() && p.getFullYear()===d.getFullYear() &&
+       (ps==="kept"||ps==="kept-extra")) return false;
+  }
+  return true;
+}
+
 /* кадр дня: 16 уникальных кадров переиспользуются по сетке (скил demo-imagery) */
 function frameOf(i){
   if(i===DEMO.dayIndex) return "today";
@@ -778,14 +826,29 @@ const Img = {
   status:{},   // name -> "ok" | "miss" | Promise
   hash(s){ let h=2166136261; for(let i=0;i<s.length;i++){ h^=s.charCodeAt(i); h=Math.imul(h,16777619);} return Math.abs(h); },
   /* заглушка целиком из токенов: угол, фаза и лёгкий поворот тона — детерминированы по имени */
-  phVars(name){
+  /* variant меняет ту же сцену, а не берёт другую: одно зерно, три сдвига
+     из решения 15.6 — тональность и направление света, отделение объекта, температура */
+  phVars(name, variant){
     const h=this.hash(name);
-    return "--ang:"+(((h)%140)+110)+"deg;"+
-           "--ang2:"+(((h>>3)%180))+"deg;"+
-           "--px:"+(((h>>5)%80)+10)+"%;--py:"+(((h>>9)%60)+10)+"%;"+
-           "--qx:"+(((h>>13)%80)+10)+"%;--qy:"+(((h>>17)%70)+25)+"%;"+
-           "--hue:"+((((h>>21)%50)-25))+"deg;"+
-           "--sat:"+(0.85+((h>>25)%40)/100).toFixed(2)+";";
+    let ang=((h)%140)+110, px=((h>>5)%80)+10, py=((h>>9)%60)+10,
+        qx=((h>>13)%80)+10, qy=((h>>17)%70)+25,
+        hue=((h>>21)%50)-25, sat=0.85+((h>>25)%40)/100;
+    /* Сцена обязана остаться узнаваемой: композицию не зеркалим, двигаем свет.
+       Решение 15.6 — за один переход меняются три вещи и только они:
+       тональность и направление света · отделение объекта от фона · температура. */
+    if(variant==="upgraded"){          /* дневной апгрейд */
+      ang+=12;                                        /* тональность: градиент разворачивается */
+      px=Math.min(88,px+20); py=Math.max(8,py-14);    /* направление света: ключевой свет уходит вверх-вправо */
+      qx=Math.min(90,qx+10); qy=Math.max(12,qy-8);
+      hue+=10; sat*=1.34;                             /* температура холоднее, цвет плотнее */
+    }else if(variant==="small-delta"){ /* кадр уже хороший: глубина и зерно, тон почти тот же */
+      ang+=5; py=Math.max(8,py-5); hue+=3; sat*=1.10;
+    }else if(variant==="effect"){      /* эффект за монеты: другой мир, разница обязана быть крупной */
+      ang+=88; px=100-px; py=100-py; qx=100-qx; hue-=46; sat*=1.75;
+    }
+    return "--ang:"+ang+"deg;--ang2:"+(((h>>3)%180))+"deg;"+
+           "--px:"+px+"%;--py:"+py+"%;--qx:"+qx+"%;--qy:"+qy+"%;"+
+           "--hue:"+hue+"deg;--sat:"+sat.toFixed(2)+";";
   },
   probe(name){
     if(this.status[name]) return Promise.resolve(this.status[name]);
@@ -798,14 +861,23 @@ const Img = {
     this.status[name]=p; return p;
   },
   /* Frame: заглушка стоит сразу, настоящий кадр приходит кросс-фейдом, раскладка не дёргается */
-  make(name, cls){
+  make(name, cls, opts){
+    opts=opts||{};
     const f=document.createElement("div");
     f.className="Frame"+(cls?" "+cls:"");
     f.dataset.img=name;
     const ph=document.createElement("div");
-    ph.className="Frame__ph"; ph.setAttribute("style", this.phVars(name));
+    ph.className="Frame__ph";
+    ph.setAttribute("style", this.phVars(opts.seed||name, opts.variant));
+    f.append(ph);
+    /* отделение объекта от фона — виньетка поверх, только у обработанных вариантов */
+    if(opts.variant){
+      const v=document.createElement("div"); v.className="Frame__vig";
+      v.style.opacity = opts.variant==="upgraded" ? ".55" : ".72";
+      f.append(v);
+    }
     const im=document.createElement("div"); im.className="Frame__img";
-    f.append(ph,im);
+    f.append(im);
     Promise.resolve(this.status[name] instanceof Promise ? this.status[name] : this.probe(name)).then(r=>{
       if(r==="ok"){ im.style.backgroundImage="url(./assets/"+name+".jpg)"; requestAnimationFrame(()=>im.classList.add("is-in")); }
     });
@@ -876,6 +948,14 @@ const FIXTURES = {
           {id:"developing",label:"Developing",ms:800}],
   result:{preset:"UPGRADED",asset:"today",confidence:"low"},
   notice:"Not our best. Render once more — on us."},
+"daily-frame/small-delta":{scenario:"daily_frame",fixture:"small-delta",tier:"fast",latency_ms:3400,
+  slow_threshold_ms:12000,cancelable_until:"developing",
+  stages:[{id:"reading",label:"Reading your frame",ms:800},
+          {id:"rendering",label:"Upgrading your frame…",ms:1800},
+          {id:"developing",label:"Developing",ms:800}],
+  /* штатное состояние, не ошибка: кадр снят удачно, честнее показать маленькую разницу */
+  result:{preset:"UPGRADED",asset:"today",confidence:"ok",delta:"small"},
+  notice:"Already well-lit — added depth and grain."},
 "daily-frame/empty":{scenario:"daily_frame",fixture:"empty",error_type:"empty",fail_after_ms:3000,
   quota_spent:false,title:"Nothing changed on this one.",body:"Your daily frame is still yours.",
   actions:[{id:"retry",label:"Try again",variant:"primary"},
@@ -1040,8 +1120,21 @@ const UI = {
     const c=el("button","DayCell");
     c.dataset.state=state; c.dataset.day=index;
     c.setAttribute("aria-label","Day "+index);
-    if(state==="kept"||state==="kept-extra"||state==="today"){
-      if(state!=="today" || S.todayKept) c.append(Img.make(frameOf(index)));
+    const hasFrame = (state==="kept"||state==="kept-extra"||(state==="today"&&S.todayKept));
+    if(hasFrame){
+      c.append(Img.make(frameOf(index), null,
+        index===DEMO.dayIndex ? {seed:"fx-before",variant:"upgraded"} : null));
+      /* решение 16.2 — число несут все три состояния с кадром: kept, kept-extra, today.
+         Пустые (skipped-available с +N, skipped-empty, future) — не несут. */
+      const d=dayDate(index), isMonthMark=firstKeptOfMonth(index);
+      const scrim=el("div","DayCell__numScrim"+(isMonthMark?" DayCell__numScrim--wide":""));
+      c.append(scrim);
+      const n=el("span","DayCell__num t-counter-meta"+(isMonthMark?" DayCell__num--month":""));
+      /* решение 15.10 — на границе месяца строка читалась бы «31 · 1 · 2 · 3…»,
+         и по полю встречались два «5» и два «6» */
+      n.textContent = isMonthMark ? (MONTH[d.getMonth()].toUpperCase()+" "+d.getDate())
+                                  : String(d.getDate());
+      c.append(n);
     }
     if(state==="skipped-available"){
       const n=el("span","t-h2"); n.textContent="+"+count; c.append(n);
@@ -1052,10 +1145,28 @@ const UI = {
 
   /* TabBar · 90:56 · Active = Today|Diary|Effects */
   TabBar(active){
+    /* решение 16 — один набор SF Symbols, все три сплошные, одного оптического веса.
+       Активная вкладка различается ЦВЕТОМ, не подменой контура на заливку.
+       Заливка стоит всегда и у всех; активная — accent, неактивные — text/secondary. */
+    /* решение 16 — один набор SF Symbols, все три сплошные, одного оптического веса.
+       Активная вкладка различается ЦВЕТОМ, не подменой контура на заливку:
+       заливка стоит всегда и у всех, активная — accent, неактивные — text/secondary. */
+    /* решение 16 — набор ВЗЯТ ИЗ FIGMA, TabBar `90:56`, свою версию не рисуем.
+       Геометрия снята через Figma MCP с узлов 90:22 / 90:27 / 90:33, viewBox 22×22,
+       все три занимают полную ширину 22. Цвета заменены на currentColor: активность
+       различается ЦВЕТОМ (accent против text/secondary), заливка стоит всегда у всех трёх,
+       контур на заливку нигде не подменяется. Фигур «обводка без заливки» нет. */
     const ICONS={
-      today:'<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="10" cy="10" r="7.2"/><circle cx="10" cy="10" r="2.6" fill="currentColor" stroke="none"/></svg>',
-      diary:'<svg viewBox="0 0 20 20" fill="currentColor"><rect x="2" y="2" width="7" height="7" rx="1.8"/><rect x="11" y="2" width="7" height="7" rx="1.8"/><rect x="2" y="11" width="7" height="7" rx="1.8"/><rect x="11" y="11" width="7" height="7" rx="1.8"/></svg>',
-      effects:'<svg viewBox="0 0 20 20" fill="currentColor"><path d="M10 1.6l1.9 4.9 4.9 1.9-4.9 1.9L10 15.2 8.1 10.3 3.2 8.4l4.9-1.9z"/><circle cx="16.4" cy="15.4" r="1.7"/></svg>'
+      /* camera.fill — корпус и выступ видоискателя одной фигурой, объектив ВЫЧТЕН
+         вторым контуром через fill-rule evenodd, а не залит цветом фона: под
+         полупрозрачным стеклом таб-бара залитый объектив читался бы пятном */
+      today:'<svg viewBox="0 0 22 22" fill="currentColor" fill-rule="evenodd" clip-rule="evenodd">'+
+        '<path d="M10.4004 2.59998C11.3943 2.60019 12.2001 3.40589 12.2002 4.39978V5.50037H18.4004C20.3884 5.50058 22 7.11189 22 9.09998V16.8998C22 18.8879 20.3884 20.5002 18.4004 20.5004H3.59961C1.61156 20.5002 0 18.8879 0 16.8998V9.09998C1.32709e-05 7.11189 1.61157 5.50058 3.59961 5.50037H4.59961V4.39978C4.59972 3.40576 5.40634 2.59998 6.40039 2.59998H10.4004ZM11 9.30017C8.95655 9.30017 7.2998 10.9569 7.2998 13.0004C7.29998 15.0437 8.95665 16.6996 11 16.6996C13.0433 16.6996 14.7 15.0437 14.7002 13.0004C14.7002 10.9569 13.0435 9.30017 11 9.30017Z"/></svg>',
+      /* square.grid.3x3.fill — девять квадратов 5.6 с шагом 8, rx 1.3 */
+      diary:'<svg viewBox="0 0 22 22" fill="currentColor"><rect x="0.2" y="0.2" width="5.6" height="5.6" rx="1.3"/><rect x="8.2" y="0.2" width="5.6" height="5.6" rx="1.3"/><rect x="16.2" y="0.2" width="5.6" height="5.6" rx="1.3"/><rect x="0.2" y="8.2" width="5.6" height="5.6" rx="1.3"/><rect x="8.2" y="8.2" width="5.6" height="5.6" rx="1.3"/><rect x="16.2" y="8.2" width="5.6" height="5.6" rx="1.3"/><rect x="0.2" y="16.2" width="5.6" height="5.6" rx="1.3"/><rect x="8.2" y="16.2" width="5.6" height="5.6" rx="1.3"/><rect x="16.2" y="16.2" width="5.6" height="5.6" rx="1.3"/></svg>',
+      /* sparkles — три четырёхлучевые искры, innerRadius 0.50 / 0.52 / 0.54.
+         Лучи толще обычного: оптический вес выровнен толщиной арматуры, а не масштабом */
+      effects:'<svg viewBox="0 0 22 22" fill="currentColor"><path d="M7.2 6.9L9.74558 11.5544L14.4 14.1L9.74558 16.6456L7.2 21.3L4.65442 16.6456L0 14.1L4.65442 11.5544L7.2 6.9Z"/><path d="M17.3 0.7L19.0282 3.67183L22 5.4L19.0282 7.12817L17.3 10.1L15.5718 7.12817L12.6 5.4L15.5718 3.67183L17.3 0.7Z"/><path d="M18.7 13.1L19.9601 15.1399L22 16.4L19.9601 17.6601L18.7 19.7L17.4399 17.6601L15.4 16.4L17.4399 15.1399L18.7 13.1Z"/></svg>'
     };
     const bar=el("nav","TabBar");
     const glow=el("span","TabBar__glow"); bar.append(glow);
@@ -1465,6 +1576,9 @@ function counterEl(cls){ const n=el("span",cls||"t-counter c-accent");
 function watermark(){ const w=el("span","Watermark t-meta"); w.textContent="meantime · AI"; return w; }
 function metaLine(txt,cls){ return assign(el("div",cls||"t-counter-meta c-secondary"), txt); }
 
+/* три версии одного кадра: оригинал · дневной апгрейд · эффект (решения 15.6, 10.20) */
+const VERSION_OPTS=[null,{seed:"fx-before",variant:"upgraded"},{seed:"fx-before",variant:"effect"}];
+
 const Screens = {};
 
 /* --- 01 · Вход --------------------------------------------------------- */
@@ -1488,10 +1602,10 @@ Screens["01"]=s=>{
 Screens["03"]=s=>{
   const w=scrollBox(s,"today");
   w.append(assign(el("h1","t-display"),"meantime"));
-  w.append(metaLine("SUN · "+fmtMDup(DEMO.today)+" · DAY "+DEMO.dayIndex+" OF "+DEMO.periodLength,"t-counter-meta c-secondary mt3"));
+  w.append(metaLine("SUN · DAY "+DEMO.dayIndex+" OF "+DEMO.periodLength,"t-counter-meta c-secondary mt3"));
   const card=el("div","FilterCard mt5");
   const img=el("div","FilterCard__img");
-  img.append(Img.make(S.todayKept?"today":"day-16"), el("div","Scrim7"));
+  img.append(Img.make(S.todayKept?"today":"day-16", null, S.todayKept?VERSION_OPTS[1]:null), el("div","Scrim7"));
   const it=el("div","FilterCard__text stack gap1");
   it.append(assign(el("div","t-h1 c-on-image"),
             S.todayKept ? (S.todayPreset==="SNOW GLOBE" ? "SNOW GLOBE" : "TODAY · KEPT")
@@ -1542,7 +1656,8 @@ Screens["05"]=s=>{
 
   const hero=el("div","Hero flush");
   const reveal=el("div","Reveal");
-  reveal.append(Img.make(isEffect ? "fx-after" : "today"));
+  reveal.append(isEffect ? Img.make("fx-after",null,{seed:"fx-before",variant:"effect"})
+                       : Img.make("today",null,{seed:"fx-before",variant:"upgraded"}));
   const veil=el("div","Reveal__veil"); veil.style.opacity=".32";
   hero.append(reveal, veil, el("div","Hero__glow"), el("div","Scrim7"));
   const ht=el("div","Hero__text stack gap2");
@@ -1591,6 +1706,11 @@ Screens["05"]=s=>{
       },
       onDone(f){
         rs.finish(); rs.remove();
+        if(f.result && f.result.delta==="small"){
+          const v=reveal.querySelector(".Frame__vig"); if(v) v.style.opacity=".22";
+          const ph=reveal.querySelector(".Frame__ph");
+          if(ph) ph.setAttribute("style", Img.phVars("fx-before","small-delta"));
+        }
         title.textContent = fmtMD(DEMO.today)+(f.result.preset==="SNOW GLOBE"?" · Snow globe":" · Upgraded");
         kick.textContent = f.result.confidence==="low" ? "LOW CONFIDENCE" : "READY";
         actions.innerHTML="";
@@ -1657,7 +1777,7 @@ function keptScreen(s, extra){
     const seg=segment(["Original","Upgraded","Snow globe"],2,(i)=>{
       const f=w.querySelector(".KeptFrame");
       const src=["fx-before","today","fx-after"][i];
-      const nf=Img.make(src); nf.className="Frame";
+      const nf=Img.make(src,null,VERSION_OPTS[i]); nf.className="Frame";
       f.replaceChild(nf, f.firstChild);
     });
     seg.classList.add("mt4"); w.append(seg);
@@ -1665,7 +1785,8 @@ function keptScreen(s, extra){
   const box=el("div","KeptFrame mt3");
   box.style.position="relative"; box.style.borderRadius="var(--radius-lg)"; box.style.overflow="hidden";
   box.style.height = extra ? "var(--size-frame-square-sm)" : "var(--size-frame-square)";
-  box.append(Img.make(extra?"fx-after":"today"), el("div","CornerScrim"), watermark());
+  box.append(Img.make(extra?"fx-after":"today", null, extra?VERSION_OPTS[2]:VERSION_OPTS[1]),
+             el("div","CornerScrim"), watermark());
   w.append(box);
 
   const meta=el("div","stack gap1 mt3");
@@ -1781,7 +1902,8 @@ Screens["08"]=s=>{
   w.append(top);
   if(extra){ const sg=segment(["Original","Upgraded","Snow globe"],2); sg.classList.add("mt3"); w.append(sg); }
   const hero=el("div","Hero Hero--day flush mt4"); hero.style.marginTop="var(--space-4)";
-  hero.append(Img.make(frameOf(i)), el("div","CornerScrim"), watermark());
+  hero.append(Img.make(frameOf(i), null, i===DEMO.dayIndex?VERSION_OPTS[1]:null),
+              el("div","CornerScrim"), watermark());
   w.append(hero);
   const m=el("div","stack gap1 mt4");
   const WD=["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
@@ -1804,7 +1926,8 @@ Screens["09"]=s=>{
   w.append(n);
 
   const card=el("div","ShareCard mt4");
-  card.append(Img.make(S.todayPreset==="SNOW GLOBE"?"fx-after":"today"), el("div","Scrim7"));
+  card.append(Img.make(S.todayPreset==="SNOW GLOBE"?"fx-after":"today", null,
+    S.todayPreset==="SNOW GLOBE"?VERSION_OPTS[2]:VERSION_OPTS[1]), el("div","Scrim7"));
   const t=el("div","ShareCard__text stack gap2");
   t.append(assign(el("div","t-counter-meta c-on-image"),
              "DAY "+DEMO.dayIndex+(S.todayPreset==="SNOW GLOBE"?" · SNOW GLOBE":"")+" · "+fmtMDup(DEMO.today)),
@@ -1950,12 +2073,12 @@ Screens["14"]=s=>{
   const top=el("div"); top.append(navBack("Effects")); w.append(top);
   const sg=segment(["Original","Upgraded","Snow globe"],2,(i)=>{
     const f=w.querySelector(".Hero");
-    const nf=Img.make(["fx-before","today","fx-after"][i]);
+    const nf=Img.make(["fx-before","today","fx-after"][i], null, VERSION_OPTS[i]);
     f.replaceChild(nf, f.firstChild);
   });
   sg.classList.add("mt2"); w.append(sg);
   const hero=el("div","Hero Hero--day flush mt4"); hero.style.marginTop="var(--space-4)";
-  hero.append(Img.make("fx-after"), el("div","CornerScrim"), watermark());
+  hero.append(Img.make("fx-after",null,VERSION_OPTS[2]), el("div","CornerScrim"), watermark());
   w.append(hero);
   w.append(metaLine("AI · SNOW GLOBE · ◎ "+S.effectSpent+" SPENT · "+S.coins+" LEFT","t-counter-meta c-accent mt4"));
   const a=el("div","stack gap3 mt4");
