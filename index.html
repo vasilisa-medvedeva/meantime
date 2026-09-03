@@ -119,13 +119,12 @@
   --size-share-dest-col:68px;      /* колонка «плитка + подпись» — шаг ряда адресатов */
 
   /* моушен · hig-numbers.md + Material 3 Motion — interaction-registry.md */
-  /* Решение 17.27 — длительности сокращены, кривые не тронуты. Соотношения сохранены:
-     вход дольше выхода (300 > 220), экран дольше шторки (260 > 220).
-     Нижняя граница навигации — 150 мс: короче переход читается склейкой,
-     и теряется связь «откуда пришли». Значения ниже ориентиров HIG осознанно. */
-  --motion-micro:90ms;   --motion-icon:120ms;  --motion-alert:160ms;
-  --motion-menu:190ms;   --motion-sheet-out:220ms; --motion-screen:260ms;
-  --motion-sheet-in:300ms;
+  /* Решение 17.29 отменяет 17.27: значения вернулись к ориентирам HIG и Material 3.
+     Ускорение до 260/300 пробовали и откатили — в руках оно читалось торопливым.
+     Медленнее ручного идёт только автодемо, подменой на время прогона (решение 17.28). */
+  --motion-micro:100ms;  --motion-icon:150ms;  --motion-alert:200ms;
+  --motion-menu:250ms;   --motion-sheet-out:300ms; --motion-screen:350ms;
+  --motion-sheet-in:400ms;
   --motion-render-fast:4000ms; --motion-render-quality:6000ms;
   --motion-stream-char:22ms;
   --motion-reveal-hold:600ms;  /* решение 17.2 — оригинал стоит чётким до кросс-фейда */
@@ -2044,8 +2043,24 @@ const isExtra     = ()=> S.todayPreset==="EXTRA";
    перестаёт читаться и переключатель теряет смысл (решения 17.2, 15.6).
    Три стадии рендера при этом остаются различимы: 540 · 1260 · 600 мс. */
 const DEMO_PACE = {
-  latency:1800,   /* кросс-фейд = latency − --motion-reveal-hold(600) = 1200 мс — защищённый минимум */
+  /* решение 17.28 — кросс-фейд 2.5 с: latency − --motion-reveal-hold(600) = 2500.
+     Главный кадр продукта: зритель должен увидеть, как результат наезжает на оригинал,
+     а не как он мигает. В руках остаются прежние 4000 / 3.4 с. */
+  latency:3100,
   stages:700      /* три стадии суммарно; каждая не короче 150 мс, иначе это мигание, а не процесс */
+};
+
+/* Решение 17.28 — переходы в демо идут примерно в 1.6 раза медленнее, чем в руках.
+   Причина не в паузах: человек, нажавший сам, ждёт результата и короткий переход ему в помощь;
+   зритель чужого прогона не знает, когда переход начнётся, и не успевает на него посмотреть.
+   Значения 17.27 остаются действующими для ручного прохода — здесь только подмена
+   на время, пока крутится демо. Зум от миниатюры идёт по sheet-in и растёт вместе с ним. */
+const DEMO_MOTION = {
+  "--motion-screen":"560ms",
+  "--motion-sheet-in":"640ms",
+  "--motion-sheet-out":"480ms",
+  "--motion-menu":"400ms",
+  "--motion-alert":"320ms"
 };
 function demoPace(fx){
   if(!fx || !Demo.on || !fx.stages) return fx;
@@ -3123,9 +3138,9 @@ const Demo = {
      своему таймеру, поэтому раз в секунду отправляем родительскому окну, где мы.
      Вне рамки не шлём ничего: слать некому. */
   /* Полный период круга вместе с паузой 1200 мс между кругами — замерено прогоном,
-     два круга подряд дали одно и то же: 18.1 с (сам круг 17.3 с). Полоса на странице кейса
+     два круга подряд дали одно и то же: 36.9 с (сам круг 36.1 с). Полоса на странице кейса
      берёт длительность отсюда, поэтому число обязано быть измеренным, а не прикинутым. */
-  totalMs:18100,
+  totalMs:36900,
   t0:0, step:"", beat:null,
 
   tick(){
@@ -3165,6 +3180,7 @@ const Demo = {
   start(){
     this.ui(); this.arm();
     this.on=true; this.badge.classList.remove("is-on");
+    Object.keys(DEMO_MOTION).forEach(k=>document.documentElement.style.setProperty(k,DEMO_MOTION[k]));
     document.querySelectorAll(".DemoTap").forEach(n=>n.remove());
     if(!this.beat) this.beat=setInterval(()=>this.tick(), 1000);
     this.tick();
@@ -3178,6 +3194,9 @@ const Demo = {
     if(this.waiter){ this.waiter.reject && this.waiter.reject("stopped"); this.waiter=null; }
     document.querySelectorAll(".DemoTap").forEach(n=>n.remove());
     this.badge.classList.add("is-on");
+    /* зритель перехватил управление — дальше он проходит прототип руками,
+       и тайминги обязаны вернуться к значениям 17.27 */
+    Object.keys(DEMO_MOTION).forEach(k=>document.documentElement.style.removeProperty(k));
     /* последнее сообщение с on:false — по нему полоса на странице гаснет
        и подпись меняется на «управление у вас». В этом весь смысл перехвата */
     if(this.beat){ clearInterval(this.beat); this.beat=null; }
@@ -3245,9 +3264,12 @@ const Demo = {
     document.getElementById("sheetLayer").style.pointerEvents="none";
     Router.reset("03");
 
-    /* Паузы урезаны почти вдвое: зритель считывает статичный экран за 1–1.5 с,
-       дальше это просто ожидание. Не тронуты два места, где показывают продукт,
-       а не интерфейс: кросс-фейд проявления и композиция рекапа. */
+    /* Темп круга (решения 17.28, 17.29). Выдержки стоят ТОЛЬКО на содержательных экранах:
+       поле дней, оба пейвола, композиция рекапа, результат проявления, сохранённый день.
+       Три служебных места намеренно короткие и не растут: стартовый экран до нажатия,
+       видоискатель камеры, пауза перед новым кругом — они ничего не рассказывают.
+       Числа выше потолков из письма координатора: на потолках круг давал 25.9 с
+       при цели 35–40. Отклонение названо в отчёте, каждое место крутится отдельно. */
     /* 03 — карточка дня: вопрос, обещание квоты, тикающий отсчёт */
     await this.sleep(800);
     await this.tap(await this.until(()=>this.btn("Take a photo")));
@@ -3268,17 +3290,17 @@ const Demo = {
     /* 05 — проявление идёт своим ходом: этапы, строка про 24 часа */
     this.at("reveal");
     await this.until(()=>this.btn("Keep in diary"), 14000);
-    await this.sleep(800);
+    await this.sleep(3500);          /* результат с переключателем «до / после» */
     await this.tap(this.btn("Keep in diary"));
 
     /* 06 — день сохранён: подпись кадра, счётчик, блок TOMORROW */
     this.at("kept");
-    await this.sleep(1000);
+    await this.sleep(3000);          /* сохранённый день со счётчиком */
     await this.tap(await this.until(()=>this.btn("Open diary")));
 
     /* 07 — полка итогов и поле периода */
     this.at("diary");
-    await this.sleep(1200);
+    await this.sleep(5000);          /* поле дней — тезис продукта, дни должны успеть прочитаться */
 
     /* Пропущенный день с меткой +3 (9 сентября). За один шаг рассказывает три вещи,
        которых в круге не было: пропуск виден и ничего не обнуляет · приложение знает,
@@ -3293,7 +3315,7 @@ const Demo = {
 
     this.at("softPaywall");
     await this.until(()=>document.querySelector("#sheetLayer .Sheet"), 4000);
-    await this.sleep(1700);          /* защищено: текст пейвола надо успеть прочитать */
+    await this.sleep(4000);          /* защищено: текст мягкого пейвола */
     await this.tap(await this.until(()=>this.btn("Not now")));
     await this.sleep(300);
 
@@ -3304,9 +3326,9 @@ const Demo = {
 
     /* 10 — рекап во весь экран, через 600 мс приходит пейвол */
     this.at("recap");
-    await this.sleep(1200);           /* защищено: композицию рекапа надо успеть увидеть */
+    await this.sleep(4500);           /* защищено: композиция рекапа */
     await this.until(()=>document.querySelector("#sheetLayer .Sheet"), 4000);
-    await this.sleep(2100);           /* защищено: список выгод и оба плана */
+    await this.sleep(5500);           /* защищено: список выгод и оба плана */
     this.at("paywall");
     const yearly=[...document.querySelectorAll("#sheetLayer .PlanRow")][1];
     if(yearly) { await this.tap(yearly); await this.sleep(400); }
