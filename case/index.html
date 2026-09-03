@@ -13,7 +13,7 @@
 
   --tone-cover:#DDE4F5;
   --tone-chat:#E7EAF0;
-  --tone-day:#F6E5D4;
+  --tone-day:#E3DDF2;
   --tone-keep:#DCE6F7;
   --tone-thanks:#E4E7EA;
 
@@ -29,7 +29,7 @@
 *{box-sizing:border-box}
 html{scroll-behavior:smooth}
 body{
-  margin:0;background:var(--page);color:var(--ink);
+  margin:0;padding-top:26px;background:var(--page);color:var(--ink);
   font-family:var(--body);font-size:17px;line-height:1.55;
   -webkit-font-smoothing:antialiased;overflow-x:hidden;
 }
@@ -39,19 +39,19 @@ a{color:var(--blue);text-underline-offset:3px}
 a:focus-visible{outline:2px solid var(--blue);outline-offset:3px;border-radius:4px}
 
 .block{margin:0 auto 12px;width:min(1120px,94vw);border-radius:30px;padding:46px 40px}
-.block--cover{background:var(--tone-cover);padding:64px 48px 58px}
-.cover-grid{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:56px;align-items:center;max-width:980px;margin:0 auto}
+.block--cover{background:var(--tone-cover);padding:52px 48px 52px}
+.cover-grid{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:64px;align-items:center;max-width:1000px;margin:0 auto}
 .cover-txt{min-width:0;container-type:inline-size}
 .mock-col{display:flex;flex-direction:column;align-items:center;gap:14px}
-.mock{position:relative;width:266px;height:576px;border-radius:40px;padding:7px;
+.mock{position:relative;width:248px;height:538px;border-radius:38px;padding:7px;
   background:#0B0D13;box-shadow:0 18px 44px rgba(20,25,40,.28);flex:none}
-.mock__vp{position:relative;width:252px;height:562px;border-radius:34px;overflow:hidden;background:#05070C}
+.mock__vp{position:relative;width:234px;height:524px;border-radius:32px;overflow:hidden;background:#05070C}
 .mock__vp iframe{position:absolute;top:0;left:0;width:390px;height:844px;border:0;
-  transform:scale(.646);transform-origin:0 0}
+  transform:scale(.6);transform-origin:0 0}
 .mock__vp img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:none}
 .mock.is-static .mock__vp iframe{display:none}
 .mock.is-static .mock__vp img{display:block}
-.bar{width:266px;display:flex;flex-direction:column;gap:7px}
+.bar{width:248px;display:flex;flex-direction:column;gap:7px}
 .bar__track{height:3px;border-radius:99px;background:rgba(43,53,80,.18);overflow:hidden}
 .bar__fill{height:100%;width:0;border-radius:99px;background:var(--night);transition:width .95s linear}
 .bar__meta{display:flex;justify-content:space-between;font-size:12px;color:var(--night);opacity:.62}
@@ -65,13 +65,13 @@ a:focus-visible{outline:2px solid var(--blue);outline-offset:3px;border-radius:4
 
 /* обложка */
 .kicker{font-size:14px;font-weight:500;color:var(--night);opacity:.7}
-.cover-title{font-family:var(--logo);font-weight:400;font-size:clamp(46px,7vw,84px);line-height:1;
-  color:var(--night);margin:12px 0 16px;letter-spacing:-.02em}
+.cover-title{font-family:var(--logo);font-weight:400;font-size:clamp(46px,7vw,80px);line-height:1;
+  color:var(--night);margin:8px 0 14px;letter-spacing:-.02em}
 @supports (width:1cqw){.cover-title{font-size:min(84px,17cqw)}}
 .cover-sub{font-size:19px;color:var(--night);opacity:.82;max-width:420px}
-.cover-me{margin-top:26px;font-size:15px;font-weight:600;color:var(--night)}
-.down{display:inline-block;margin-top:22px;font-size:22px;color:var(--night);opacity:.45;text-decoration:none}
-.try{display:flex;align-items:center;gap:16px;margin-top:28px;flex-wrap:wrap}
+.cover-me{margin-top:20px;font-size:15px;font-weight:600;color:var(--night)}
+.down{display:block;width:max-content;margin:30px auto 0;font-size:22px;color:var(--night);opacity:.4;text-decoration:none}
+.try{display:flex;align-items:center;gap:16px;margin-top:24px;flex-wrap:wrap}
 .qr{width:96px;height:96px;flex:none;background:#fff;border-radius:12px;padding:7px;
   box-shadow:0 3px 10px rgba(20,25,40,.09)}
 .qr svg{display:block;width:100%;height:100%}
@@ -107,7 +107,7 @@ ul.l b{color:var(--ink-strong);font-weight:600}
 .case-label{font-size:13px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--night);opacity:.55}
 .case-t{font-size:27px;color:var(--night);margin:8px 0 12px}
 .case-p{font-size:17px;color:var(--night);opacity:.82;max-width:520px}
-.block--day .case-label,.block--day .case-t,.block--day .case-p,.block--day .cap{color:#4A3319}
+.block--day .case-label,.block--day .case-t,.block--day .case-p,.block--day .cap{color:#332A4E}
 .phones{display:flex;gap:14px;overflow-x:auto;padding:4px 0 8px;margin-top:24px;scroll-snap-type:x mandatory}
 .phones::-webkit-scrollbar{height:5px}
 .phones::-webkit-scrollbar-thumb{background:rgba(43,53,80,.2);border-radius:99px}
@@ -165,7 +165,6 @@ ul.l b{color:var(--ink-strong);font-weight:600}
           <a class="btn btn--fig" href="https://www.figma.com/design/Izs4XE3yb231whiX27VxKz/?node-id=17-4" target="_blank" rel="noopener">Макеты в Figma →</a>
         </div>
       </div>
-      <a class="down" href="#brief" aria-label="Вниз">↓</a>
     </div>
     <div class="mock-col">
       <div class="mock" id="mock">
@@ -180,6 +179,7 @@ ul.l b{color:var(--ink-strong);font-weight:600}
       </div>
     </div>
   </div>
+  <a class="down" href="#brief" aria-label="Вниз">↓</a>
 </section>
 
 <section class="block block--chat" id="brief">
