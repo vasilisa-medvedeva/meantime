@@ -119,9 +119,13 @@
   --size-share-dest-col:68px;      /* колонка «плитка + подпись» — шаг ряда адресатов */
 
   /* моушен · hig-numbers.md + Material 3 Motion — interaction-registry.md */
-  --motion-micro:100ms;  --motion-icon:150ms;  --motion-alert:200ms;
-  --motion-menu:250ms;   --motion-sheet-out:300ms; --motion-screen:350ms;
-  --motion-sheet-in:400ms;
+  /* Решение 17.27 — длительности сокращены, кривые не тронуты. Соотношения сохранены:
+     вход дольше выхода (300 > 220), экран дольше шторки (260 > 220).
+     Нижняя граница навигации — 150 мс: короче переход читается склейкой,
+     и теряется связь «откуда пришли». Значения ниже ориентиров HIG осознанно. */
+  --motion-micro:90ms;   --motion-icon:120ms;  --motion-alert:160ms;
+  --motion-menu:190ms;   --motion-sheet-out:220ms; --motion-screen:260ms;
+  --motion-sheet-in:300ms;
   --motion-render-fast:4000ms; --motion-render-quality:6000ms;
   --motion-stream-char:22ms;
   --motion-reveal-hold:600ms;  /* решение 17.2 — оригинал стоит чётким до кросс-фейда */
@@ -135,6 +139,17 @@
   --size-daycell-month-label:9px; /* решение 15.10 — «SEP 1» в 11 pt не влезает в ячейку 40;
                                      9 pt — названный владельцем пол, ниже не опускаемся */
   --size-device-radius:47px;   /* физический радиус угла iPhone — рамка показа, не продукт */
+  /* Витрина по прямой ссылке (решение 17.26). Значения презентации, а не интерфейса:
+     в коллекции Figma их нет и быть не должно. Ориентир — обложка кейса.
+     Применяются только вокруг устройства и только когда оно стоит рамкой по центру. */
+  --color-stage-bg:#F4F5F7;
+  --color-stage-bezel:#0B0D13;
+  --color-stage-ink:#2A3040;
+  --color-stage-ink-dim:#5B6472;
+  --color-stage-hairline:rgba(20,25,40,.18);
+  --color-stage-chip:rgba(255,255,255,.72);
+  --size-stage-bezel:12px;     /* внешний радиус = 47 + 12 = 59; см. отчёт про «около 44» */
+  --effect-stage-shadow:0 18px 44px rgba(20,25,40,.28);
   --radius-indicator:3px;      /* индикаторы статус-бара — служебный chrome, не продуктовый радиус */
   --radius-hairline:1px;
 
@@ -166,7 +181,9 @@
    §2 · БАЗА И CHROME
    ========================================================================= */
 *,*::before,*::after{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{margin:0;padding:0;height:100%}
+html,body{margin:0;padding:0;height:100%;
+  /* без этого дотягивание до края даёт резиновую отдачу, и под интерфейсом видно полосу */
+  overscroll-behavior:none}
 body{
   background:var(--color-bg-primary);
   font-family:var(--font-ui);
@@ -215,10 +232,44 @@ h1,h2,h3,p,ul,ol{margin:0;padding:0}
   box-shadow:0 0 0 10px var(--color-bezel-outer), 0 0 0 12px var(--color-bezel-inner), var(--effect-chrome-shadow);
   touch-action:pan-y;
 }
+/* Мобильная ветка: устройство занимает окно целиком. Эта же ветка работает внутри рамки
+   кейса шириной 390 — прототип и там обязан занимать её полностью.
+   `dvh` убран: динамическая высота меняется непрерывно, пока Safari прячет и достаёт
+   свою панель, раскладка пересчитывается на лету и снизу мелькает полоса.
+   `svh` — высота при ВИДИМОЙ панели, она не меняется при скролле. Цена — несколько
+   пунктов высоты, которыми мы всё равно не могли пользоваться надёжно.
+   `position:fixed` вместо участия в потоке: `overflow:hidden` на body в iOS не гарантирует,
+   что не прокрутится сама страница. Скроллится только .Screen__scroll внутри. */
 @media (max-width:460px),(max-height:900px){
   .Stage{gap:0}
-  .Device{width:100vw;height:100dvh;border-radius:0;box-shadow:none}
+  .Device{
+    position:fixed;inset:0;
+    width:auto;                   /* ширину задаёт inset:0, иначе базовые 390 переучреждают right */
+    height:100vh;                 /* фолбэк для браузеров без новых единиц */
+    height:100svh;                /* выигрывает последнее поддержанное правило */
+    border-radius:0;box-shadow:none;
+  }
   .DevBar{display:none!important}
+}
+/* Витрина по прямой ссылке (решение 17.26) — противоположная ветка того же условия:
+   применяется ровно тогда, когда устройство НЕ растянуто на весь вьюпорт.
+   На телефоне и внутри рамки кейса шириной 390 работает ветка выше, и здесь не меняется
+   ничего. Меняется только оформление ВОКРУГ устройства: внутри те же тёмные токены,
+   ни один экран приложения об этой правке не знает. */
+@media (min-width:461px) and (min-height:901px){
+  body{background:var(--color-stage-bg)}
+  .Device{
+    box-shadow:0 0 0 var(--size-stage-bezel) var(--color-stage-bezel), var(--effect-stage-shadow);
+  }
+  /* Дев-панель берёт цвета из тёмной палитры и на светлом фоне пропадает — перекрашиваем.
+     Селектор со `body` намеренно: базовые правила .DevBar описаны НИЖЕ по файлу
+     и при равной специфичности выигрывали бы по порядку. */
+  body .DevBar{color:var(--color-stage-ink-dim)}
+  body .DevBar button,body .DevBar select{
+    background:var(--color-stage-chip);
+    border-color:var(--color-stage-hairline);
+    color:var(--color-stage-ink);
+  }
 }
 
 .ScreenStack{position:absolute;inset:0}
@@ -894,8 +945,9 @@ h1,h2,h3,p,ul,ol{margin:0;padding:0}
 
 /* --- панель разработчика (вне устройства, на десктопе) --- */
 .DevBar{display:flex;gap:var(--space-2);align-items:center;color:var(--color-text-tertiary);font-size:12px}
-.DevBar button{padding:6px 12px;border-radius:var(--radius-full);
-  border:var(--size-hairline) solid var(--color-border-default);color:var(--color-text-secondary);font-size:12px}
+.DevBar button,.DevBar select{padding:6px 12px;border-radius:var(--radius-full);
+  border:var(--size-hairline) solid var(--color-border-default);
+  background:var(--color-surface-raised);color:var(--color-text-secondary);font-size:12px}
 .EventLog{position:absolute;inset:0;z-index:60;background:var(--color-devpanel-bg);
   padding:calc(var(--size-safe-top) + var(--space-2)) var(--space-4) var(--space-8);
   overflow-y:auto;display:none;font-size:11px;line-height:16px;
@@ -1620,7 +1672,7 @@ const UI = {
         if(api._closed) return; api._closed=true;
         sheet.classList.add("is-out"); sheet.classList.remove("is-in"); scrim.classList.remove("is-in");
         setTimeout(()=>{ scrim.remove(); sheet.remove();
-          if(!layer.querySelector(".Sheet")) layer.style.pointerEvents="none"; }, 320);
+          if(!layer.querySelector(".Sheet")) layer.style.pointerEvents="none"; }, AFTER_SHEET());
         onDismiss && onDismiss();
       }
     };
@@ -1661,6 +1713,10 @@ function dragToDismiss(sheet, close){
   window.addEventListener("mouseup",up);
 }
 
+/* Пауза «шторка ушла — можно открывать следующую». Была числом 320 мимо токена;
+   решение 17.27 требует привязки к токену, иначе при смене длительностей разъедется. */
+const AFTER_SHEET = ()=>MS("--motion-sheet-out")+20;
+
 /* --- баннер сверху: в iOS нет тостов (реестр №24) --- */
 function banner(text){
   const layer=document.getElementById("bannerLayer");
@@ -1668,7 +1724,7 @@ function banner(text){
   layer.append(b);
   requestAnimationFrame(()=>b.classList.add("is-in"));
   setTimeout(()=>{ b.classList.add("is-out"); b.classList.remove("is-in");
-    setTimeout(()=>b.remove(), 260); }, 2500);
+    setTimeout(()=>b.remove(), MS("--motion-alert")+60); }, 2500);
 }
 
 /* --- заставка (решение 17.4, реестр №34) -------------------------------
@@ -1697,7 +1753,7 @@ function actionSheet(items){
   const cancelGrp=el("div","ActionSheet__grp");
   const close=()=>{ wrap.classList.remove("is-in"); scrim.classList.remove("is-in");
     setTimeout(()=>{ wrap.remove(); scrim.remove();
-      if(!layer.querySelector(".Sheet")) layer.style.pointerEvents="none"; },260); };
+      if(!layer.querySelector(".Sheet")) layer.style.pointerEvents="none"; },MS("--motion-menu")+20); };
   items.forEach(it=>{
     const b=el("button","ActionSheet__btn"); b.dataset.role=it.role||"default"; b.textContent=it.label;
     b.addEventListener("click",()=>{ close(); it.onTap && it.onTap(); });
@@ -1980,6 +2036,30 @@ const effectUpper = ()=> effectTitle().toUpperCase();
 const effectPrice = ()=> S.effectPrice || 4;
 const isExtra     = ()=> S.todayPreset==="EXTRA";
 /* подстановка имени поверх фикстуры эффекта: preset, preset_id и подписи стадий */
+/* Темп только для автодемо (?demo). Круг крутится на обложке кейса и должен укладываться
+   в ~25 с, а человек, идущий прототипом руками, обязан получить прежние длительности:
+   рендер, который «думает» полсекунды, читается как подделка.
+   Порог снизу — кросс-фейд проявления: он идёт `latency_ms − --motion-reveal-hold`,
+   при 0.6 это 1800 мс, то есть выше 1500, ниже которых разница между «до» и «после»
+   перестаёт читаться и переключатель теряет смысл (решения 17.2, 15.6).
+   Три стадии рендера при этом остаются различимы: 540 · 1260 · 600 мс. */
+const DEMO_PACE = {
+  latency:1800,   /* кросс-фейд = latency − --motion-reveal-hold(600) = 1200 мс — защищённый минимум */
+  stages:700      /* три стадии суммарно; каждая не короче 150 мс, иначе это мигание, а не процесс */
+};
+function demoPace(fx){
+  if(!fx || !Demo.on || !fx.stages) return fx;
+  const c=Object.assign({},fx);
+  const sum=fx.stages.reduce((a,st)=>a+st.ms,0) || 1;
+  const k=DEMO_PACE.stages/sum;
+  c.stages=fx.stages.map(st=>Object.assign({},st,{ms:Math.max(150,Math.round(st.ms*k))}));
+  if(c.latency_ms){
+    if(c.slow_threshold_ms) c.slow_threshold_ms=Math.round(c.slow_threshold_ms*DEMO_PACE.latency/c.latency_ms);
+    c.latency_ms=DEMO_PACE.latency;
+  }
+  return c;
+}
+
 function effectFixture(fx){
   if(!fx || fx.scenario!=="effect") return fx;
   const name=effectTitle(), id=presetId(name);
@@ -2160,7 +2240,7 @@ Screens["05"]=s=>{
   w.append(panel);
 
   AI.load(path).then(raw=>{
-    const fx = effectFixture(raw);
+    const fx = demoPace(effectFixture(raw));
     if(!fx){ panel.append(assign(el("div","t-body c-error"),"Fixture not found: "+path)); return; }
     const stages=fx.stages||[{id:"reading",label:"Reading your frame",ms:600}];
     const rs=UI.RenderStages(stages);
@@ -2789,7 +2869,7 @@ Sheets.softPaywall = (trigger)=>{
     b.append(ul);
     b.append(plansRow());
     b.append(UI.Button({label:"Continue with a plan",onTap:()=>{
-      Analytics.track("upgrade_clicked",{placement:trigger}); api.close(); setTimeout(Sheets.plan,320); }}));
+      Analytics.track("upgrade_clicked",{placement:trigger}); api.close(); setTimeout(Sheets.plan,AFTER_SHEET()); }}));
     b.append(UI.Button({label:"Not now",variant:"text",onTap:()=>{
       Analytics.track("paywall_dismissed",{type:"soft"}); api.close(); }}));
     b.append(legalRow());
@@ -2810,7 +2890,7 @@ Sheets.strongPaywall = (delay)=>{
       .forEach(t=>{ const li=el("li"); li.append(assign(el("span","t-caption"),t)); ul.append(li); });
     b.append(ul, plansRow());
     b.append(UI.Button({label:"Continue with a plan",onTap:()=>{
-      Analytics.track("upgrade_clicked",{placement:"recap_week"}); api.close(); setTimeout(Sheets.plan,320); }}));
+      Analytics.track("upgrade_clicked",{placement:"recap_week"}); api.close(); setTimeout(Sheets.plan,AFTER_SHEET()); }}));
     b.append(UI.Button({label:"Not now",variant:"text",onTap:()=>{
       Analytics.track("paywall_dismissed",{type:"strong"}); api.close();
       const scr=Router.stack[Router.stack.length-1];
@@ -2875,7 +2955,7 @@ function storeKit(sheetApi){
   },1500);
   setTimeout(()=>{
     k.classList.remove("is-in");
-    setTimeout(()=>k.remove(),320);
+    setTimeout(()=>k.remove(),AFTER_SHEET());
     S.subscriber=true; S.coins=S.coins+20; saveState();
     Analytics.track("plan_selected",{plan:PLAN});
     sheetApi.close();
@@ -2896,7 +2976,7 @@ Sheets.missedDay = (i)=>{
     const sp=el("div"); sp.style.flex="1"; b.append(sp);
     b.append(UI.Button({label:S.subscriber?"Bring it in":"Continue with a plan",onTap:()=>{
       if(S.subscriber){ api.close(); banner("Restored "+fmtMD(d)+" · upgrade of that day"); return; }
-      Analytics.track("upgrade_clicked",{placement:"missed_day"}); api.close(); setTimeout(Sheets.plan,320);
+      Analytics.track("upgrade_clicked",{placement:"missed_day"}); api.close(); setTimeout(Sheets.plan,AFTER_SHEET());
     }}));
     b.append(UI.Button({label:"Not now",variant:"text",onTap:()=>{
       Analytics.track("paywall_dismissed",{type:"soft"}); api.close(); }}));
@@ -2913,10 +2993,10 @@ Sheets.coinPacks = ()=>{
       r.append(assign(el("span","t-counter"),n), assign(el("span","t-body c-accent"),p));
       r.addEventListener("click",()=>{ S.coins+=c; saveState();
         Analytics.track("coins_purchased",{pack:n}); api.close();
-        setTimeout(()=>{ banner(n+" added"); if(Router.current==="11") Router.swapTop("11"); },320); });
+        setTimeout(()=>{ banner(n+" added"); if(Router.current==="11") Router.swapTop("11"); },AFTER_SHEET()); });
       b.append(r);
     });
-    b.append(UI.Button({label:"Why effects cost coins",variant:"text",onTap:()=>{ api.close(); setTimeout(Sheets.whyCoins,320); }}));
+    b.append(UI.Button({label:"Why effects cost coins",variant:"text",onTap:()=>{ api.close(); setTimeout(Sheets.whyCoins,AFTER_SHEET()); }}));
     const sp=el("div"); sp.style.flex="1"; b.append(sp);
     b.append(UI.Button({label:"Not now",variant:"text",onTap:api.close}));
   }});
@@ -2964,7 +3044,7 @@ Sheets.confirmCoins = ({name, price, extra})=>{
         setTimeout(()=>Router.go("05"),120);
       }}));
     }else{
-      b.append(UI.Button({label:"Get coins",onTap:()=>{ api.close(); setTimeout(Sheets.coinPacks,320); }}));
+      b.append(UI.Button({label:"Get coins",onTap:()=>{ api.close(); setTimeout(Sheets.coinPacks,AFTER_SHEET()); }}));
     }
     b.append(UI.Button({label:"Cancel",variant:"text",onTap:api.close}));
   }});
@@ -2992,9 +3072,7 @@ const EventLogView = {
 
   /* дев-панель: сценарии фикстур, чтобы состояния AI были достижимы вручную */
   const bar=document.querySelector(".DevBar");
-  const sel=document.createElement("select");
-  sel.style.cssText="background:var(--color-surface-raised);color:var(--color-text-secondary);"+
-    "border:1px solid var(--color-border-default);border-radius:var(--radius-full);padding:5px 10px;font-size:12px";
+  const sel=document.createElement("select");   /* стиль в CSS, не инлайном: инлайн выиграл бы у витрины */
   Object.keys(FIXTURES).forEach(k=>{ const o=document.createElement("option"); o.value=k; o.textContent=k; sel.append(o); });
   sel.value="daily-frame/success";
   sel.addEventListener("change",()=>{ S._fixtureOverride=sel.value; });
@@ -3045,9 +3123,9 @@ const Demo = {
      своему таймеру, поэтому раз в секунду отправляем родительскому окну, где мы.
      Вне рамки не шлём ничего: слать некому. */
   /* Полный период круга вместе с паузой 1200 мс между кругами — замерено прогоном,
-     два круга подряд дали одно и то же: 43.6 с. Полоса на странице кейса берёт длительность
-     отсюда, поэтому число обязано быть измеренным, а не прикинутым. */
-  totalMs:43600,
+     два круга подряд дали одно и то же: 18.1 с (сам круг 17.3 с). Полоса на странице кейса
+     берёт длительность отсюда, поэтому число обязано быть измеренным, а не прикинутым. */
+  totalMs:18100,
   t0:0, step:"", beat:null,
 
   tick(){
@@ -3151,7 +3229,7 @@ const Demo = {
     try{
       while(this.on){
         await this.run();
-        await this.sleep(1200);
+        await this.sleep(800);
       }
     }catch(e){ if(e!=="stopped" && this.on){ console.warn("demo:",e); this.stop(); } }
   },
@@ -3167,23 +3245,21 @@ const Demo = {
     document.getElementById("sheetLayer").style.pointerEvents="none";
     Router.reset("03");
 
+    /* Паузы урезаны почти вдвое: зритель считывает статичный экран за 1–1.5 с,
+       дальше это просто ожидание. Не тронуты два места, где показывают продукт,
+       а не интерфейс: кросс-фейд проявления и композиция рекапа. */
     /* 03 — карточка дня: вопрос, обещание квоты, тикающий отсчёт */
-    await this.sleep(4200);
+    await this.sleep(800);
     await this.tap(await this.until(()=>this.btn("Take a photo")));
 
     /* 04a — камера: пауза, чтобы зритель понял, что это видоискатель, а не фотография */
     this.at("camera");
     await this.until(()=>document.querySelector(".Camera__shutter"), 4000);
-    await this.sleep(1600);
+    await this.sleep(900);
 
-    /* 04 — вторая дверь в проявление: галерея из одного снимка (решение 17.19).
-       Показываем и закрываем — снимать всё равно будем спуском */
-    this.at("gallery");
-    await this.tap(document.querySelector(".Camera__thumb"));
-    await this.until(()=>document.querySelector("#sheetLayer .PickRow .PickTile:not(.Skeleton)"), 4000);
-    await this.sleep(1600);
-    await this.tap(await this.until(()=>this.btn("Cancel")));
-    await this.sleep(700);
+    /* Галерея из круга убрана решением 17.25: открытие библиотеки — служебный экран,
+       о продукте он не рассказывает ничего, а места занимал около трёх секунд.
+       Освободившееся время ушло не в новые паузы, а в общее сокращение круга. */
 
     /* спуск — первый шаг core-flow, ради которого и заведён экран камеры */
     this.at("shutter");
@@ -3192,31 +3268,50 @@ const Demo = {
     /* 05 — проявление идёт своим ходом: этапы, строка про 24 часа */
     this.at("reveal");
     await this.until(()=>this.btn("Keep in diary"), 14000);
-    await this.sleep(2600);
+    await this.sleep(800);
     await this.tap(this.btn("Keep in diary"));
 
     /* 06 — день сохранён: подпись кадра, счётчик, блок TOMORROW */
     this.at("kept");
-    await this.sleep(4600);
+    await this.sleep(1000);
     await this.tap(await this.until(()=>this.btn("Open diary")));
 
     /* 07 — полка итогов и поле периода */
     this.at("diary");
-    await this.sleep(3800);
+    await this.sleep(1200);
+
+    /* Пропущенный день с меткой +3 (9 сентября). За один шаг рассказывает три вещи,
+       которых в круге не было: пропуск виден и ничего не обнуляет · приложение знает,
+       что кадры того дня лежат на телефоне · догрузка стоит подписки.
+       Заодно круг начинает показывать оба слоя монетизации, мягкий и сильный. */
+    this.at("missed");
+    const miss=await this.until(()=>
+      document.querySelector('.DayCell[data-state="skipped-available"][data-day="36"]'));
+    miss.scrollIntoView({block:"center",behavior:"smooth"});
+    await this.sleep(450);
+    await this.tap(miss);
+
+    this.at("softPaywall");
+    await this.until(()=>document.querySelector("#sheetLayer .Sheet"), 4000);
+    await this.sleep(1700);          /* защищено: текст пейвола надо успеть прочитать */
+    await this.tap(await this.until(()=>this.btn("Not now")));
+    await this.sleep(300);
+
     const card=await this.until(()=>document.querySelector(".RecapCard"));
-    await this.sleep(1400);
+    card.scrollIntoView({block:"center",behavior:"smooth"});
+    await this.sleep(400);
     await this.tap(card);
 
     /* 10 — рекап во весь экран, через 600 мс приходит пейвол */
     this.at("recap");
-    await this.sleep(3000);
+    await this.sleep(1200);           /* защищено: композицию рекапа надо успеть увидеть */
     await this.until(()=>document.querySelector("#sheetLayer .Sheet"), 4000);
-    await this.sleep(6000);           /* время прочитать список и оба плана */
+    await this.sleep(2100);           /* защищено: список выгод и оба плана */
     this.at("paywall");
     const yearly=[...document.querySelectorAll("#sheetLayer .PlanRow")][1];
-    if(yearly) { await this.tap(yearly); await this.sleep(2200); }
+    if(yearly) { await this.tap(yearly); await this.sleep(400); }
     await this.tap(await this.until(()=>this.btn("Not now")));
-    await this.sleep(2000);
+    await this.sleep(400);
   }
 };
 (function demoBoot(){
