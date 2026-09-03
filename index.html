@@ -1846,9 +1846,27 @@ const Router = {
 
   /* корень + экран поверх: «назад» с 06 возвращает на 03 в состоянии «после Keep» */
   resetTo(rootRoute, route){
-    this.reset(rootRoute);
-    const s=this.build(route); this.el().append(s);
-    this.stack.push({route, el:s, mode:"slide"});
+    /* решение 17.34 — экран приходит слайдом поверх текущего, а корень под ним
+       подменяется уже после анимации: зритель видит переход, «назад» по-прежнему ведёт на корень */
+    if(this.busy) return; this.busy=true;
+    const D=MS("--motion-screen");
+    const ease=getComputedStyle(document.documentElement).getPropertyValue("--ease-standard");
+    const old=this.stack.slice(), top=old[old.length-1];
+    const s=this.build(route);
+    s.style.transform="translateX(100%)"; s.style.willChange="transform";
+    this.el().append(s); void s.offsetWidth;
+    this.stack=old.concat([{route, el:s, mode:"slide"}]);
+    requestAnimationFrame(()=>{
+      s.style.transition="transform "+D+"ms "+ease; s.style.transform="translateX(0)";
+      if(top){ top.el.style.transition="transform "+D+"ms "+ease+", opacity "+D+"ms "+ease;
+        top.el.style.transform="translateX(-30%)"; top.el.style.opacity=".6"; }
+    });
+    setTimeout(()=>{
+      old.forEach(f=>f.el.remove());
+      const r=this.build(rootRoute); this.el().insertBefore(r, s);
+      this.stack=[{route:rootRoute, el:r, mode:"root"},{route, el:s, mode:"slide"}];
+      s.style.transition=""; s.style.willChange=""; this.busy=false;
+    }, D+20);
     this.current=route; location.hash="#/"+route;
   },
 
@@ -1866,19 +1884,32 @@ const Router = {
     const s=this.build(route);
     const D=MS("--motion-screen"), DZ=MS("--motion-sheet-in");
     const ease=getComputedStyle(document.documentElement).getPropertyValue("--ease-standard");
-    let mode = opts.cover ? "cover" : (opts.from ? "zoom" : "slide"), origin=null;
+    let mode = opts.cover ? "cover" : (opts.dissolve ? "dissolve" : (opts.from ? "zoom" : "slide")), origin=null;
+    s.style.willChange="transform,opacity"; if(below) below.el.style.willChange="transform,opacity";
+    const done=()=>{ s.style.transition=""; s.style.willChange=""; if(below) below.el.style.willChange=""; this.busy=false; };
 
     /* HIG Modality — полноэкранная модалка приходит снизу и снизу же уходит.
        Экран под ней остаётся на месте: он не «уехал назад», он накрыт (реестр №37). */
     if(mode==="cover"){
-      const easeSheet=getComputedStyle(document.documentElement).getPropertyValue("--ease-sheet");
+      /* решение 17.34 — полноэкранная модалка идёт по стандартной кривой: перелёт `ease-sheet`
+         уместен на шторке в полэкрана, а на всём экране читается как дрожь */
       s.style.transform="translateY(100%)";
-      this.el().append(s);
+      this.el().append(s); void s.offsetWidth;
       requestAnimationFrame(()=>{
-        s.style.transition="transform "+DZ+"ms "+easeSheet;
+        s.style.transition="transform "+DZ+"ms "+ease;
         s.style.transform="translateY(0)";
       });
-      setTimeout(()=>{ s.style.transition=""; this.busy=false; }, DZ+20);
+      setTimeout(done, DZ+20);
+    }else if(mode==="dissolve"){
+      /* решение 17.34 — спуск → проявление: в видоискателе и в проявлении одна и та же
+         фотография, она остаётся на месте, меняется только интерфейс вокруг */
+      s.style.opacity="0";
+      this.el().append(s); void s.offsetWidth;
+      requestAnimationFrame(()=>{
+        s.style.transition="opacity "+D+"ms "+ease;
+        s.style.opacity="1";
+      });
+      setTimeout(done, D+20);
     }else if(mode==="zoom"){
       const dev=document.getElementById("device").getBoundingClientRect();
       const r=opts.from.getBoundingClientRect();
@@ -1886,22 +1917,22 @@ const Router = {
       s.style.transformOrigin=origin.cx+"px "+origin.cy+"px";
       s.style.transform="scale("+origin.scale+")";
       s.style.opacity="0";
-      this.el().append(s);
+      this.el().append(s); void s.offsetWidth;
       requestAnimationFrame(()=>{
         s.style.transition="transform "+DZ+"ms "+ease+", opacity "+DZ+"ms "+ease;
         s.style.transform="scale(1)"; s.style.opacity="1";
       });
-      setTimeout(()=>{ s.style.transition=""; this.busy=false; }, DZ+20);
+      setTimeout(done, DZ+20);
     }else{
       s.style.transform="translateX(100%)";
-      this.el().append(s);
+      this.el().append(s); void s.offsetWidth;
       requestAnimationFrame(()=>{
         s.style.transition="transform "+D+"ms "+ease;
         s.style.transform="translateX(0)";
         if(below){ below.el.style.transition="transform "+D+"ms "+ease+", opacity "+D+"ms "+ease;
           below.el.style.transform="translateX(-30%)"; below.el.style.opacity=".6"; }
       });
-      setTimeout(()=>{ s.style.transition=""; this.busy=false; }, D+20);
+      setTimeout(done, D+20);
     }
     this.stack.push({route, el:s, mode, origin, from:opts.from||null});
     this.current=route; location.hash="#/"+route;
@@ -1913,11 +1944,15 @@ const Router = {
     const top=this.stack.pop(), below=this.stack[this.stack.length-1];
     const D=MS("--motion-screen"), DZ=MS("--motion-sheet-in");
     const ease=getComputedStyle(document.documentElement).getPropertyValue("--ease-standard");
-    if(top.mode!=="cover"){
+    void top.el.offsetWidth;
+    if(top.mode!=="cover" && top.mode!=="dissolve"){
       below.el.style.transition="transform "+D+"ms "+ease+", opacity "+D+"ms "+ease;
       below.el.style.transform="translateX(0)"; below.el.style.opacity="1";
     }
-    if(top.mode==="cover"){
+    if(top.mode==="dissolve"){
+      top.el.style.transition="opacity "+D+"ms "+ease; top.el.style.opacity="0";
+      setTimeout(()=>{ top.el.remove(); this.busy=false; }, D+20);
+    }else if(top.mode==="cover"){
       const OUT=MS("--motion-sheet-out");
       const easeAccel=getComputedStyle(document.documentElement).getPropertyValue("--ease-accel");
       top.el.style.transition="transform "+OUT+"ms "+easeAccel;
@@ -2271,7 +2306,7 @@ function shoot(source){
   S.pickedFrame="today-original";
   Analytics.track("photo_selected",{source, attempt:S.attempts+1});
   S._fixture = S._fixtureOverride || "daily-frame/success";
-  Router.go("05");
+  Router.go("05",{dissolve:true});   /* решение 17.34 */
 }
 
 /* --- 04a · Камера (решение 17.19) --------------------------------------
