@@ -45,7 +45,9 @@ a:focus-visible{outline:2px solid var(--blue);outline-offset:3px;border-radius:4
 .cover-mid{margin-block:auto;padding:26px 0}
 .mock-col{display:flex;flex-direction:row;align-items:flex-end;gap:18px}
 .mock-stack{display:flex;flex-direction:column;align-items:center;gap:12px}
-.ctrl{display:flex;flex-direction:column;align-items:flex-start;gap:10px;width:116px;padding-bottom:26px}
+.ctrl{display:flex;flex-direction:column;align-items:flex-end;gap:10px;width:116px;padding-bottom:26px;
+  text-align:right;opacity:0;visibility:hidden;transition:opacity .22s ease}
+.ctrl.is-on{opacity:1;visibility:visible}
 .ctrl__s{font-size:13px;line-height:1.35;color:var(--night);opacity:.6}
 .ctrl__b{display:inline-flex;align-items:center;gap:7px;padding:9px 15px;border-radius:999px;
   font-family:var(--body);font-size:13.5px;font-weight:600;color:var(--night);background:#fff;
@@ -189,6 +191,10 @@ ul.l b{color:var(--ink-strong);font-weight:600}
       </div>
     </div>
     <div class="mock-col">
+      <div class="ctrl" id="ctrl">
+        <div class="ctrl__s">Управление у вас</div>
+        <button class="ctrl__b" id="replay" type="button">Демо ↻</button>
+      </div>
       <div class="mock-stack">
       <div class="mock" id="mock">
         <div class="mock__vp">
@@ -200,10 +206,6 @@ ul.l b{color:var(--ink-strong);font-weight:600}
         <div class="bar__track"><div class="bar__fill" id="fill"></div></div>
         <div class="bar__meta"><b id="clock">0:00 / 0:18</b></div>
       </div>
-      </div>
-      <div class="ctrl">
-        <div class="ctrl__s" id="state">Прототип идёт сам</div>
-        <button class="ctrl__b" id="replay" type="button" disabled>Демо ↻</button>
       </div>
     </div>
   </div>
@@ -296,14 +298,14 @@ ul.l b{color:var(--ink-strong);font-weight:600}
 /* живой мокап: полоса идёт по сообщениям от прототипа, при их отсутствии — по своему таймеру */
 (function(){
   var mock=document.getElementById("mock"), fill=document.getElementById("fill"),
-      clock=document.getElementById("clock"), state=document.getElementById("state"),
+      clock=document.getElementById("clock"), ctrl=document.getElementById("ctrl"),
       replay=document.getElementById("replay"), frame=document.getElementById("proto");
   if(!mock) return;
   var base=frame.getAttribute("src");
   replay.addEventListener("click",function(){
     frame.setAttribute("src", base+"&r="+Date.now());
-    mock.classList.remove("is-off"); replay.disabled=true;
-    state.textContent="Прототип идёт сам"; heard=false; on=true; t0=Date.now();
+    mock.classList.remove("is-off"); ctrl.classList.remove("is-on");
+    heard=false; on=true; t0=Date.now();
   });
   var TOTAL=45000, heard=false, t0=Date.now(), on=true;
   function fmt(ms){var s=Math.max(0,Math.round(ms/1000));return Math.floor(s/60)+":"+String(s%60).padStart(2,"0")}
@@ -315,7 +317,7 @@ ul.l b{color:var(--ink-strong);font-weight:600}
     var d=e.data; if(!d||d.source!=="meantime-demo") return;
     heard=true; on=d.on!==false; TOTAL=d.total||TOTAL;
     draw(d.elapsed||0,TOTAL);
-    if(!on){ mock.classList.add("is-off"); state.textContent="Управление у вас"; replay.disabled=false; }
+    if(!on){ mock.classList.add("is-off"); ctrl.classList.add("is-on"); }
   });
   setInterval(function(){
     if(heard||!on) return;
@@ -328,7 +330,7 @@ ul.l b{color:var(--ink-strong);font-weight:600}
     if(!ok){
       mock.classList.add("is-static");
       document.getElementById("bar").style.display="none";
-      document.querySelector(".ctrl").style.display="none";
+      ctrl.style.display="none";
     }
   },3500);
 })();
