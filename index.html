@@ -1030,7 +1030,8 @@ h1,h2,h3,p,ul,ol{margin:0;padding:0}
 
 /* --- решение 28 реестра: prefers-reduced-motion --- */
 @media (prefers-reduced-motion:reduce){
-  .Screen,.Sheet,.Banner,.ActionSheet,.StoreKit{transition-duration:var(--motion-alert)!important}
+  /* решение 17.36 — длительности переходов остаются по гайдам; при «уменьшить движение»
+     выключаются только самоиграющие анимации (пульс, наезд видоискателя, показ дельты) */
   .RenderStages__row[data-status="active"] .RenderStages__dot,
   .EffectTile[data-state="rendering"] .EffectTile__prev::after,
   .Camera__view .Frame__img{animation:none}
@@ -1934,7 +1935,7 @@ const Router = {
         s.style.transition="opacity "+D+"ms "+ease;
         s.style.opacity="1";
       });
-      setTimeout(done, D+20);
+      setTimeout(()=>{ if(below) below.el.style.visibility="hidden"; done(); }, D+20);
     }else if(mode==="zoom"){
       const dev=document.getElementById("device").getBoundingClientRect();
       const r=opts.from.getBoundingClientRect();
@@ -1975,6 +1976,7 @@ const Router = {
       below.el.style.transform="translateX(0)"; below.el.style.opacity="1";
     }
     if(top.mode==="dissolve"){
+      below.el.style.visibility="";
       top.el.style.transition="opacity "+D+"ms "+ease; top.el.style.opacity="0";
       setTimeout(()=>{ top.el.remove(); this.busy=false; }, D+20);
     }else if(top.mode==="cover"){
@@ -3551,7 +3553,10 @@ const StagePanel = {
   StagePanel.init();
   /* Автодемо стартует само только по ?demo — так кейс встраивает прототип в рамку.
      По прямой ссылке круг запускает человек кнопкой на панели витрины (решение 17.31). */
-  if(qs.get("demo")!==null) setTimeout(()=>Demo.start(), SPLASH_MS()+MS("--motion-alert"));
+  /* решение 17.38 — на телефоне по прямой ссылке демо само не стартует, даже с ?demo в адресе:
+     параметр тянется из рамки кейса, и человек, открывший адрес рамки, получал чужой прогон */
+  const demoAllowed = window.parent!==window || matchMedia("(min-width:461px) and (min-height:901px)").matches;
+  if(qs.get("demo")!==null && demoAllowed) setTimeout(()=>Demo.start(), SPLASH_MS()+MS("--motion-alert"));
 })();
 </script>
 </body>
