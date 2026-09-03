@@ -55,7 +55,7 @@ a:focus-visible{outline:2px solid var(--blue);outline-offset:3px;border-radius:4
 .bar{width:248px;display:flex;flex-direction:column;gap:7px}
 .bar__track{height:3px;border-radius:99px;background:rgba(43,53,80,.18);overflow:hidden}
 .bar__fill{height:100%;width:0;border-radius:99px;background:var(--night);transition:width .95s linear}
-.bar__meta{display:flex;justify-content:space-between;font-size:12px;color:var(--night);opacity:.62}
+.bar__meta{display:flex;justify-content:center;font-size:12px;color:var(--night);opacity:.55}
 .bar__meta b{font-weight:600;font-variant-numeric:tabular-nums}
 .mock.is-off .bar__fill{background:rgba(43,53,80,.3)}
 .block--chat{background:var(--tone-chat);padding:40px 32px 46px}
@@ -188,7 +188,7 @@ ul.l b{color:var(--ink-strong);font-weight:600}
       </div>
       <div class="bar" id="bar">
         <div class="bar__track"><div class="bar__fill" id="fill"></div></div>
-        <div class="bar__meta"><span id="hint">Прототип проходит путь сам</span><b id="clock">0:00 / 0:45</b></div>
+        <div class="bar__meta"><b id="clock">0:00 / 0:45</b></div>
       </div>
     </div>
   </div>
@@ -281,7 +281,7 @@ ul.l b{color:var(--ink-strong);font-weight:600}
 /* живой мокап: полоса идёт по сообщениям от прототипа, при их отсутствии — по своему таймеру */
 (function(){
   var mock=document.getElementById("mock"), fill=document.getElementById("fill"),
-      clock=document.getElementById("clock"), hint=document.getElementById("hint"),
+      clock=document.getElementById("clock"),
       frame=document.getElementById("proto");
   if(!mock) return;
   var TOTAL=45000, heard=false, t0=Date.now(), on=true;
@@ -294,7 +294,7 @@ ul.l b{color:var(--ink-strong);font-weight:600}
     var d=e.data; if(!d||d.source!=="meantime-demo") return;
     heard=true; on=d.on!==false; TOTAL=d.total||TOTAL;
     draw(d.elapsed||0,TOTAL);
-    if(!on){ mock.classList.add("is-off"); hint.textContent="Управление у вас"; }
+    if(!on){ mock.classList.add("is-off"); }
   });
   setInterval(function(){
     if(heard||!on) return;
