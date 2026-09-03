@@ -1,0 +1,13 @@
+{
+  "scenario": "daily_frame",
+  "fixture": "filter-missing",
+  "missing": true,
+  "title": "Today’s upgrade hasn’t arrived yet",
+  "actions": [
+    {
+      "id": "nofilter",
+      "label": "Keep today without the upgrade",
+      "variant": "primary"
+    }
+  ]
+}

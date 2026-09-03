@@ -1,0 +1,22 @@
+{
+  "scenario": "effect",
+  "fixture": "error",
+  "error_type": "network",
+  "fail_after_ms": 3000,
+  "charged": false,
+  "preset": "Snow globe",
+  "title": "Couldn’t render.",
+  "body": "Nothing was charged.",
+  "actions": [
+    {
+      "id": "retry",
+      "label": "Try again",
+      "variant": "primary"
+    },
+    {
+      "id": "back",
+      "label": "Back to today",
+      "variant": "secondary"
+    }
+  ]
+}

@@ -1,15 +1,2489 @@
-<!doctype html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Meantime</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<meta name="theme-color" content="#07090F">
+<title>Meantime — prototype</title>
 <style>
-  :root { color-scheme: dark; }
-  body { margin:0; min-height:100vh; display:grid; place-items:center;
-         background:#07090F; color:#EEF2FB;
-         font:400 17px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
-  p { color:#9AA6BF; font-size:13px; letter-spacing:.06em; text-transform:uppercase; }
+/* ============================================================================
+   §1 · ТОКЕНЫ
+   Источник: Figma Variables, коллекция «Meantime · Observatory»
+   VariableCollectionId:86:2 · режим Dark · code syntax WEB
+   Имя переменной перенесено один в один: color/bg/primary → --color-bg-primary
+   ========================================================================= */
+:root{
+  /* --- цвет · 22 --- */
+  --color-bg-primary:#07090F;
+  --color-bg-gradient-top:#131C33;
+  --color-bg-scrim-bottom:rgba(7,9,15,.92);
+  --color-surface-raised:#101420;
+  --color-surface-day-empty:#141824;
+  --color-glass-fill:rgba(255,255,255,.08);
+  --color-glass-floor:rgba(0,0,0,.40);
+  --color-glass-hairline:rgba(255,255,255,.14);
+  --color-glass-specular:rgba(255,255,255,.22);
+  --color-border-default:rgba(255,255,255,.10);
+  --color-text-primary:#EEF2FB;
+  --color-text-secondary:#9AA6BF;
+  --color-text-tertiary:#77839C;
+  --color-text-on-image:#FFFFFF;
+  --color-text-inverse:#07090F;
+  --color-accent-default:#8FB3FF;
+  --color-accent-glow:#4A6BE0;
+  --color-accent-wash:rgba(143,179,255,.12);
+  --color-ai-thinking:#6E8CFF;
+  --color-ai-error:#FF8A7A;
+  --color-scrim-image-zero:rgba(0,0,0,0);
+  --color-scrim-image-strong:rgba(0,0,0,.90);
+
+  /* --- space · 9 (шкала 4, ритм 8) --- */
+  --space-1:4px;  --space-2:8px;  --space-3:12px; --space-4:16px; --space-5:20px;
+  --space-6:24px; --space-8:32px; --space-10:40px; --space-12:48px;
+
+  /* --- radius · 5 --- */
+  --radius-sm:8px; --radius-md:12px; --radius-lg:16px; --radius-xl:26px; --radius-full:999px;
+
+  /* --- size · 12 --- */
+  --size-tap-min:44px;      --size-button-h:50px;
+  --size-day-cell:40px;     --size-day-step:48px;
+  --size-tabbar-w:300px;    --size-tabbar-h:56px;
+  --size-recap-card-w:224px;--size-recap-h:152px;   --size-recap-spine-w:36px;
+  --size-hairline:1px;      --size-safe-top:59px;   --size-safe-bottom:34px;
+
+  /* --- blur · 4 --- */
+  --blur-glass:24px; --blur-glass-dense:32px; --blur-glow-sm:12px; --blur-glow-lg:28px;
+
+  /* --- эффект-стили · 5 --- */
+  --effect-glass:blur(var(--blur-glass)) saturate(160%);
+  --effect-glass-dense:blur(var(--blur-glass-dense)) saturate(140%);
+  --effect-glow-accent-sm:0 0 var(--blur-glow-sm) rgba(74,107,224,.55);
+  --effect-glow-accent-lg:0 0 20px 2px rgba(74,107,224,.90), 0 0 36px 6px rgba(143,179,255,.45);
+  --effect-chrome-shadow:0 8px 24px rgba(0,0,0,.55);
+
+  /* ==========================================================================
+     расширение прототипа — НЕ из Figma (решение 13)
+     Каждая величина с источником. Кандидаты в коллекцию «Meantime · Observatory».
+     ======================================================================= */
+  --size-frame-w:390px;          /* решение 5.1 — кадр iOS */
+  --size-frame-h:844px;          /* решение 5.1 */
+  --size-gutter:var(--space-6);  /* поле 24…366, ux-brief «Общее для всех экранов» */
+  --size-hero-h:560px;           /* ui-spec §05 — кадр 390×560 */
+  --size-hero-day-h:520px;       /* ux-brief §08 — кадр 390×520 */
+  --size-frame-square:342px;     /* ui-spec §06 — кадр 342×342 */
+  --size-frame-square-sm:300px;  /* ui-spec §06a — кадр ужат до 342×300 */
+  --size-filter-img-h:240px;     /* ui-spec §03 — образец кадра 342×240 */
+  --size-recap-comp-h:250px;     /* ui-spec §10 — композиция 342×250 */
+  --size-sheet-medium:440px;     /* компонент Sheet 95:14 */
+  --size-sheet-large:720px;      /* компонент Sheet 95:14 */
+  --size-effect-tile-h:190px;    /* ux-brief §11 — плитка 165×190 */
+  --size-effect-prev-h:108px;    /* ux-brief §11 — превью 145×108 */
+  --size-share-card-w:252px;     /* ux-brief §09 — карточка 9:16 */
+  --size-share-card-h:448px;     /* ux-brief §09 */
+  --size-pick-tile:110px;        /* ux-brief §04 — плитки ряда 110×110 */
+  --size-pick-cell:94px;         /* ux-brief §04 — ячейка сетки 94 */
+  --size-tomorrow-h:56px;        /* ui-spec §06 — блок TOMORROW сжат до 56 */
+
+  /* моушен · hig-numbers.md + Material 3 Motion — interaction-registry.md */
+  --motion-micro:100ms;  --motion-icon:150ms;  --motion-alert:200ms;
+  --motion-menu:250ms;   --motion-sheet-out:300ms; --motion-screen:350ms;
+  --motion-sheet-in:400ms;
+  --motion-render-fast:4000ms; --motion-render-quality:6000ms;
+  --motion-stream-char:22ms;
+  --ease-standard:cubic-bezier(.32,.72,0,1);
+  --ease-sheet:cubic-bezier(.34,1.2,.64,1);
+  --ease-accel:cubic-bezier(.3,0,.8,.15);
+
+  --size-device-radius:47px;   /* физический радиус угла iPhone — рамка показа, не продукт */
+  --radius-indicator:3px;      /* индикаторы статус-бара — служебный chrome, не продуктовый радиус */
+  --radius-hairline:1px;
+
+  /* скрим на кадре: в Figma заведены только две крайние точки
+     (color/scrim/image-zero и image-strong). Пять промежуточных стопов —
+     это семь-стоповый градиент из ui-spec «Текст на кадре»; заводим их явно. */
+  --color-scrim-image-1:rgba(0,0,0,.80);
+  --color-scrim-image-2:rgba(0,0,0,.64);
+  --color-scrim-image-3:rgba(0,0,0,.44);
+  --color-scrim-image-4:rgba(0,0,0,.18);
+  --color-scrim-image-5:rgba(0,0,0,.04);
+  --color-scrim-sheet:rgba(0,0,0,.42);        /* затемнение под шторкой — с макета 107:78 */
+  --color-scrim-corner:rgba(0,0,0,.55);       /* угловой скрим под вотермарком, ui-spec §06 */
+  --color-scrim-kicker-fallback:rgba(0,0,0,.60); /* фолбэк решения 10.14, если все кадры ярче #CC */
+  --color-bezel-outer:color-mix(in srgb,var(--color-text-primary) 6%,var(--color-bg-primary));
+  --color-bezel-inner:color-mix(in srgb,var(--color-text-primary) 12%,var(--color-bg-primary));
+  --color-devpanel-bg:color-mix(in srgb,var(--color-bg-primary) 94%,transparent);
+
+  /* шрифтовой стек · hig-numbers.md. SF Pro в коде, Inter — фолбэк (решение 10.1) */
+  --font-ui:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Helvetica Neue",Inter,system-ui,sans-serif;
+}
+
+/* ============================================================================
+   §2 · БАЗА И CHROME
+   ========================================================================= */
+*,*::before,*::after{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0;height:100%}
+body{
+  background:var(--color-bg-primary);
+  font-family:var(--font-ui);
+  color:var(--color-text-primary);
+  -webkit-font-smoothing:antialiased;
+  display:flex;align-items:center;justify-content:center;
+  overflow:hidden;
+}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+h1,h2,h3,p,ul,ol{margin:0;padding:0}
+
+/* --- текстовые стили · 8, из Figma text styles --- */
+.t-display{font-size:34px;line-height:41px;font-weight:700;letter-spacing:-.4px}
+.t-h1{font-size:22px;line-height:28px;font-weight:600;letter-spacing:0}
+.t-h2{font-size:17px;line-height:22px;font-weight:600;letter-spacing:0}
+.t-body{font-size:17px;line-height:22px;font-weight:400;letter-spacing:0}
+.t-caption{font-size:13px;line-height:18px;font-weight:400;letter-spacing:0}
+.t-meta{font-size:11px;line-height:13px;font-weight:500;letter-spacing:.8px;text-transform:uppercase}
+/* решение 10.4 / долг 10.15 — табличные цифры обязательны, в Figma их включить нельзя */
+.t-counter{font-size:17px;line-height:22px;font-weight:600;letter-spacing:0;font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1}
+.t-counter-meta{font-size:11px;line-height:13px;font-weight:500;letter-spacing:.8px;text-transform:uppercase;font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1}
+
+.c-primary{color:var(--color-text-primary)}
+.c-secondary{color:var(--color-text-secondary)}
+.c-tertiary{color:var(--color-text-tertiary)}
+.c-accent{color:var(--color-accent-default)}
+.c-on-image{color:var(--color-text-on-image)}
+.c-error{color:var(--color-ai-error)}
+.c-thinking{color:var(--color-ai-thinking)}
+
+/* --- сцена и устройство --- */
+.Stage{position:relative;display:flex;flex-direction:column;align-items:center;gap:var(--space-4)}
+.Device{
+  position:relative;
+  width:var(--size-frame-w);height:var(--size-frame-h);
+  border-radius:var(--size-device-radius);overflow:hidden;
+  background:var(--color-bg-primary);
+  box-shadow:0 0 0 10px var(--color-bezel-outer), 0 0 0 12px var(--color-bezel-inner), var(--effect-chrome-shadow);
+  touch-action:pan-y;
+}
+@media (max-width:460px),(max-height:900px){
+  .Stage{gap:0}
+  .Device{width:100vw;height:100dvh;border-radius:0;box-shadow:none}
+  .DevBar{display:none!important}
+}
+
+.ScreenStack{position:absolute;inset:0}
+.Screen{
+  position:absolute;inset:0;overflow:hidden;
+  background:linear-gradient(180deg,var(--color-bg-gradient-top) 0%,var(--color-bg-primary) 42%);
+  will-change:transform,opacity;
+}
+.Screen__scroll{
+  position:absolute;inset:0;overflow-y:auto;overflow-x:hidden;
+  -webkit-overflow-scrolling:touch;
+  padding:calc(var(--size-safe-top) + var(--space-2)) var(--size-gutter) calc(var(--size-safe-bottom) + var(--space-6));
+}
+.Screen__scroll--tab{padding-bottom:calc(var(--size-safe-bottom) + var(--size-tabbar-h) + var(--space-10))}
+.Screen__scroll--flush{padding-left:0;padding-right:0}
+.Screen__scroll--flush > *{padding-left:var(--size-gutter);padding-right:var(--size-gutter)}
+.Screen__scroll--flush > .flush{padding-left:0;padding-right:0}
+
+/* нижний скрим — третья правка решения 10.10: тёмный низ на любом положении скролла */
+.ScrimBottom{
+  position:absolute;left:0;right:0;bottom:0;height:190px;pointer-events:none;z-index:3;
+  background:linear-gradient(180deg,transparent 0%,var(--color-bg-scrim-bottom) 78%);
+}
+
+/* --- статус-бар и home indicator (глобальный chrome) --- */
+.StatusBar{
+  position:absolute;top:0;left:0;right:0;height:var(--size-safe-top);z-index:40;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 var(--space-6) 0 var(--space-8);pointer-events:none;
+}
+.StatusBar__time{font-size:16px;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:0;pointer-events:auto;cursor:default}
+.StatusBar__island{
+  position:absolute;left:50%;transform:translateX(-50%);top:11px;
+  width:124px;height:36px;border-radius:var(--radius-full);background:var(--color-text-inverse);
+}
+.StatusBar__ind{display:flex;align-items:center;gap:var(--space-1)}
+.StatusBar__bar{width:17px;height:11px;border-radius:var(--radius-indicator);background:var(--color-text-primary);opacity:.55}
+.StatusBar__bat{width:25px;height:12px;border-radius:var(--radius-indicator);border:1.5px solid var(--color-text-primary);opacity:.9;position:relative}
+.StatusBar__bat::after{content:"";position:absolute;inset:1.5px;right:6px;background:var(--color-text-primary);border-radius:var(--radius-hairline)}
+.HomeInd{
+  position:absolute;bottom:8px;left:50%;transform:translateX(-50%);
+  width:140px;height:5px;border-radius:var(--radius-full);
+  background:var(--color-text-primary);opacity:.35;z-index:45;pointer-events:none;
+}
+
+/* --- слои --- */
+.SheetLayer,.BannerLayer{position:absolute;inset:0;z-index:30;pointer-events:none}
+.BannerLayer{z-index:44}
+
+/* ============================================================================
+   §3 · КОМПОНЕНТЫ · 10 штук, 42 варианта — один в один с Figma
+   ========================================================================= */
+
+/* --- Button · 88:50 · Variant × State (12) ------------------------------- */
+.Button{
+  display:flex;align-items:center;justify-content:center;gap:var(--space-2);
+  width:100%;min-height:var(--size-button-h);height:var(--size-button-h);
+  border-radius:var(--radius-full);
+  font-size:17px;line-height:22px;font-weight:600;
+  transition:transform var(--motion-micro) var(--ease-standard),
+             opacity var(--motion-micro) var(--ease-standard),
+             background-color var(--motion-micro) var(--ease-standard);
+  user-select:none;
+}
+.Button[data-variant="primary"]{background:var(--color-accent-default);color:var(--color-text-inverse)}
+.Button[data-variant="secondary"]{
+  background:var(--color-glass-fill);color:var(--color-text-primary);
+  border:var(--size-hairline) solid var(--color-glass-hairline);
+  backdrop-filter:var(--effect-glass);-webkit-backdrop-filter:var(--effect-glass);
+  position:relative;isolation:isolate;
+}
+/* «пол» решения 10.10 — вторичная кнопка стоит на кадре, фон под ней непредсказуем */
+.Button[data-variant="secondary"]::before{
+  content:"";position:absolute;inset:0;border-radius:inherit;
+  background:var(--color-glass-floor);z-index:-1;
+}
+.Button[data-variant="text"]{
+  background:none;color:var(--color-accent-default);height:var(--size-tap-min);min-height:var(--size-tap-min);
+}
+.Button[data-state="pressed"],.Button:active{transform:scale(.97);opacity:.8}
+.Button[data-state="disabled"]{
+  background:var(--color-surface-raised);color:var(--color-text-tertiary);
+  border-color:var(--color-border-default);pointer-events:none;transform:none;opacity:1;
+}
+.Button[data-state="disabled"]::before{background:none}
+.Button[data-state="loading"]{pointer-events:none}
+.Button[data-state="loading"] .Button__label{visibility:hidden}
+.Button[data-state="loading"]::after{
+  content:"";position:absolute;width:20px;height:20px;border-radius:var(--radius-full);
+  border:2px solid currentColor;border-top-color:transparent;animation:spin 800ms linear infinite;
+}
+.Button{position:relative}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* --- DayCell · 89:16 · State (6) ---------------------------------------- */
+.DayCell{
+  position:relative;width:var(--size-day-cell);height:var(--size-day-cell);
+  border-radius:var(--radius-sm);overflow:visible;
+  background:var(--color-surface-day-empty);
+  display:flex;align-items:center;justify-content:center;
+  transition:transform var(--motion-micro) var(--ease-standard);
+}
+.DayCell::after{ /* тап-зона 44 при ячейке 40 — вылет псевдоэлементом, шаг 48 не трогаем */
+  content:"";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+  width:var(--size-tap-min);height:var(--size-tap-min);
+}
+.DayCell .Frame{border-radius:var(--radius-sm);overflow:hidden;position:absolute;inset:0}
+.DayCell[data-state="kept"],.DayCell[data-state="kept-extra"],.DayCell[data-state="today"]{cursor:pointer}
+.DayCell[data-state="kept"]:active,.DayCell[data-state="kept-extra"]:active,
+.DayCell[data-state="today"]:active,.DayCell[data-state="skipped-available"]:active{transform:scale(.94)}
+/* Kept-extra — единственная тихая точка в продукте (решение 9.2) */
+.DayCell[data-state="kept-extra"]::before{
+  content:"";position:absolute;right:3px;top:3px;width:5px;height:5px;z-index:2;
+  border-radius:var(--radius-full);background:var(--color-accent-default);
+  box-shadow:var(--effect-glow-accent-sm);
+}
+/* Today — свечение, а не толщина обводки (решение 10.12) */
+.DayCell[data-state="today"]{
+  box-shadow:var(--effect-glow-accent-lg);
+  outline:2px solid var(--color-accent-default);outline-offset:0;
+}
+/* Skipped-available — «+N» приглашением, без обводки (решения 10.7, 10.8) */
+.DayCell[data-state="skipped-available"]{
+  color:var(--color-accent-default);cursor:pointer;
+  box-shadow:var(--effect-glow-accent-sm);
+}
+/* Future и Skipped-empty совпадают попиксельно — намеренно (решения 4.5, 10.7) */
+.DayCell[data-state="future"],.DayCell[data-state="skipped-empty"]{background:var(--color-surface-day-empty)}
+
+/* --- TabBar · 90:56 · Active (3) ---------------------------------------- */
+.TabBar{
+  position:absolute;bottom:calc(var(--size-safe-bottom) + var(--space-2));left:50%;
+  transform:translateX(-50%);
+  width:var(--size-tabbar-w);height:var(--size-tabbar-h);z-index:20;
+  border-radius:var(--radius-full);
+  background:var(--color-glass-fill);
+  border:var(--size-hairline) solid var(--color-glass-hairline);
+  backdrop-filter:var(--effect-glass);-webkit-backdrop-filter:var(--effect-glass);
+  box-shadow:var(--effect-chrome-shadow);
+  display:flex;isolation:isolate;overflow:hidden;
+}
+.TabBar::before{content:"";position:absolute;inset:0;background:var(--color-glass-floor);z-index:-1}
+.TabBar__glow{
+  position:absolute;top:20px;width:34px;height:34px;left:0;
+  transform:translate(-50%,-50%);border-radius:var(--radius-full);
+  background:var(--color-accent-wash);box-shadow:var(--effect-glow-accent-lg);
+  transition:left var(--motion-menu) var(--ease-standard);pointer-events:none;
+}
+.TabBar__item{
+  flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+  color:var(--color-text-secondary); /* решение 10.10 — неактивный таб на secondary, не tertiary */
+  transition:color var(--motion-icon) var(--ease-standard);
+  z-index:1;
+}
+.TabBar__item[aria-selected="true"]{color:var(--color-accent-default)}
+.TabBar__icon{width:20px;height:20px;display:block;transition:transform var(--motion-icon) var(--ease-standard)}
+.TabBar__item:active .TabBar__icon{transform:scale(.9)}
+
+/* --- RecapCard · 91:21 · State (2) -------------------------------------- */
+.RecapCard{
+  position:relative;flex:0 0 auto;
+  width:var(--size-recap-card-w);height:var(--size-recap-h);
+  border-radius:var(--radius-lg);overflow:hidden;cursor:pointer;
+  background:var(--color-surface-raised);
+  transition:transform var(--motion-micro) var(--ease-standard);
+}
+.RecapCard:active{transform:scale(.98)}
+.RecapComp{position:absolute;inset:0;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr}
+.RecapComp .Frame{border-radius:0}
+/* решение 10.11 — текст на кадре, без плашки; скрим в семь стопов, чтобы у него не было начала */
+.Scrim7{
+  position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(0deg,
+    var(--color-scrim-image-strong) 0%,
+    var(--color-scrim-image-1) 14%,
+    var(--color-scrim-image-2) 28%,
+    var(--color-scrim-image-3) 40%,
+    var(--color-scrim-image-4) 55%,
+    var(--color-scrim-image-5) 75%,
+    var(--color-scrim-image-zero) 100%);
+}
+.RecapCard__text{position:absolute;left:var(--space-3);right:var(--space-3);bottom:var(--space-3);z-index:2}
+.RecapCard[data-state="composing"]{cursor:default}
+.RecapCard[data-state="composing"] .RecapComp{filter:blur(6px) saturate(.4);opacity:.5}
+
+/* --- RecapSpine · 91:29 ------------------------------------------------- */
+.RecapSpine{
+  position:relative;flex:0 0 auto;
+  width:var(--size-recap-spine-w);height:var(--size-recap-h);
+  border-radius:var(--radius-md);overflow:hidden;cursor:pointer;
+  background:var(--color-surface-raised);
+}
+.RecapSpine .Scrim7{ /* тот же приём, но от левого края: текст стоит вертикально */
+  background:linear-gradient(90deg,
+    var(--color-scrim-image-strong) 0%, var(--color-scrim-image-1) 14%, var(--color-scrim-image-2) 28%,
+    var(--color-scrim-image-3) 40%, var(--color-scrim-image-4) 55%, var(--color-scrim-image-5) 75%,
+    var(--color-scrim-image-zero) 100%);
+}
+.RecapSpine__label{
+  position:absolute;left:0;top:0;bottom:0;width:100%;z-index:2;
+  display:flex;align-items:center;justify-content:center;
+  writing-mode:vertical-rl;transform:rotate(180deg);white-space:nowrap;
+}
+
+/* --- BalanceChip · 94:16 · State (2) ------------------------------------ */
+.BalanceChip{
+  display:flex;align-items:center;gap:var(--space-3);width:100%;min-height:var(--size-tabbar-h);
+  padding:var(--space-3) var(--space-4);border-radius:var(--radius-lg);
+  background:var(--color-surface-raised);border:var(--size-hairline) solid var(--color-border-default);
+}
+.BalanceChip__main{flex:1;min-width:0}
+.BalanceChip[data-state="low"] .BalanceChip__coins{color:var(--color-ai-error)}
+
+/* --- EffectTile · 94:51 · State (3) ------------------------------------- */
+.EffectTile{
+  position:relative;height:var(--size-effect-tile-h);
+  border-radius:var(--radius-lg);overflow:hidden;text-align:left;
+  background:var(--color-surface-raised);border:var(--size-hairline) solid var(--color-border-default);
+  display:flex;flex-direction:column;
+  transition:transform var(--motion-micro) var(--ease-standard);
+}
+.EffectTile:active{transform:scale(.97)}
+.EffectTile__prev{height:var(--size-effect-prev-h);position:relative;overflow:hidden}
+.EffectTile__body{padding:var(--space-3);display:flex;flex-direction:column;gap:var(--space-1)}
+.EffectTile[data-state="not-enough"] .EffectTile__price{color:var(--color-ai-error)}
+.EffectTile[data-state="not-enough"] .EffectTile__prev{opacity:.45}
+.EffectTile[data-state="rendering"]{pointer-events:none}
+.EffectTile[data-state="rendering"] .EffectTile__prev::after{
+  content:"";position:absolute;inset:0;background:var(--color-accent-wash);
+  animation:pulse 1600ms linear infinite;
+}
+@keyframes pulse{0%,100%{opacity:.25}50%{opacity:.7}}
+
+/* --- Sheet · 95:14 · Detent (2) ----------------------------------------- */
+.Scrim{
+  position:absolute;inset:0;background:var(--color-scrim-sheet);opacity:0;pointer-events:auto;
+  transition:opacity var(--motion-sheet-in) var(--ease-standard);
+}
+.Scrim.is-in{opacity:1}
+.Sheet{
+  position:absolute;left:0;right:0;bottom:0;z-index:2;
+  border-radius:var(--radius-xl) var(--radius-xl) 0 0;
+  background:var(--color-surface-raised);
+  backdrop-filter:var(--effect-glass-dense);-webkit-backdrop-filter:var(--effect-glass-dense);
+  box-shadow:var(--effect-chrome-shadow);
+  transform:translateY(100%);
+  transition:transform var(--motion-sheet-in) var(--ease-sheet);
+  display:flex;flex-direction:column;pointer-events:auto;touch-action:none;
+  overflow:hidden;
+}
+.Sheet::before{ /* светлая кромка сверху */
+  content:"";position:absolute;top:0;left:var(--space-6);right:var(--space-6);height:var(--size-hairline);
+  background:var(--color-glass-specular);
+}
+.Sheet[data-detent="medium"]{height:var(--size-sheet-medium)}
+.Sheet[data-detent="large"]{height:var(--size-sheet-large)}
+.Sheet.is-in{transform:translateY(0)}
+.Sheet.is-out{transition:transform var(--motion-sheet-out) var(--ease-accel)}
+.Sheet__grab{
+  width:36px;height:5px;border-radius:var(--radius-full);background:var(--color-text-tertiary);
+  opacity:.6;margin:var(--space-2) auto var(--space-1);flex:0 0 auto;
+}
+.Sheet__body{
+  flex:1;overflow-y:auto;padding:var(--space-4) var(--size-gutter) var(--size-safe-bottom);
+  display:flex;flex-direction:column;gap:var(--space-2);
+}
+
+/* --- RenderStages · 103:80 · Stage (3) ---------------------------------- */
+.RenderStages{display:flex;flex-direction:column;gap:var(--space-3)}
+.RenderStages__row{display:flex;align-items:center;gap:var(--space-3)}
+.RenderStages__dot{
+  width:14px;height:14px;border-radius:var(--radius-full);flex:0 0 auto;
+  border:2px solid var(--color-text-tertiary);
+  transition:all var(--motion-menu) var(--ease-standard);
+}
+.RenderStages__label{flex:1;color:var(--color-text-tertiary);transition:color var(--motion-menu) var(--ease-standard)}
+.RenderStages__done{color:var(--color-accent-default);opacity:0;transition:opacity var(--motion-menu) var(--ease-standard)}
+.RenderStages__row[data-status="done"] .RenderStages__dot{border-color:var(--color-accent-default);background:var(--color-accent-default)}
+.RenderStages__row[data-status="done"] .RenderStages__label{color:var(--color-text-secondary)}
+.RenderStages__row[data-status="done"] .RenderStages__done{opacity:1}
+.RenderStages__row[data-status="active"] .RenderStages__dot{
+  border-color:var(--color-ai-thinking);
+  box-shadow:0 0 0 4px var(--color-accent-wash);
+  animation:pulse 1600ms linear infinite;
+}
+.RenderStages__row[data-status="active"] .RenderStages__label{color:var(--color-text-primary);font-weight:600}
+
+/* --- PlanRow · 103:91 · State (2) --------------------------------------- */
+.PlanRow{
+  flex:1;position:relative;text-align:left;
+  padding:var(--space-3) var(--space-3);
+  border-radius:var(--radius-md);
+  background:var(--color-surface-raised);
+  border:var(--size-hairline) solid var(--color-border-default);
+  transition:border-color var(--motion-menu) var(--ease-standard),
+             background-color var(--motion-menu) var(--ease-standard),
+             transform var(--motion-micro) var(--ease-standard);
+}
+.PlanRow:active{transform:scale(.98)}
+.PlanRow[data-state="selected"]{
+  border-color:var(--color-accent-default);
+  background:var(--color-accent-wash);
+  box-shadow:var(--effect-glow-accent-sm);
+}
+.PlanRow__badge{display:block;margin-bottom:var(--space-1);color:var(--color-accent-default);min-height:13px}
 </style>
-<div style="text-align:center">
-  <h1 style="font-weight:600;letter-spacing:-.02em">meantime</h1>
-  <p>prototype in progress</p>
+</head>
+<body>
+<style>
+/* ============================================================================
+   §4 · ЭКРАНЫ
+   ========================================================================= */
+
+/* --- кадр и процедурная заглушка (решение 8.12) ------------------------- */
+.Frame{position:relative;overflow:hidden;background:var(--color-surface-raised)}
+.Frame__ph{
+  position:absolute;inset:0;
+  background:
+    radial-gradient(120% 88% at var(--px) var(--py),
+      color-mix(in srgb,var(--color-accent-default) 22%,transparent) 0%, transparent 62%),
+    radial-gradient(95% 70% at var(--qx) var(--qy),
+      color-mix(in srgb,var(--color-accent-glow) 38%,transparent) 0%, transparent 72%),
+    linear-gradient(var(--ang),
+      var(--color-bg-gradient-top) 0%,
+      var(--color-surface-raised) 52%,
+      var(--color-bg-primary) 100%);
+  filter:hue-rotate(var(--hue)) saturate(var(--sat));
+}
+.Frame__ph::after{ /* тихое зерно из токена текста, не из случайного цвета */
+  content:"";position:absolute;inset:0;opacity:.5;
+  background:repeating-linear-gradient(var(--ang2),
+    color-mix(in srgb,var(--color-text-primary) 3%,transparent) 0 1px,
+    transparent 1px 3px);
+}
+.Frame__img{
+  position:absolute;inset:0;background-size:cover;background-position:center;
+  opacity:0;transition:opacity var(--motion-menu) var(--ease-standard);
+}
+.Frame__img.is-in{opacity:1}
+
+/* --- навбар --- */
+.NavBar{display:flex;align-items:center;min-height:var(--size-tap-min);margin-left:calc(var(--space-1) * -1)}
+.NavBar__back{display:flex;align-items:center;gap:2px;color:var(--color-accent-default);
+  height:var(--size-tap-min);padding-right:var(--space-3);font-size:17px;font-weight:400}
+.NavBar__title{flex:1;text-align:center;padding-right:var(--space-10)}
+
+.stack{display:flex;flex-direction:column}
+.gap1{gap:var(--space-1)}.gap2{gap:var(--space-2)}.gap3{gap:var(--space-3)}
+.gap4{gap:var(--space-4)}.gap5{gap:var(--space-5)}.gap6{gap:var(--space-6)}
+.row{display:flex;align-items:center}
+.mt2{margin-top:var(--space-2)}.mt3{margin-top:var(--space-3)}.mt4{margin-top:var(--space-4)}
+.mt5{margin-top:var(--space-5)}.mt6{margin-top:var(--space-6)}.mt8{margin-top:var(--space-8)}
+.center{text-align:center}
+.card{background:var(--color-surface-raised);border-radius:var(--radius-lg);overflow:hidden}
+.hair{height:var(--size-hairline);background:var(--color-border-default)}
+
+/* --- 03 карточка фильтра --- */
+.FilterCard{border-radius:var(--radius-lg);overflow:hidden;background:var(--color-surface-raised)}
+.FilterCard__img{position:relative;height:var(--size-filter-img-h)}
+.FilterCard__text{position:absolute;left:var(--space-4);right:var(--space-4);bottom:var(--space-4);z-index:2}
+.FilterCard__foot{padding:var(--space-4);display:flex;flex-direction:column;gap:var(--space-3)}
+
+/* --- 05 проявление --- */
+.Hero{position:relative;height:var(--size-hero-h);width:100%}
+.Hero--day{height:var(--size-hero-day-h)}
+.Hero__glow{position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(60% 40% at 50% 42%,var(--color-accent-wash) 0%,transparent 70%)}
+.Hero__text{position:absolute;left:var(--size-gutter);right:var(--size-gutter);bottom:var(--space-6);z-index:3}
+.Reveal{position:absolute;inset:0;transition:filter var(--motion-menu) linear}
+.Reveal__veil{position:absolute;inset:0;background:var(--color-bg-primary);pointer-events:none}
+
+/* --- вотермарк на кадре, без плашки --- */
+.Watermark{position:absolute;right:var(--space-3);bottom:var(--space-3);z-index:3;
+  color:var(--color-text-on-image);opacity:.85;
+  text-shadow:0 1px 8px var(--color-scrim-image-strong)}
+.CornerScrim{position:absolute;right:0;bottom:0;width:60%;height:40%;pointer-events:none;
+  background:radial-gradient(120% 120% at 100% 100%,var(--color-scrim-corner) 0%,transparent 70%)}
+
+/* --- сегмент-контрол --- */
+.Segment{position:relative;display:flex;padding:2px;border-radius:var(--radius-full);
+  background:var(--color-surface-raised);border:var(--size-hairline) solid var(--color-border-default)}
+.Segment__ind{position:absolute;top:2px;bottom:2px;border-radius:var(--radius-full);
+  background:var(--color-accent-wash);border:var(--size-hairline) solid var(--color-accent-default);
+  transition:left var(--motion-menu) var(--ease-standard),width var(--motion-menu) var(--ease-standard)}
+.Segment__item{flex:1;z-index:1;min-height:var(--size-tap-min);display:flex;align-items:center;
+  justify-content:center;color:var(--color-text-secondary);
+  transition:color var(--motion-menu) var(--ease-standard);padding:0 var(--space-2)}
+.Segment__item[aria-selected="true"]{color:var(--color-accent-default)}
+
+/* --- блок TOMORROW (идея 21) --- */
+.Tomorrow{display:flex;align-items:center;gap:var(--space-3);
+  min-height:var(--size-tomorrow-h);padding:0 var(--space-4);
+  background:var(--color-surface-raised);border-radius:var(--radius-md)}
+
+/* --- 07 полка и поле --- */
+.Shelf{display:flex;gap:var(--space-2);overflow-x:auto;scroll-snap-type:x proximity;
+  padding:0 var(--size-gutter);scrollbar-width:none}
+.Shelf::-webkit-scrollbar{display:none}
+.Shelf > *{scroll-snap-align:start}
+.WeekHead,.DayField{display:grid;grid-template-columns:repeat(7,var(--size-day-cell));
+  gap:calc(var(--size-day-step) - var(--size-day-cell));justify-content:center}
+.WeekHead > span{text-align:center;color:var(--color-text-tertiary)}
+
+/* --- 09 карточка шеринга --- */
+.ShareCard{position:relative;width:var(--size-share-card-w);height:var(--size-share-card-h);
+  border-radius:var(--radius-lg);overflow:hidden;margin:0 auto}
+.ShareCard__text{position:absolute;left:var(--space-4);right:var(--space-4);bottom:var(--space-5);z-index:2}
+.TapRow{display:flex;align-items:center;justify-content:space-between;width:100%;
+  min-height:var(--size-tap-min);padding:0 var(--space-4);border-radius:var(--radius-md);
+  background:var(--color-surface-raised);border:var(--size-hairline) solid var(--color-border-default);
+  transition:transform var(--motion-micro) var(--ease-standard)}
+.TapRow:active{transform:scale(.98)}
+
+/* --- 10 композиция рекапа --- */
+.RecapFull{position:relative;height:var(--size-recap-comp-h);border-radius:var(--radius-lg);overflow:hidden}
+.RecapFull .RecapComp .Frame[data-locked="1"]{filter:blur(9px) saturate(.5)}
+.RecapFull__text{position:absolute;left:var(--space-4);right:var(--space-4);bottom:var(--space-4);z-index:2}
+
+/* --- 04 пикер --- */
+.PickRow{display:flex;gap:var(--space-2);overflow-x:auto;scrollbar-width:none;padding:0 var(--size-gutter)}
+.PickRow::-webkit-scrollbar{display:none}
+.PickTile{position:relative;flex:0 0 auto;width:var(--size-pick-tile);height:var(--size-pick-tile);
+  border-radius:var(--radius-md);overflow:hidden}
+.PickTile[aria-selected="true"]{outline:3px solid var(--color-accent-default);outline-offset:-3px}
+.PickTile__badge{position:absolute;right:var(--space-2);top:var(--space-2);z-index:2;
+  width:22px;height:22px;border-radius:var(--radius-full);background:var(--color-accent-default);
+  color:var(--color-text-inverse);display:none;align-items:center;justify-content:center;
+  font-size:12px;font-weight:700}
+.PickTile[aria-selected="true"] .PickTile__badge{display:flex}
+.PickGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:2px;padding:0 2px}
+.PickGrid .Frame{height:var(--size-pick-cell)}
+.Skeleton{background:var(--color-surface-raised);border-radius:var(--radius-md);
+  animation:pulse 1600ms linear infinite}
+
+/* --- баннер сверху (в iOS нет тостов) --- */
+.Banner{position:absolute;top:calc(var(--size-safe-top) - var(--space-2));left:var(--space-4);right:var(--space-4);
+  padding:var(--space-3) var(--space-4);border-radius:var(--radius-lg);
+  background:var(--color-glass-fill);border:var(--size-hairline) solid var(--color-glass-hairline);
+  backdrop-filter:var(--effect-glass);-webkit-backdrop-filter:var(--effect-glass);
+  box-shadow:var(--effect-chrome-shadow);isolation:isolate;
+  transform:translateY(-140%);transition:transform var(--motion-menu) var(--ease-standard);
+  pointer-events:auto}
+.Banner::before{content:"";position:absolute;inset:0;border-radius:inherit;background:var(--color-glass-floor);z-index:-1}
+.Banner.is-in{transform:translateY(0)}
+.Banner.is-out{transition:transform var(--motion-alert) var(--ease-accel)}
+
+/* --- action sheet --- */
+.ActionSheet{position:absolute;left:var(--space-2);right:var(--space-2);
+  bottom:calc(var(--size-safe-bottom) + var(--space-2));z-index:2;
+  display:flex;flex-direction:column;gap:var(--space-2);pointer-events:auto;
+  transform:translateY(120%);transition:transform var(--motion-menu) var(--ease-standard)}
+.ActionSheet.is-in{transform:translateY(0)}
+.ActionSheet__grp{border-radius:var(--radius-lg);overflow:hidden;background:var(--color-surface-raised)}
+.ActionSheet__btn{width:100%;min-height:var(--size-tap-min);height:var(--size-button-h);
+  display:flex;align-items:center;justify-content:center;font-size:17px}
+.ActionSheet__btn[data-role="destructive"]{color:var(--color-ai-error)}
+.ActionSheet__btn[data-role="cancel"]{font-weight:600;color:var(--color-accent-default)}
+
+/* --- симуляция StoreKit --- */
+.StoreKit{position:absolute;left:var(--space-3);right:var(--space-3);
+  bottom:calc(var(--size-safe-bottom) + var(--space-3));z-index:3;
+  padding:var(--space-5);border-radius:var(--radius-xl);
+  background:var(--color-glass-fill);border:var(--size-hairline) solid var(--color-glass-hairline);
+  backdrop-filter:var(--effect-glass-dense);-webkit-backdrop-filter:var(--effect-glass-dense);
+  isolation:isolate;pointer-events:auto;
+  transform:translateY(120%);transition:transform var(--motion-sheet-in) var(--ease-sheet)}
+.StoreKit::before{content:"";position:absolute;inset:0;border-radius:inherit;background:var(--color-glass-floor);z-index:-1}
+.StoreKit.is-in{transform:translateY(0)}
+
+/* --- список выгод --- */
+.Bullets{display:flex;flex-direction:column;gap:var(--space-1);margin:0;padding:0;list-style:none}
+.Bullets li{display:flex;gap:var(--space-3);align-items:flex-start}
+.Bullets li::before{content:"";flex:0 0 auto;width:5px;height:5px;margin-top:7px;
+  border-radius:var(--radius-full);background:var(--color-accent-default);box-shadow:var(--effect-glow-accent-sm)}
+
+/* --- панель разработчика (вне устройства, на десктопе) --- */
+.DevBar{display:flex;gap:var(--space-2);align-items:center;color:var(--color-text-tertiary);font-size:12px}
+.DevBar button{padding:6px 12px;border-radius:var(--radius-full);
+  border:var(--size-hairline) solid var(--color-border-default);color:var(--color-text-secondary);font-size:12px}
+.EventLog{position:absolute;inset:0;z-index:60;background:var(--color-devpanel-bg);
+  padding:calc(var(--size-safe-top) + var(--space-2)) var(--space-4) var(--space-8);
+  overflow-y:auto;display:none;font-size:11px;line-height:16px;
+  font-family:ui-monospace,monospace;color:var(--color-text-secondary)}
+.EventLog.is-on{display:block}
+.EventLog b{color:var(--color-accent-default);font-weight:600}
+
+/* ============================================================================
+   §12 · АВТОДЕМО (решение 14) — отдельный блок, выключается целиком
+   ========================================================================= */
+.DemoTap{
+  position:absolute;z-index:50;width:56px;height:56px;margin:-28px 0 0 -28px;
+  border-radius:var(--radius-full);pointer-events:none;
+  background:var(--color-accent-wash);
+  border:var(--size-hairline) solid var(--color-accent-default);
+  box-shadow:var(--effect-glow-accent-lg);
+  opacity:0;transform:scale(.4);
+}
+.DemoTap.is-on{animation:demoTap 620ms var(--ease-standard) forwards}
+@keyframes demoTap{
+  0%{opacity:0;transform:scale(.4)}
+  35%{opacity:1;transform:scale(1)}
+  100%{opacity:0;transform:scale(1.25)}
+}
+.DemoBadge{
+  position:absolute;z-index:52;left:50%;transform:translateX(-50%);
+  bottom:calc(var(--size-safe-bottom) + var(--size-tabbar-h) + var(--space-5));
+  padding:var(--space-2) var(--space-4);border-radius:var(--radius-full);
+  background:var(--color-glass-fill);border:var(--size-hairline) solid var(--color-glass-hairline);
+  backdrop-filter:var(--effect-glass);-webkit-backdrop-filter:var(--effect-glass);
+  isolation:isolate;color:var(--color-text-tertiary);
+  opacity:0;transition:opacity var(--motion-menu) var(--ease-standard);pointer-events:auto;
+}
+.DemoBadge::before{content:"";position:absolute;inset:0;border-radius:inherit;
+  background:var(--color-glass-floor);z-index:-1}
+.DemoBadge.is-on{opacity:1}
+@media (prefers-reduced-motion:reduce){ .DemoTap.is-on{animation-duration:var(--motion-menu)} }
+
+/* --- решение 28 реестра: prefers-reduced-motion --- */
+@media (prefers-reduced-motion:reduce){
+  .Screen,.Sheet,.Banner,.ActionSheet,.StoreKit{transition-duration:var(--motion-alert)!important}
+  .RenderStages__row[data-status="active"] .RenderStages__dot,
+  .EffectTile[data-state="rendering"] .EffectTile__prev::after{animation:none}
+  :root{--motion-render-fast:1000ms;--motion-render-quality:1000ms;--motion-stream-char:0ms}
+}
+</style>
+
+<div class="Stage">
+  <div class="Device" id="device">
+    <div class="ScreenStack" id="stack"></div>
+    <div class="SheetLayer" id="sheetLayer"></div>
+    <div class="StatusBar">
+      <span class="StatusBar__time" id="clock">9:41</span>
+      <span class="StatusBar__island"></span>
+      <span class="StatusBar__ind">
+        <span class="StatusBar__bar"></span><span class="StatusBar__bar"></span><span class="StatusBar__bat"></span>
+      </span>
+    </div>
+    <div class="HomeInd"></div>
+    <div class="BannerLayer" id="bannerLayer"></div>
+    <div class="EventLog" id="eventLog"></div>
+  </div>
+  <div class="DevBar">
+    <span>Meantime · prototype</span>
+    <button id="devLog">Event log</button>
+    <button id="devReset">Reset demo</button>
+  </div>
 </div>
+<script>
+"use strict";
+/* ============================================================================
+   §5 · STATE — демо-состояние решения 8.5, единственный источник чисел
+   ========================================================================= */
+const DEMO = {
+  periodStart:new Date(2026,7,5),   // среда 5 августа 2026
+  today:new Date(2026,8,13),        // воскресенье 13 сентября 2026
+  periodLength:100,
+  dayIndex:40,
+  kept:37,                          // 40 прошедших − 3 пропущенных; на всех экранах постоянно
+  skipped:{12:0, 36:3, 38:1},       // день → сколько кадров той даты лежит в библиотеке
+  upgradeToday:"TODAY’S UPGRADE",     // решение 15 — один апгрейд в сутки, имён пресетов нет
+  upgradeTomorrow:"ANOTHER UPGRADE",
+  countdownStart:14*3600 + 32*60 + 6, // NEXT UPGRADE IN 14:32:06
+  coinsStart:8,
+  periodEnd:new Date(2026,10,12),   // Nov 12
+  weeks:15
+};
+const S = {
+  period:"100 days",
+  coins:DEMO.coinsStart,
+  subscriber:false,
+  photoDatesAllowed:false,
+  diarySeen:false,
+  todayKept:false,
+  todayPreset:null,       // "upgraded" | "SNOW GLOBE" | "no filter"
+  attempts:0,             // попытки рендера сегодня (мягкий потолок 3, решение 8.1)
+  pickedFrame:null,
+  effectPreset:null,
+  effectSpent:0,
+  entered:false,
+  countdown:DEMO.countdownStart,
+  onboarded:false
+};
+const MONTH = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const DOW   = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+
+function dayDate(i){ const d=new Date(DEMO.periodStart); d.setDate(d.getDate()+i-1); return d; }
+function fmtMD(d){ return MONTH[d.getMonth()]+" "+d.getDate(); }
+function fmtMDup(d){ return (MONTH[d.getMonth()]+" "+d.getDate()).toUpperCase(); }
+function dayState(i){
+  if(i===DEMO.dayIndex) return S.todayKept ? (S.todayPreset==="SNOW GLOBE" ? "kept-extra":"kept") : "today";
+  if(i>DEMO.dayIndex) return "future";
+  if(i in DEMO.skipped) return DEMO.skipped[i]>0 && S.photoDatesAllowed ? "skipped-available" : "skipped-empty";
+  return "kept";
+}
+/* кадр дня: 16 уникальных кадров переиспользуются по сетке (скил demo-imagery) */
+function frameOf(i){
+  if(i===DEMO.dayIndex) return "today";
+  return "day-" + String(((i-1)%16)+1).padStart(2,"0");
+}
+function saveState(){ try{ localStorage.setItem("meantime.state", JSON.stringify(S)); }catch(e){} }
+function loadState(){
+  try{ const r=localStorage.getItem("meantime.state"); if(r) Object.assign(S, JSON.parse(r)); }catch(e){}
+}
+
+/* ============================================================================
+   §6 · Img — кадры из ./assets, процедурная заглушка из токенов (решение 8.12)
+   Пути только относительные — прототип уезжает на GitHub Pages (решение 12.2).
+   ========================================================================= */
+const Img = {
+  status:{},   // name -> "ok" | "miss" | Promise
+  hash(s){ let h=2166136261; for(let i=0;i<s.length;i++){ h^=s.charCodeAt(i); h=Math.imul(h,16777619);} return Math.abs(h); },
+  /* заглушка целиком из токенов: угол, фаза и лёгкий поворот тона — детерминированы по имени */
+  phVars(name){
+    const h=this.hash(name);
+    return "--ang:"+(((h)%140)+110)+"deg;"+
+           "--ang2:"+(((h>>3)%180))+"deg;"+
+           "--px:"+(((h>>5)%80)+10)+"%;--py:"+(((h>>9)%60)+10)+"%;"+
+           "--qx:"+(((h>>13)%80)+10)+"%;--qy:"+(((h>>17)%70)+25)+"%;"+
+           "--hue:"+((((h>>21)%50)-25))+"deg;"+
+           "--sat:"+(0.85+((h>>25)%40)/100).toFixed(2)+";";
+  },
+  probe(name){
+    if(this.status[name]) return Promise.resolve(this.status[name]);
+    const p = new Promise(res=>{
+      const im=new Image();
+      im.onload  = ()=>{ this.status[name]="ok";   res("ok"); };
+      im.onerror = ()=>{ this.status[name]="miss"; res("miss"); };
+      im.src = "./assets/"+name+".jpg";
+    });
+    this.status[name]=p; return p;
+  },
+  /* Frame: заглушка стоит сразу, настоящий кадр приходит кросс-фейдом, раскладка не дёргается */
+  make(name, cls){
+    const f=document.createElement("div");
+    f.className="Frame"+(cls?" "+cls:"");
+    f.dataset.img=name;
+    const ph=document.createElement("div");
+    ph.className="Frame__ph"; ph.setAttribute("style", this.phVars(name));
+    const im=document.createElement("div"); im.className="Frame__img";
+    f.append(ph,im);
+    Promise.resolve(this.status[name] instanceof Promise ? this.status[name] : this.probe(name)).then(r=>{
+      if(r==="ok"){ im.style.backgroundImage="url(./assets/"+name+".jpg)"; requestAnimationFrame(()=>im.classList.add("is-in")); }
+    });
+    return f;
+  }
+};
+
+/* ============================================================================
+   §7 · Analytics — аналог src/lib/analytics.ts. Консоль + localStorage.
+   Имена событий — каталог ux-brief, без переименований.
+   ========================================================================= */
+const ACCENT_HEX = getComputedStyle(document.documentElement)
+  .getPropertyValue("--color-accent-default").trim() || "inherit";
+const Analytics = {
+  sid:"s_"+Math.random().toString(36).slice(2,10),
+  buf:[],
+  track(name, params){
+    const e = Object.assign({
+      event:name,
+      session_id:this.sid,
+      screen:(window.Router && Router.current) || "-",
+      timestamp:new Date().toISOString(),
+      day_index:DEMO.dayIndex
+    }, params||{});
+    this.buf.push(e); if(this.buf.length>200) this.buf.shift();
+    try{ localStorage.setItem("meantime.events", JSON.stringify(this.buf)); }catch(err){}
+    console.log("%c▸ "+name, "color:"+ACCENT_HEX+";font-weight:600", e);
+    if(window.EventLogView) EventLogView.push(e);
+    return e;
+  },
+  dump(){ return this.buf.slice(); },
+  clear(){ this.buf=[]; try{ localStorage.removeItem("meantime.events"); }catch(e){} }
+};
+window.meantimeEvents = ()=>Analytics.dump();
+
+/* ============================================================================
+   §8 · AI — аналог src/lib/ai/adapter.ts.
+   Фикстуры читаются из ./fixtures/ai/*.json; при file:// fetch запрещён,
+   поэтому те же данные лежат инлайном и служат фолбэком (решение 13.1).
+   Риск расхождения двух копий назван в component-map.md.
+   ========================================================================= */
+const FIXTURES = {
+"daily-frame/success":{scenario:"daily_frame",fixture:"success",tier:"fast",latency_ms:4000,
+  slow_threshold_ms:12000,cancelable_until:"developing",
+  stages:[{id:"reading",label:"Reading your frame",ms:900},
+          {id:"rendering",label:"Upgrading your frame…",ms:2100},
+          {id:"developing",label:"Developing",ms:1000}],
+  result:{preset:"UPGRADED",asset:"today",confidence:"ok"}},
+"daily-frame/slow":{scenario:"daily_frame",fixture:"slow",tier:"fast",latency_ms:15000,
+  slow_threshold_ms:12000,cancelable_until:"developing",
+  stages:[{id:"reading",label:"Reading your frame",ms:1200},
+          {id:"rendering",label:"Upgrading your frame…",ms:11000},
+          {id:"developing",label:"Developing",ms:2800}],
+  slow_notice:"Taking longer than usual. Your daily frame isn’t used until it’s done.",
+  result:{preset:"UPGRADED",asset:"today",confidence:"ok"}},
+"daily-frame/error":{scenario:"daily_frame",fixture:"error",error_type:"network",fail_after_ms:2600,
+  quota_spent:false,title:"Couldn’t render.",body:"Your daily frame is still yours.",
+  actions:[{id:"retry",label:"Try again",variant:"primary"},
+           {id:"nofilter",label:"Keep without the upgrade",variant:"secondary"}]},
+"daily-frame/refusal":{scenario:"daily_frame",fixture:"refusal",error_type:"refusal",fail_after_ms:2200,
+  quota_spent:false,title:"This one can’t be rendered.",body:"Keep it as it is, or pick another.",
+  actions:[{id:"nofilter",label:"Keep without the upgrade",variant:"primary"},
+           {id:"another",label:"Choose another photo",variant:"secondary"}]},
+"daily-frame/low-confidence":{scenario:"daily_frame",fixture:"low-confidence",tier:"fast",latency_ms:3600,
+  slow_threshold_ms:12000,cancelable_until:"developing",
+  stages:[{id:"reading",label:"Reading your frame",ms:900},
+          {id:"rendering",label:"Upgrading your frame…",ms:1900},
+          {id:"developing",label:"Developing",ms:800}],
+  result:{preset:"UPGRADED",asset:"today",confidence:"low"},
+  notice:"Not our best. Render once more — on us."},
+"daily-frame/empty":{scenario:"daily_frame",fixture:"empty",error_type:"empty",fail_after_ms:3000,
+  quota_spent:false,title:"Nothing changed on this one.",body:"Your daily frame is still yours.",
+  actions:[{id:"retry",label:"Try again",variant:"primary"},
+           {id:"nofilter",label:"Keep without the upgrade",variant:"secondary"}]},
+"daily-frame/filter-missing":{scenario:"daily_frame",fixture:"filter-missing",missing:true,
+  title:"Today’s upgrade hasn’t arrived yet",
+  actions:[{id:"nofilter",label:"Keep today without the upgrade",variant:"primary"}]},
+
+"gallery-pick/success":{scenario:"gallery_pick",fixture:"success",on_device:true,latency_ms:700,
+  count_today:3,confidence:"ok",label:"MEANTIME PICKED · FROM 3 TODAY",
+  hint:"Tap any other frame to pick it yourself",
+  picks:[{rank:1,asset:"today"},{rank:2,asset:"day-11"},{rank:3,asset:"day-06"}]},
+"gallery-pick/none":{scenario:"gallery_pick",fixture:"none",on_device:true,count_today:0,confidence:"none",
+  fallback_line:"Allow photo dates to get suggestions"},
+"gallery-pick/low-confidence":{scenario:"gallery_pick",fixture:"low-confidence",on_device:true,
+  count_today:4,confidence:"low",label:"NOTHING STOOD OUT TODAY — PICK YOURSELF"},
+
+"recap/success":{scenario:"recap",fixture:"success",period:"week",week:6,range:"SEP 7 – SEP 13",
+  frames_in:5,of:7,on_phone:2,latency_ms:0,
+  caption:"Mostly outdoors. One rainy Tuesday.",
+  kicker:"WEEK 6 · SEP 7 – SEP 13 · BY MEANTIME",
+  stat:"5 OF 7 KEPT · 2 MORE ARE ON YOUR PHONE",
+  /* решение 10.14 — самый тёмный кадр в нижний левый квадрант, под кикер и заголовок */
+  quadrants:[{q:"TL",day:39,asset:"recap-2",luma:0.44,locked:true},
+             {q:"TR",day:40,asset:"recap-3",luma:0.52,locked:true},
+             {q:"BL",day:34,asset:"recap-1",luma:0.17,locked:false},
+             {q:"BR",day:37,asset:"recap-4",luma:0.38,locked:false}],
+  dark_quadrant:"BL",kicker_scrim_fallback:false},
+"recap/composing":{scenario:"recap",fixture:"composing",period:"week",week:6,latency_ms:8000,
+  slow_threshold_ms:20000,
+  stages:[{id:"choosing",label:"Choosing frames…",ms:2600},
+          {id:"laying",label:"Laying out…",ms:2600},
+          {id:"caption",label:"Writing the caption…",ms:2800}],
+  caption:"Mostly outdoors. One rainy Tuesday.",
+  slow_notice:"Still composing — it’ll be on the shelf when it’s ready"},
+"recap/error":{scenario:"recap",fixture:"error",error_type:"network",
+  title:"Couldn’t compose yet",actions:[{id:"retry",label:"Try again",variant:"primary"}]},
+"recap/single":{scenario:"recap",fixture:"single",period:"week",week:6,frames_in:1,of:7,
+  caption:"One frame this week.",kicker:"WEEK 6 · SEP 7 – SEP 13 · BY MEANTIME",
+  stat:"1 OF 7 KEPT",quadrants:[{q:"BL",day:34,asset:"recap-1",luma:0.17,locked:false}]},
+
+"effect/success":{scenario:"effect",fixture:"success",tier:"quality",latency_ms:6000,
+  slow_threshold_ms:12000,cancelable_until:"developing",preset_id:"snow_globe",preset:"Snow globe",
+  stages:[{id:"reading",label:"Reading your day…",ms:1400},
+          {id:"rendering",label:"Rendering Snow globe…",ms:3200},
+          {id:"developing",label:"Developing",ms:1400}],
+  result:{preset:"SNOW GLOBE",asset:"fx-after",confidence:"ok"}},
+"effect/slow":{scenario:"effect",fixture:"slow",tier:"quality",latency_ms:15000,slow_threshold_ms:12000,
+  cancelable_until:"developing",preset_id:"snow_globe",preset:"Snow globe",
+  stages:[{id:"reading",label:"Reading your day…",ms:1600},
+          {id:"rendering",label:"Rendering Snow globe…",ms:10500},
+          {id:"developing",label:"Developing",ms:2900}],
+  slow_notice:"Taking longer than usual. Your coins aren’t spent until it’s done.",
+  result:{preset:"SNOW GLOBE",asset:"fx-after",confidence:"ok"}},
+"effect/error":{scenario:"effect",fixture:"error",error_type:"network",fail_after_ms:3000,charged:false,
+  preset:"Snow globe",title:"Couldn’t render.",body:"Nothing was charged.",
+  actions:[{id:"retry",label:"Try again",variant:"primary"},
+           {id:"back",label:"Back to today",variant:"secondary"}]},
+"effect/refusal":{scenario:"effect",fixture:"refusal",error_type:"refusal",fail_after_ms:2600,charged:false,
+  preset:"Snow globe",title:"Snow globe needs a scene, not a close-up.",
+  body:"Pick another effect — nothing was charged.",
+  actions:[{id:"back",label:"Back to effects",variant:"primary"}]},
+"effect/low-confidence":{scenario:"effect",fixture:"low-confidence",tier:"quality",latency_ms:5200,
+  slow_threshold_ms:12000,cancelable_until:"developing",preset_id:"snow_globe",preset:"Snow globe",
+  stages:[{id:"reading",label:"Reading your day…",ms:1200},
+          {id:"rendering",label:"Rendering Snow globe…",ms:2800},
+          {id:"developing",label:"Developing",ms:1200}],
+  result:{preset:"SNOW GLOBE",asset:"fx-after",confidence:"low"},
+  notice:"Not our best. Render once more — on us."},
+"effect/empty":{scenario:"effect",fixture:"empty",error_type:"empty",fail_after_ms:3400,charged:false,
+  preset:"Snow globe",title:"Nothing changed on this one.",body:"Nothing was charged.",
+  actions:[{id:"back",label:"Back to effects",variant:"primary"}]}
+};
+
+const AI = {
+  cache:{},
+  async load(path){
+    if(this.cache[path]) return this.cache[path];
+    try{
+      const r = await fetch("./fixtures/ai/"+path+".json", {cache:"no-store"});
+      if(r.ok){ const j = await r.json(); this.cache[path]=j; return j; }
+    }catch(e){ /* file:// — ожидаемо, идём в инлайн-копию */ }
+    this.cache[path] = FIXTURES[path];
+    return FIXTURES[path];
+  },
+  /* прогон этапов; onStage(i,stage), onProgress(0..1), onSlow(), onDone(fx), onFail(fx) */
+  run(fx, cb){
+    const ctl = {cancelled:false, stage:null, timers:[]};
+    const t = (fn,ms)=>{ const id=setTimeout(fn,ms); ctl.timers.push(id); return id; };
+    ctl.cancel = ()=>{ ctl.cancelled=true; ctl.timers.forEach(clearTimeout); };
+    Analytics.track("ai_request_started",{scenario:fx.scenario,preset_id:fx.preset_id||null,tier:fx.tier||null});
+    const t0 = Date.now();
+
+    if(fx.error_type && !fx.stages){       // мгновенные отказы вроде filter-missing
+      t(()=>{ if(!ctl.cancelled) cb.onFail && cb.onFail(fx); }, fx.fail_after_ms||600);
+      return ctl;
+    }
+    if(fx.error_type){                     // сбой посреди этапов
+      let acc=0;
+      (fx.stages||[]).forEach((s,i)=>{ t(()=>{ if(!ctl.cancelled){ctl.stage=s.id; cb.onStage&&cb.onStage(i,s);} }, acc); acc+=s.ms; });
+      t(()=>{ if(ctl.cancelled) return;
+        Analytics.track("ai_response_failed",{scenario:fx.scenario,error_type:fx.error_type});
+        cb.onFail && cb.onFail(fx); }, fx.fail_after_ms||2500);
+      return ctl;
+    }
+    let acc=0;
+    (fx.stages||[]).forEach((s,i)=>{
+      t(()=>{ if(!ctl.cancelled){ ctl.stage=s.id; cb.onStage && cb.onStage(i,s); } }, acc);
+      acc += s.ms;
+    });
+    if(fx.slow_threshold_ms && fx.latency_ms > fx.slow_threshold_ms)
+      t(()=>{ if(!ctl.cancelled) cb.onSlow && cb.onSlow(fx); }, fx.slow_threshold_ms);
+    t(()=>{
+      if(ctl.cancelled) return;
+      Analytics.track("ai_response_completed",{scenario:fx.scenario,latency_ms:Date.now()-t0,
+        fixture:fx.fixture,tier:fx.tier||null});
+      if(fx.result && fx.result.confidence==="low")
+        Analytics.track("ai_low_confidence_shown",{preset_id:fx.preset_id||null});
+      cb.onDone && cb.onDone(fx);
+    }, fx.latency_ms);
+    return ctl;
+  },
+  /* стриминг подписи: посимвольно, чанк по словам (реестр №14) */
+  stream(el, text, done){
+    const step = parseInt(getComputedStyle(document.documentElement)
+      .getPropertyValue("--motion-stream-char")) || 22;
+    if(step===0){ el.textContent=text; done&&done(); return {cancel(){}}; }
+    let i=0, id=null;
+    const tick=()=>{
+      let n=i+1; while(n<text.length && text[n]!==" ") n++;   // чанк по словам
+      i=Math.min(n+1,text.length); el.textContent=text.slice(0,i);
+      if(i<text.length) id=setTimeout(tick, step*(i-Math.max(0,i-6)));
+      else done&&done();
+    };
+    tick();
+    return {cancel(){ clearTimeout(id); }};
+  }
+};
+
+/* ============================================================================
+   §9 · UI — фабрики компонентов. Один в один с Figma: имя PascalCase,
+   варианты Figma живут в data-* теми же словами.
+   ========================================================================= */
+const el=(tag,cls,txt)=>{ const n=document.createElement(tag); if(cls) n.className=cls;
+  if(txt!=null) n.textContent=txt; return n; };
+const frag=(...kids)=>{ const f=document.createDocumentFragment(); f.append(...kids); return f; };
+
+const UI = {
+  /* Button · 88:50 · Variant = Primary|Secondary|Text × State = Default|Pressed|Disabled|Loading */
+  Button({label, variant="primary", state="default", onTap, icon}){
+    const b=el("button","Button");
+    b.dataset.variant=variant; b.dataset.state=state;
+    const s=el("span","Button__label"); s.textContent=label;
+    if(icon){ const i=el("span",null,icon); b.append(i); }
+    b.append(s);
+    if(onTap) b.addEventListener("click", e=>{ if(b.dataset.state==="disabled") return; onTap(e); });
+    return b;
+  },
+
+  /* DayCell · 89:16 · State = Kept|Kept-extra|Today|Future|Skipped-available|Skipped-empty */
+  DayCell({state, index, count, onTap}){
+    const c=el("button","DayCell");
+    c.dataset.state=state; c.dataset.day=index;
+    c.setAttribute("aria-label","Day "+index);
+    if(state==="kept"||state==="kept-extra"||state==="today"){
+      if(state!=="today" || S.todayKept) c.append(Img.make(frameOf(index)));
+    }
+    if(state==="skipped-available"){
+      const n=el("span","t-h2"); n.textContent="+"+count; c.append(n);
+    }
+    if(onTap) c.addEventListener("click", ()=>onTap(index, state, c));
+    return c;
+  },
+
+  /* TabBar · 90:56 · Active = Today|Diary|Effects */
+  TabBar(active){
+    const ICONS={
+      today:'<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="10" cy="10" r="7.2"/><circle cx="10" cy="10" r="2.6" fill="currentColor" stroke="none"/></svg>',
+      diary:'<svg viewBox="0 0 20 20" fill="currentColor"><rect x="2" y="2" width="7" height="7" rx="1.8"/><rect x="11" y="2" width="7" height="7" rx="1.8"/><rect x="2" y="11" width="7" height="7" rx="1.8"/><rect x="11" y="11" width="7" height="7" rx="1.8"/></svg>',
+      effects:'<svg viewBox="0 0 20 20" fill="currentColor"><path d="M10 1.6l1.9 4.9 4.9 1.9-4.9 1.9L10 15.2 8.1 10.3 3.2 8.4l4.9-1.9z"/><circle cx="16.4" cy="15.4" r="1.7"/></svg>'
+    };
+    const bar=el("nav","TabBar");
+    const glow=el("span","TabBar__glow"); bar.append(glow);
+    ["today","diary","effects"].forEach((id,i)=>{
+      const it=el("button","TabBar__item");
+      it.setAttribute("aria-selected", String(id===active));
+      const ic=el("span","TabBar__icon"); ic.innerHTML=ICONS[id]; 
+      const lb=el("span","t-meta"); lb.textContent=id;
+      it.append(ic,lb);
+      it.addEventListener("click",()=>Router.tab(id));
+      bar.append(it);
+      if(id===active){
+        const w=parseInt(getComputedStyle(document.documentElement).getPropertyValue("--size-tabbar-w"))||300;
+        glow.style.left=((w/3)*i + w/6)+"px";
+      }
+    });
+    bar.dataset.active=active;
+    return bar;
+  },
+
+  /* RecapCard · 91:21 · State = Current|Composing */
+  RecapCard({fx, state="current", onTap}){
+    const c=el("button","RecapCard"); c.dataset.state=state;
+    const comp=el("div","RecapComp");
+    const order=["TL","TR","BL","BR"];
+    order.forEach(q=>{
+      const item=(fx.quadrants||[]).find(x=>x.q===q);
+      comp.append(item ? Img.make(item.asset) : el("div","Frame"));
+    });
+    c.append(comp, el("div","Scrim7"));
+    const t=el("div","RecapCard__text stack gap1");
+    if(state==="composing"){
+      t.append(assign(el("div","t-meta c-thinking"),"COMPOSING…"),
+               assign(el("div","t-h2 c-on-image"),"Week "+fx.week));
+    }else{
+      t.append(assign(el("div","t-meta c-on-image"),"THIS WEEK · COMPOSED TODAY"),
+               assign(el("div","t-h2 c-on-image"),"Week "+fx.week+" · Sep 7 – 13"),
+               assign(el("div","t-counter-meta c-on-image"),fx.frames_in+" OF "+fx.of+" KEPT · BY MEANTIME"));
+    }
+    c.append(t);
+    if(onTap && state!=="composing") c.addEventListener("click",()=>onTap(c));
+    return c;
+  },
+
+  /* RecapSpine · 91:29 */
+  RecapSpine({label, asset, onTap}){
+    const s=el("button","RecapSpine");
+    s.append(Img.make(asset), el("div","Scrim7"));
+    const l=el("span","RecapSpine__label t-counter-meta c-on-image"); l.textContent=label;
+    s.append(l);
+    if(onTap) s.addEventListener("click",onTap);
+    return s;
+  },
+
+  /* BalanceChip · 94:16 · State = Default|Low */
+  BalanceChip({coins, sub, onGet}){
+    const c=el("div","BalanceChip"); c.dataset.state = coins<3 ? "low":"default";
+    const m=el("div","BalanceChip__main stack gap1");
+    m.append(assign(el("div","t-counter BalanceChip__coins"),"◎ "+coins+" coins"),
+             assign(el("div","t-caption c-secondary"), sub ? "+20 on Oct 13" : "+20 every month with a plan"));
+    c.append(m);
+    if(!sub) c.append(UI.Button({label:"Get coins",variant:"text",onTap:onGet}));
+    else { const ok=el("span","t-meta c-accent"); ok.textContent="INCLUDED"; c.append(ok); }
+    const btn=c.querySelector(".Button"); if(btn) btn.style.width="auto";
+    return c;
+  },
+
+  /* EffectTile · 94:51 · State = Default|Not-enough|Rendering */
+  EffectTile({name, price, asset, state="default", onTap}){
+    const t=el("button","EffectTile"); t.dataset.state=state;
+    const p=el("div","EffectTile__prev"); p.append(Img.make(asset)); t.append(p);
+    const b=el("div","EffectTile__body");
+    b.append(assign(el("div","t-h2"),name),
+             assign(el("div","t-counter-meta EffectTile__price c-accent"),"◎ "+price+" · EXTRA RENDER"));
+    t.append(b);
+    if(onTap) t.addEventListener("click",()=>onTap(name,price,state));
+    return t;
+  },
+
+  /* RenderStages · 103:80 · Stage = Reading|Rendering|Developing */
+  RenderStages(stages){
+    const w=el("div","RenderStages");
+    stages.forEach(s=>{
+      const r=el("div","RenderStages__row"); r.dataset.stage=s.id; r.dataset.status="idle";
+      r.append(el("span","RenderStages__dot"),
+               assign(el("span","RenderStages__label t-body"),s.label),
+               assign(el("span","RenderStages__done t-meta"),"DONE"));
+      w.append(r);
+    });
+    w.setStage=(i)=>{
+      [...w.children].forEach((r,j)=>{ r.dataset.status = j<i ? "done" : (j===i ? "active":"idle"); });
+      w.dataset.stage = stages[Math.min(i,stages.length-1)].id;
+    };
+    w.finish=()=>{ [...w.children].forEach(r=>r.dataset.status="done"); };
+    w.setStage(0);
+    return w;
+  },
+
+  /* PlanRow · 103:91 · State = Selected|Default */
+  PlanRow({price, note, badge, selected, onTap}){
+    const p=el("button","PlanRow"); p.dataset.state = selected ? "selected":"default";
+    p.append(assign(el("span","PlanRow__badge t-meta"), badge||""),
+             assign(el("div","t-h2"),price),
+             assign(el("div","t-caption c-secondary"),note));
+    if(onTap) p.addEventListener("click",()=>onTap(p));
+    return p;
+  },
+
+  /* Sheet · 95:14 · Detent = Medium|Large */
+  Sheet({detent="medium", build, dismissible=true, onDismiss, delay=0}){
+    const layer=document.getElementById("sheetLayer");
+    /* HIG Modality — одна шторка за раз: новая закрывает предыдущую, стопки не бывает */
+    layer.querySelectorAll(".Sheet").forEach(x=>{ if(x._api) x._api.close(); else x.remove(); });
+    layer.querySelectorAll(".Scrim").forEach(x=>x.remove());
+    layer.style.pointerEvents="auto";
+    const scrim=el("div","Scrim");
+    const sheet=el("div","Sheet"); sheet.dataset.detent=detent;
+    const grab=el("div","Sheet__grab");
+    const body=el("div","Sheet__body");
+    sheet.append(grab, body);
+    layer.append(scrim, sheet);
+    const api={
+      el:sheet, body,
+      close(){
+        if(api._closed) return; api._closed=true;
+        sheet.classList.add("is-out"); sheet.classList.remove("is-in"); scrim.classList.remove("is-in");
+        setTimeout(()=>{ scrim.remove(); sheet.remove();
+          if(!layer.querySelector(".Sheet")) layer.style.pointerEvents="none"; }, 320);
+        onDismiss && onDismiss();
+      }
+    };
+    sheet._api=api;
+    build(body, api);
+    const show=()=>{ requestAnimationFrame(()=>{ scrim.classList.add("is-in"); sheet.classList.add("is-in"); }); };
+    delay ? setTimeout(show, delay) : show();
+    if(dismissible){
+      scrim.addEventListener("click", api.close);
+      dragToDismiss(sheet, api.close);
+    }
+    return api;
+  }
+};
+function assign(n, txt){ n.textContent=txt; return n; }
+
+/* реестр №7 — шторка тянется за пальцем, порог 25 % высоты или скорость > .5 px/ms */
+function dragToDismiss(sheet, close){
+  let y0=0,t0=0,dy=0,active=false;
+  const down=e=>{ const p=e.touches?e.touches[0]:e;
+    if(sheet.querySelector(".Sheet__body").scrollTop>0 && !e.target.closest(".Sheet__grab")) return;
+    active=true; y0=p.clientY; t0=Date.now(); dy=0; sheet.style.transition="none"; };
+  const move=e=>{ if(!active) return; const p=e.touches?e.touches[0]:e;
+    dy=Math.max(0,p.clientY-y0); sheet.style.transform="translateY("+dy+"px)";
+    if(e.cancelable) e.preventDefault(); };
+  const up=()=>{ if(!active) return; active=false;
+    const v=dy/Math.max(1,Date.now()-t0);
+    sheet.style.transition="";
+    if(dy > sheet.offsetHeight*0.25 || v>0.5){ sheet.style.transform=""; close(); }
+    else sheet.style.transform="";
+  };
+  sheet.addEventListener("touchstart",down,{passive:true});
+  sheet.addEventListener("touchmove",move,{passive:false});
+  sheet.addEventListener("touchend",up);
+  sheet.addEventListener("mousedown",down);
+  window.addEventListener("mousemove",move);
+  window.addEventListener("mouseup",up);
+}
+
+/* --- баннер сверху: в iOS нет тостов (реестр №24) --- */
+function banner(text){
+  const layer=document.getElementById("bannerLayer");
+  const b=el("div","Banner t-body"); b.textContent=text;
+  layer.append(b);
+  requestAnimationFrame(()=>b.classList.add("is-in"));
+  setTimeout(()=>{ b.classList.add("is-out"); b.classList.remove("is-in");
+    setTimeout(()=>b.remove(), 260); }, 2500);
+}
+
+/* --- action sheet (реестр №23) --- */
+function actionSheet(items){
+  const layer=document.getElementById("sheetLayer");
+  layer.style.pointerEvents="auto";
+  const scrim=el("div","Scrim");
+  const wrap=el("div","ActionSheet");
+  const grp=el("div","ActionSheet__grp");
+  const cancelGrp=el("div","ActionSheet__grp");
+  const close=()=>{ wrap.classList.remove("is-in"); scrim.classList.remove("is-in");
+    setTimeout(()=>{ wrap.remove(); scrim.remove();
+      if(!layer.querySelector(".Sheet")) layer.style.pointerEvents="none"; },260); };
+  items.forEach(it=>{
+    const b=el("button","ActionSheet__btn"); b.dataset.role=it.role||"default"; b.textContent=it.label;
+    b.addEventListener("click",()=>{ close(); it.onTap && it.onTap(); });
+    (it.role==="cancel"?cancelGrp:grp).append(b);
+    if((it.role==="cancel"?cancelGrp:grp).children.length>1)
+      (it.role==="cancel"?cancelGrp:grp).insertBefore(el("div","hair"), b);
+  });
+  wrap.append(grp, cancelGrp);
+  layer.append(scrim, wrap);
+  scrim.addEventListener("click",close);
+  requestAnimationFrame(()=>{ scrim.classList.add("is-in"); wrap.classList.add("is-in"); });
+  return {close};
+}
+
+/* ============================================================================
+   §11 · Router — push/pop слайдом, zoom-from-thumbnail (решение 13.2),
+   интерактивный свайп от края, следующий за пальцем (решение 13.4).
+   ========================================================================= */
+const MS = k => parseFloat(getComputedStyle(document.documentElement).getPropertyValue(k))||0;
+const Router = {
+  stack:[], current:null, busy:false,
+  root:{today:"03", diary:"07", effects:"11"},
+  el(){ return document.getElementById("stack"); },
+
+  build(route){
+    const make = Screens[route];
+    if(!make) throw new Error("no screen "+route);
+    const s = el("div","Screen"); s.dataset.route=route;
+    make(s);
+    return s;
+  },
+
+  /* корень таба — без анимации содержимого (HIG, реестр №4) */
+  tab(id){
+    const route=this.root[id];
+    if(this.stack.length===1 && this.current===route) return;
+    this.stack.forEach(f=>f.el.remove());
+    const s=this.build(route);
+    this.el().append(s);
+    this.stack=[{route, el:s, mode:"root"}];
+    this.current=route;
+    location.hash="#/"+route;
+  },
+
+  /* корень + экран поверх: «назад» с 06 возвращает на 03 в состоянии «после Keep» */
+  resetTo(rootRoute, route){
+    this.reset(rootRoute);
+    const s=this.build(route); this.el().append(s);
+    this.stack.push({route, el:s, mode:"slide"});
+    this.current=route; location.hash="#/"+route;
+  },
+
+  reset(route){
+    this.stack.forEach(f=>f.el.remove());
+    const s=this.build(route); this.el().append(s);
+    this.stack=[{route, el:s, mode:"root"}];
+    this.current=route; location.hash="#/"+route;
+  },
+
+  go(route, opts){
+    opts=opts||{};
+    if(this.busy) return; this.busy=true;
+    const below=this.stack[this.stack.length-1];
+    const s=this.build(route);
+    const D=MS("--motion-screen"), DZ=MS("--motion-sheet-in");
+    const ease=getComputedStyle(document.documentElement).getPropertyValue("--ease-standard");
+    let mode = opts.from ? "zoom" : "slide", origin=null;
+
+    if(mode==="zoom"){
+      const dev=document.getElementById("device").getBoundingClientRect();
+      const r=opts.from.getBoundingClientRect();
+      origin={cx:r.left-dev.left+r.width/2, cy:r.top-dev.top+r.height/2, scale:Math.max(.08, r.width/dev.width)};
+      s.style.transformOrigin=origin.cx+"px "+origin.cy+"px";
+      s.style.transform="scale("+origin.scale+")";
+      s.style.opacity="0";
+      this.el().append(s);
+      requestAnimationFrame(()=>{
+        s.style.transition="transform "+DZ+"ms "+ease+", opacity "+DZ+"ms "+ease;
+        s.style.transform="scale(1)"; s.style.opacity="1";
+      });
+      setTimeout(()=>{ s.style.transition=""; this.busy=false; }, DZ+20);
+    }else{
+      s.style.transform="translateX(100%)";
+      this.el().append(s);
+      requestAnimationFrame(()=>{
+        s.style.transition="transform "+D+"ms "+ease;
+        s.style.transform="translateX(0)";
+        if(below){ below.el.style.transition="transform "+D+"ms "+ease+", opacity "+D+"ms "+ease;
+          below.el.style.transform="translateX(-30%)"; below.el.style.opacity=".6"; }
+      });
+      setTimeout(()=>{ s.style.transition=""; this.busy=false; }, D+20);
+    }
+    this.stack.push({route, el:s, mode, origin, from:opts.from||null});
+    this.current=route; location.hash="#/"+route;
+    return s;
+  },
+
+  back(){
+    if(this.stack.length<2 || this.busy) return; this.busy=true;
+    const top=this.stack.pop(), below=this.stack[this.stack.length-1];
+    const D=MS("--motion-screen"), DZ=MS("--motion-sheet-in");
+    const ease=getComputedStyle(document.documentElement).getPropertyValue("--ease-standard");
+    below.el.style.transition="transform "+D+"ms "+ease+", opacity "+D+"ms "+ease;
+    below.el.style.transform="translateX(0)"; below.el.style.opacity="1";
+    if(top.mode==="zoom" && top.origin){
+      top.el.style.transition="transform "+DZ+"ms "+ease+", opacity "+DZ+"ms "+ease;
+      top.el.style.transform="scale("+top.origin.scale+")"; top.el.style.opacity="0";
+      setTimeout(()=>{ top.el.remove(); this.busy=false; }, DZ+20);
+    }else{
+      top.el.style.transition="transform "+D+"ms "+ease;
+      top.el.style.transform="translateX(100%)";
+      setTimeout(()=>{ top.el.remove(); this.busy=false; }, D+20);
+    }
+    this.current=below.route; location.hash="#/"+below.route;
+  },
+
+  /* заменить верхний экран без анимации (например 06 → 06a после Keep as today) */
+  swapTop(route){
+    const top=this.stack.pop(); if(top) top.el.remove();
+    const s=this.build(route); this.el().append(s);
+    this.stack.push({route, el:s, mode:"slide"});
+    this.current=route; location.hash="#/"+route;
+  }
+};
+
+/* --- интерактивный свайп от края (решение 13.4, реестр №3) ---------------
+   Жест ведёт ровно ту анимацию, которой экран был открыт: слайд — слайдом,
+   zoom — обратным зумом. «Назад — зеркало того, как вошёл» держится и жестом. */
+(function edgeSwipe(){
+  const dev=document.getElementById("device");
+  let act=false, x0=0, t0=0, dx=0, top=null, below=null;
+  const W=()=>dev.getBoundingClientRect().width;
+
+  const start=e=>{
+    if(Router.busy || Router.stack.length<2) return;
+    if(document.querySelector("#sheetLayer .Sheet")) return;
+    const p=e.touches?e.touches[0]:e;
+    const rel=p.clientX-dev.getBoundingClientRect().left;
+    if(rel>20) return;
+    act=true; x0=p.clientX; t0=Date.now(); dx=0;
+    top=Router.stack[Router.stack.length-1]; below=Router.stack[Router.stack.length-2];
+    top.el.style.transition="none"; below.el.style.transition="none";
+  };
+  const move=e=>{
+    if(!act) return;
+    const p=e.touches?e.touches[0]:e;
+    dx=Math.max(0,p.clientX-x0);
+    const k=Math.min(1, dx/W());
+    if(top.mode==="zoom" && top.origin){
+      const s=1+(top.origin.scale-1)*k;
+      top.el.style.transform="scale("+s+")"; top.el.style.opacity=String(1-k*0.9);
+    }else{
+      top.el.style.transform="translateX("+dx+"px)";
+      below.el.style.transform="translateX("+(-30+30*k)+"%)";
+      below.el.style.opacity=String(.6+.4*k);
+    }
+    if(e.cancelable) e.preventDefault();
+  };
+  const end=()=>{
+    if(!act) return; act=false;
+    const v=dx/Math.max(1,Date.now()-t0);
+    top.el.style.transition=""; below.el.style.transition="";
+    if(dx>W()*0.3 || v>0.5){
+      top.el.style.transform=""; top.el.style.opacity="";
+      below.el.style.transform="translateX(-30%)"; below.el.style.opacity=".6";
+      Router.back();
+    }else{
+      const D=MS("--motion-menu");
+      const ease=getComputedStyle(document.documentElement).getPropertyValue("--ease-standard");
+      top.el.style.transition="transform "+D+"ms "+ease+", opacity "+D+"ms "+ease;
+      below.el.style.transition="transform "+D+"ms "+ease+", opacity "+D+"ms "+ease;
+      top.el.style.transform= top.mode==="zoom" ? "scale(1)" : "translateX(0)";
+      top.el.style.opacity="1";
+      below.el.style.transform="translateX(-30%)"; below.el.style.opacity=".6";
+      setTimeout(()=>{ top.el.style.transition=""; below.el.style.transition=""; }, D+20);
+    }
+  };
+  dev.addEventListener("touchstart",start,{passive:true});
+  dev.addEventListener("touchmove",move,{passive:false});
+  dev.addEventListener("touchend",end);
+  dev.addEventListener("mousedown",start);
+  window.addEventListener("mousemove",move);
+  window.addEventListener("mouseup",end);
+})();
+
+/* --- часы и отсчёт: один таймер на всё приложение (правило 4 карты) ------- */
+const Countdown = {
+  subs:new Set(),
+  fmt(){ const s=S.countdown; const h=String(Math.floor(s/3600)).padStart(2,"0");
+    const m=String(Math.floor(s%3600/60)).padStart(2,"0"); const q=String(s%60).padStart(2,"0");
+    return h+":"+m+":"+q; },
+  tick(){
+    S.countdown = S.countdown>0 ? S.countdown-1 : 24*3600;
+    const t=this.fmt();
+    document.querySelectorAll("[data-countdown]").forEach(n=>{ n.textContent=t; });
+  }
+};
+setInterval(()=>Countdown.tick(), 1000);
+
+/* ============================================================================
+   §10 · ЭКРАНЫ
+   ========================================================================= */
+function scrollBox(s, tabId, flush){
+  const w=el("div","Screen__scroll"+(tabId?" Screen__scroll--tab":"")+(flush?" Screen__scroll--flush":""));
+  s.append(w);
+  if(tabId){ s.append(el("div","ScrimBottom")); s.append(UI.TabBar(tabId)); }
+  return w;
+}
+function navBack(label){
+  const n=el("div","NavBar");
+  const b=el("button","NavBar__back");
+  const c=el("span"); c.style.fontSize="24px"; c.style.lineHeight="1"; c.textContent="‹";
+  b.append(c, assign(el("span"),label));
+  b.addEventListener("click",()=>Router.back());
+  n.append(b); return n;
+}
+function counterEl(cls){ const n=el("span",cls||"t-counter c-accent");
+  n.dataset.countdown="1"; n.textContent=Countdown.fmt(); return n; }
+function watermark(){ const w=el("span","Watermark t-meta"); w.textContent="meantime · AI"; return w; }
+function metaLine(txt,cls){ return assign(el("div",cls||"t-counter-meta c-secondary"), txt); }
+
+const Screens = {};
+
+/* --- 01 · Вход --------------------------------------------------------- */
+Screens["01"]=s=>{
+  const w=scrollBox(s);
+  w.append(assign(el("h1","t-display"),"meantime"));
+  const f=Img.make("day-16"); f.style.height="var(--size-frame-square)";
+  f.style.borderRadius="var(--radius-lg)"; f.style.marginTop="var(--space-6)";
+  w.append(f);
+  const t=el("div","stack gap3 mt6");
+  t.append(assign(el("div","t-h1"),"Everyone gets one upgrade a day."),
+           assign(el("div","t-body c-secondary"),"One frame a day. Your period composes itself."));
+  w.append(t);
+  const a=el("div","stack gap3 mt8");
+  a.append(UI.Button({label:"Start today",onTap:()=>Sheets.period(true)}),
+           assign(el("div","t-caption c-tertiary center"),"No account. Photos stay on your phone."));
+  w.append(a);
+};
+
+/* --- 03 · Фильтр дня --------------------------------------------------- */
+Screens["03"]=s=>{
+  const w=scrollBox(s,"today");
+  w.append(assign(el("h1","t-display"),"meantime"));
+  w.append(metaLine("SUN · "+fmtMDup(DEMO.today)+" · DAY "+DEMO.dayIndex+" OF "+DEMO.periodLength,"t-counter-meta c-secondary mt3"));
+  const card=el("div","FilterCard mt5");
+  const img=el("div","FilterCard__img");
+  img.append(Img.make(S.todayKept?"today":"day-16"), el("div","Scrim7"));
+  const it=el("div","FilterCard__text stack gap1");
+  it.append(assign(el("div","t-h1 c-on-image"),
+            S.todayKept ? (S.todayPreset==="SNOW GLOBE" ? "SNOW GLOBE" : "TODAY · KEPT")
+                        : DEMO.upgradeToday));
+  img.append(it); card.append(img);
+  const foot=el("div","FilterCard__foot");
+  if(!S.todayKept){
+    foot.append(assign(el("div","t-body c-secondary"),"One upgrade a day, on us — the same for everyone."));
+    const r=el("div","row gap2");
+    r.append(metaLine("NEXT UPGRADE IN","t-counter-meta c-tertiary"), counterEl());
+    foot.append(r);
+  }else{
+    const q=el("button","row gap2"); q.style.justifyContent="space-between"; q.style.width="100%";
+    q.append(assign(el("span","t-body c-secondary"),"Today’s render used · more with coins"),
+             assign(el("span","t-body c-accent"),"›"));
+    q.addEventListener("click",()=>Router.tab("effects"));
+    foot.append(q);
+    const tm=el("div","Tomorrow"); tm.style.marginTop="var(--space-1)";
+    const tl=el("div","stack"); tl.style.flex="1";
+    tl.append(assign(el("div","t-meta c-tertiary"),"TOMORROW"), assign(el("div","t-h2"),DEMO.upgradeTomorrow));
+    tm.append(tl, metaLine("IN","t-counter-meta c-tertiary"), counterEl());
+    foot.append(tm);
+  }
+  card.append(foot); w.append(card);
+
+  const a=el("div","stack gap3 mt5");
+  if(!S.todayKept){
+    a.append(UI.Button({label:"Take a photo",onTap:()=>Sheets.picker("camera")}));
+    a.append(UI.Button({label:"Pick from today’s photos",variant:"secondary",onTap:()=>Sheets.picker("suggested")}));
+    a.append(assign(el("div","t-caption c-tertiary center"),
+      S.photoDatesAllowed ? "Meantime chooses · 3 photos today" : "Meantime chooses"));
+    a.append(UI.Button({label:"Choose from library",variant:"text",onTap:()=>Sheets.picker("library")}));
+  }else{
+    a.append(UI.Button({label:"Share today",onTap:()=>Router.go("09")}));
+    a.append(UI.Button({label:"Open diary",variant:"secondary",onTap:()=>Router.tab("diary")}));
+    a.append(UI.Button({label:"Replace photo",variant:"text",onTap:()=>Sheets.softPaywall("replace_photo")}));
+  }
+  w.append(a);
+  Analytics.track("filter_revealed",{filter_id:"daily_upgrade",missing:false});
+};
+
+/* --- 05 · Проявление --------------------------------------------------- */
+Screens["05"]=s=>{
+  const path = S._fixture || "daily-frame/success";
+  const isEffect = path.indexOf("effect/")===0;
+  const w=scrollBox(s,null,true);
+  w.style.padding="0 0 calc(var(--size-safe-bottom) + var(--space-4))";
+
+  const hero=el("div","Hero flush");
+  const reveal=el("div","Reveal");
+  reveal.append(Img.make(isEffect ? "fx-after" : "today"));
+  const veil=el("div","Reveal__veil"); veil.style.opacity=".32";
+  hero.append(reveal, veil, el("div","Hero__glow"), el("div","Scrim7"));
+  const ht=el("div","Hero__text stack gap2");
+  const kick=assign(el("div","t-meta c-on-image"), fmtMDup(DEMO.today)+(isEffect?" · SNOW GLOBE":""));
+  const title=assign(el("div","t-h1 c-on-image"),"Rendering…");
+  ht.append(kick,title); hero.append(ht);
+  w.append(hero);
+
+  const panel=el("div","stack gap4"); panel.style.padding="var(--space-5) var(--size-gutter) 0";
+  w.append(panel);
+
+  AI.load(path).then(fx=>{
+    if(!fx){ panel.append(assign(el("div","t-body c-error"),"Fixture not found: "+path)); return; }
+    const stages=fx.stages||[{id:"reading",label:"Reading your frame",ms:600}];
+    const rs=UI.RenderStages(stages);
+    panel.append(rs);
+    if(!isEffect && !S._serverNoteSeen){
+      panel.append(assign(el("div","t-caption c-tertiary"),
+        "Your frame goes to our servers to render, and is deleted within 24 hours."));
+      S._serverNoteSeen=true;
+    }
+    const actions=el("div","stack gap2"); panel.append(actions);
+    const cancel=UI.Button({label: isEffect? "Cancel — no charge" : "Cancel — nothing is used yet",
+      variant:"text", onTap:()=>{
+        ctl.cancel();
+        Analytics.track("ai_response_stopped",{scenario:fx.scenario,stage:ctl.stage,quota_spent:false});
+        Router.back();
+      }});
+    actions.append(cancel);
+
+    title.textContent = stages[0].label.replace("…","") + "…";
+    const dur = fx.latency_ms || 4000;
+    reveal.style.transition="filter "+dur+"ms linear";
+    veil.style.transition="opacity "+dur+"ms linear";
+    reveal.style.filter="blur(7px) saturate(.35)";
+    requestAnimationFrame(()=>{ reveal.style.filter="blur(0px) saturate(1)"; veil.style.opacity="0"; });
+
+    const ctl = AI.run(fx,{
+      onStage(i,st){
+        rs.setStage(i); title.textContent = st.label.endsWith("…") ? st.label : st.label+"…";
+        if(st.id===(fx.cancelable_until||"developing")) cancel.style.display="none";
+      },
+      onSlow(f){
+        const n=assign(el("div","t-body c-thinking"), f.slow_notice);
+        panel.insertBefore(n, actions);
+      },
+      onDone(f){
+        rs.finish(); rs.remove();
+        title.textContent = fmtMD(DEMO.today)+(f.result.preset==="SNOW GLOBE"?" · Snow globe":" · Upgraded");
+        kick.textContent = f.result.confidence==="low" ? "LOW CONFIDENCE" : "READY";
+        actions.innerHTML="";
+        if(f.notice) actions.append(assign(el("div","t-body c-thinking"), f.notice));
+        if(isEffect) Screens._effectDone(actions, f);
+        else Screens._dailyDone(actions, f);
+      },
+      onFail(f){
+        rs.remove(); reveal.style.filter="blur(7px) saturate(.35)"; veil.style.opacity=".32";
+        title.textContent=f.title; kick.textContent="";
+        actions.innerHTML="";
+        actions.append(assign(el("div","t-body c-error"), f.body||""));
+        (f.actions||[]).forEach(a=>actions.append(UI.Button({label:a.label,variant:a.variant,
+          onTap:()=>Screens._failAction(a.id, f)})));
+      }
+    });
+  });
+};
+Screens._dailyDone=(box, f)=>{
+  S.attempts++;
+  box.append(UI.Button({label:"Keep in diary",onTap:()=>{
+    S.todayKept=true; S.todayPreset=f.result.preset; saveState();
+    Analytics.track("day_kept",{with_filter:true,restored:false});
+    Analytics.track("limit_reached",{limit_type:"daily_renders"});
+    Router.resetTo("03","06");
+  }}));
+  box.append(UI.Button({label:"Choose another photo",variant:"secondary",onTap:()=>{
+    if(S.attempts>=3){ Sheets.confirmCoins({name:"Upgrade again",price:2,extra:true}); return; }
+    Router.back(); Sheets.picker("library");
+  }}));
+  box.append(UI.Button({label:"Keep without the upgrade",variant:"text",onTap:()=>{
+    S.todayKept=true; S.todayPreset="none"; saveState();
+    Analytics.track("day_kept",{with_filter:false,restored:false});
+    Router.resetTo("03","06");
+  }}));
+  if(f.result.confidence==="low")
+    box.append(UI.Button({label:"Render once more — on us",variant:"text",onTap:()=>{
+      Analytics.track("result_regenerated",{reason:"low_confidence"});
+      S._fixture="daily-frame/success"; Router.swapTop("05");
+    }}));
+  else if(S.attempts>=3)
+    box.append(UI.Button({label:"Render again · ◎ 2",variant:"text",
+      onTap:()=>Sheets.confirmCoins({name:"Upgrade again",price:2,extra:true})}));
+};
+Screens._effectDone=(box, f)=>{
+  S.effectPreset=f.result.preset; S.effectSpent=4; saveState();
+  box.append(UI.Button({label:"See result",onTap:()=>Router.swapTop("14")}));
+};
+Screens._failAction=(id, f)=>{
+  if(id==="retry"){ S._fixture = f.scenario==="effect" ? "effect/success" : "daily-frame/success";
+    Router.swapTop("05"); return; }
+  if(id==="nofilter"){ S.todayKept=true; S.todayPreset="none"; saveState();
+    Analytics.track("day_kept",{with_filter:false,restored:false}); Router.resetTo("03","06"); return; }
+  if(id==="another"){ Router.back(); Sheets.picker("library"); return; }
+  if(id==="back"){ Router.tab("effects"); return; }
+};
+
+/* --- 06 / 06a · День сохранён ------------------------------------------ */
+function keptScreen(s, extra){
+  const w=scrollBox(s);
+  w.append(navBack("Today"));
+  w.append(assign(el("h1","t-display"),"Kept · "+fmtMD(DEMO.today)));
+  if(extra){
+    const seg=segment(["Original","Upgraded","Snow globe"],2,(i)=>{
+      const f=w.querySelector(".KeptFrame");
+      const src=["fx-before","today","fx-after"][i];
+      const nf=Img.make(src); nf.className="Frame";
+      f.replaceChild(nf, f.firstChild);
+    });
+    seg.classList.add("mt4"); w.append(seg);
+  }
+  const box=el("div","KeptFrame mt3");
+  box.style.position="relative"; box.style.borderRadius="var(--radius-lg)"; box.style.overflow="hidden";
+  box.style.height = extra ? "var(--size-frame-square-sm)" : "var(--size-frame-square)";
+  box.append(Img.make(extra?"fx-after":"today"), el("div","CornerScrim"), watermark());
+  w.append(box);
+
+  const meta=el("div","stack gap1 mt3");
+  meta.append(metaLine((extra?"SNOW GLOBE · ":"")+fmtMDup(DEMO.today)),
+              metaLine(DEMO.kept+" DAYS KEPT · 100-DAY DIARY","t-counter-meta c-tertiary"));
+  if(extra) meta.append(metaLine("◎ "+S.effectSpent+" SPENT · "+S.coins+" LEFT","t-counter-meta c-accent"));
+  w.append(meta);
+
+  const tm=el("div","Tomorrow mt3");
+  const tl=el("div","stack"); tl.style.flex="1";
+  tl.append(assign(el("div","t-meta c-tertiary"),"TOMORROW"), assign(el("div","t-h2"),DEMO.upgradeTomorrow));
+  tm.append(tl, metaLine("IN","t-counter-meta c-tertiary"), counterEl());
+  w.append(tm);
+
+  const a=el("div","stack gap2 mt4");
+  a.append(UI.Button({label:"Share today",onTap:()=>Router.go("09")}));
+  a.append(UI.Button({label:"Open diary",variant:"secondary",onTap:()=>Router.tab("diary")}));
+  if(extra){
+    const r=el("div","row"); r.style.justifyContent="space-between";
+    const d=UI.Button({label:"Discard",variant:"text",onTap:()=>actionSheet([
+      {label:"Discard this render",role:"destructive",onTap:()=>{
+        Analytics.track("effect_discarded",{preset_id:"snow_globe"});
+        S.todayPreset="upgraded"; saveState(); Router.resetTo("03","06"); }},
+      {label:"Cancel",role:"cancel"}])});
+    d.style.width="auto"; d.style.color="var(--color-text-secondary)";
+    const g=UI.Button({label:"Render again · ◎ 4",variant:"text",
+      onTap:()=>Sheets.confirmCoins({name:"Snow globe",price:4})});
+    g.style.width="auto";
+    r.append(d,g); a.append(r);
+  }else{
+    a.append(UI.Button({label:"Replace photo",variant:"text",onTap:()=>Sheets.softPaywall("replace_photo")}));
+  }
+  w.append(a);
+}
+Screens["06"] = s=>keptScreen(s,false);
+Screens["06a"]= s=>keptScreen(s,true);
+
+/* --- сегмент-контрол (реестр №11) -------------------------------------- */
+function segment(items, sel, onChange){
+  const g=el("div","Segment");
+  const ind=el("div","Segment__ind"); g.append(ind);
+  items.forEach((t,i)=>{
+    const b=el("button","Segment__item t-caption"); b.textContent=t;
+    b.setAttribute("aria-selected", String(i===sel));
+    b.addEventListener("click",()=>{
+      [...g.querySelectorAll(".Segment__item")].forEach((x,j)=>x.setAttribute("aria-selected",String(j===i)));
+      place(i); onChange && onChange(i,t);
+    });
+    g.append(b);
+  });
+  function place(i){
+    const items2=g.querySelectorAll(".Segment__item");
+    const r=items2[i].getBoundingClientRect(), gr=g.getBoundingClientRect();
+    ind.style.left=(r.left-gr.left)+"px"; ind.style.width=r.width+"px";
+  }
+  requestAnimationFrame(()=>place(sel));
+  return g;
+}
+
+/* --- 07 · Diary -------------------------------------------------------- */
+Screens["07"]=s=>{
+  const w=scrollBox(s,"diary",true);
+  w.append(assign(el("h1","t-display"),"Diary"));
+  const hd=el("button","row gap2"); hd.style.marginTop="var(--space-3)";
+  hd.append(metaLine(DEMO.kept+" DAYS KEPT · 100 DAYS ▾","t-counter-meta c-accent"));
+  hd.addEventListener("click",()=>Sheets.period(false));
+  w.append(hd);
+
+  w.append(assign(el("div","t-meta c-tertiary mt6"),"RECAPS"));
+  const shelf=el("div","Shelf flush mt3");
+  AI.load("recap/success").then(fx=>{
+    shelf.append(UI.RecapCard({fx,state:"current",onTap:(card)=>{
+      Analytics.track("recap_opened",{period:"week",index:0});
+      Router.go("10",{from:card});
+    }}));
+    [["AUG 31 – SEP 6","day-14"],["AUG 24 – 30","day-09"],["AUG 17 – 23","day-04"]].forEach(([lb,a])=>{
+      shelf.append(UI.RecapSpine({label:lb,asset:a,onTap:()=>Sheets.softPaywall("past_recap")}));
+    });
+  });
+  w.append(shelf);
+
+  w.append(metaLine("100 DAYS · AUG 5 → NOV 12 · 15 WEEKS","t-counter-meta c-tertiary mt6"));
+  const wh=el("div","WeekHead mt4");
+  ["M","T","W","T","F","S","S"].forEach(d=>wh.append(assign(el("span","t-meta"),d)));
+  w.append(wh);
+
+  const field=el("div","DayField mt3");
+  for(let i=0;i<2;i++){ const sp=el("div"); sp.style.height="var(--size-day-cell)"; field.append(sp); }
+  for(let i=1;i<=DEMO.periodLength;i++){
+    const st=dayState(i);
+    field.append(UI.DayCell({state:st,index:i,count:DEMO.skipped[i],onTap:(idx,state,cell)=>{
+      if(state==="kept"||state==="kept-extra"||(state==="today"&&S.todayKept)){
+        S._viewDay=idx; Router.go("08",{from:cell});
+      }else if(state==="skipped-available"){
+        Analytics.track("missed_day_tapped",{days_ago:DEMO.dayIndex-idx,
+          allowed:S.subscriber?"free":"sub_required"});
+        Sheets.missedDay(idx);
+      }
+    }}));
+  }
+  w.append(field);
+
+  if(!S.diarySeen){ S.diarySeen=true; saveState(); setTimeout(()=>Sheets.photoAccess(), 260); }
+};
+
+/* --- 08 · Просмотр дня ------------------------------------------------- */
+Screens["08"]=s=>{
+  const i=S._viewDay||DEMO.dayIndex;
+  const d=dayDate(i);
+  const extra = i===DEMO.dayIndex && S.todayPreset==="SNOW GLOBE";
+  const w=scrollBox(s,null,true);
+  const top=el("div"); top.append(navBack("Diary"), assign(el("h1","t-display"),fmtMD(d)));
+  w.append(top);
+  if(extra){ const sg=segment(["Original","Upgraded","Snow globe"],2); sg.classList.add("mt3"); w.append(sg); }
+  const hero=el("div","Hero Hero--day flush mt4"); hero.style.marginTop="var(--space-4)";
+  hero.append(Img.make(frameOf(i)), el("div","CornerScrim"), watermark());
+  w.append(hero);
+  const m=el("div","stack gap1 mt4");
+  const WD=["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+  m.append(metaLine((extra?"SNOW GLOBE · ":"")+fmtMDup(d)+" · DAY "+i),
+           assign(el("div","t-caption c-secondary"), WD[d.getDay()]+". Kept at 22:40."));
+  w.append(m);
+  const a=el("div","stack gap3 mt5");
+  a.append(UI.Button({label:"Share this day",onTap:()=>Router.go("09")}));
+  a.append(UI.Button({label:"Replace photo",variant:"text",onTap:()=>Sheets.softPaywall("replace_photo")}));
+  w.append(a);
+};
+
+/* --- 09 · Карточка дня для шеринга ------------------------------------- */
+Screens["09"]=s=>{
+  const w=scrollBox(s);
+  const n=el("div","NavBar");
+  const x=el("button","NavBar__back"); x.textContent="✕"; x.style.fontSize="20px";
+  x.addEventListener("click",()=>Router.back());
+  n.append(x, assign(el("div","NavBar__title t-h2"),"Share"));
+  w.append(n);
+
+  const card=el("div","ShareCard mt4");
+  card.append(Img.make(S.todayPreset==="SNOW GLOBE"?"fx-after":"today"), el("div","Scrim7"));
+  const t=el("div","ShareCard__text stack gap2");
+  t.append(assign(el("div","t-counter-meta c-on-image"),
+             "DAY "+DEMO.dayIndex+(S.todayPreset==="SNOW GLOBE"?" · SNOW GLOBE":"")+" · "+fmtMDup(DEMO.today)),
+           assign(el("div","t-h2 c-on-image"),
+             S.todayPreset==="SNOW GLOBE"
+               ? "Everyone gets one upgrade a day — this one went further."
+               : "Everyone gets one upgrade a day."));
+  card.append(t);
+  if(!S.subscriber) card.append(watermark());
+  w.append(card);
+
+  const row=el("button","TapRow mt5");
+  if(S.subscriber){
+    row.append(assign(el("span","t-body"),"Full quality · no watermark ✓"));
+    row.style.pointerEvents="none"; row.querySelector("span").className="t-body c-accent";
+  }else{
+    row.append(assign(el("span","t-body"),"Watermark on · Remove with a plan"),
+               assign(el("span","t-body c-accent"),"›"));
+    row.addEventListener("click",()=>Sheets.softPaywall("watermark_row"));
+  }
+  w.append(row);
+
+  const a=el("div","stack gap3 mt4");
+  a.append(UI.Button({label:"Share…",onTap:()=>{
+    Analytics.track("result_shared",{artifact:"day",destination:"system_sheet",watermark:!S.subscriber});
+    banner("Shared with the system share sheet"); }}));
+  a.append(UI.Button({label:"Save image",variant:"secondary",onTap:()=>{
+    Analytics.track("result_shared",{artifact:"day",destination:"photos",watermark:!S.subscriber});
+    if(S.subscriber) Analytics.track("quality_render",{trigger:"export",count_this_month:1});
+    banner("Saved to Photos"); }}));
+  w.append(a);
+};
+
+/* --- 10 · Рекап недели + сильный пейвол -------------------------------- */
+Screens["10"]=s=>{
+  const w=scrollBox(s);
+  w.append(navBack("Diary"));
+  const holder=el("div","mt4"); w.append(holder);
+  const caption=el("div","t-h1 c-on-image");
+
+  AI.load(S._recapFixture||"recap/success").then(fx=>{
+    if(fx.error_type){
+      const b=el("div","card"); b.style.padding="var(--space-5)";
+      b.append(assign(el("div","t-h2 c-error"),fx.title));
+      b.append(UI.Button({label:"Try again",variant:"text",onTap:()=>{
+        S._recapFixture="recap/success"; Router.swapTop("10"); }}));
+      holder.append(b); return;
+    }
+    if(fx.fixture==="composing"){ composeRecap(holder, fx); return; }
+    holder.append(recapFull(fx, caption));
+    Analytics.track("recap_composed",{period:"week",frames_in:fx.frames_in,latency_ms:fx.latency_ms||0});
+    if(!S.subscriber){
+      /* решение 13.3 — 600 мс: взгляд успевает дойти до заголовка карточки */
+      Sheets.strongPaywall(600);
+    }else{
+      const a=el("div","stack gap3 mt5");
+      a.append(UI.Button({label:"Share this week",onTap:()=>{
+        Analytics.track("recap_shared",{period:"week",watermark:false});
+        Analytics.track("quality_render",{trigger:"recap",count_this_month:4});
+        banner("Week 6 shared"); }}));
+      a.append(UI.Button({label:"Compose again",variant:"secondary",onTap:()=>{
+        S._recapFixture="recap/composing"; Router.swapTop("10"); }}));
+      w.append(a);
+    }
+  });
+};
+function recapFull(fx, captionEl){
+  const box=el("div","RecapFull");
+  const comp=el("div","RecapComp");
+  ["TL","TR","BL","BR"].forEach(q=>{
+    const it=(fx.quadrants||[]).find(x=>x.q===q);
+    if(!it){ comp.append(el("div","Frame")); return; }
+    const f=Img.make(it.asset);
+    if(it.locked && !S.subscriber) f.dataset.locked="1";
+    comp.append(f);
+  });
+  box.append(comp, el("div","Scrim7"));
+  const t=el("div","RecapFull__text stack gap2");
+  captionEl.textContent = "“"+fx.caption+"”";
+  t.append(assign(el("div","t-meta c-on-image"),fx.kicker), captionEl,
+           assign(el("div","t-counter-meta c-on-image"),fx.stat));
+  box.append(t);
+  /* решение 10.14 — фолбэк, если все четыре кадра ярче #CC */
+  const allBright=(fx.quadrants||[]).every(q=>q.luma>0.80);
+  if(allBright || fx.kicker_scrim_fallback){
+    const f=el("div"); f.style.cssText="position:absolute;inset:0;z-index:1;pointer-events:none;"+
+      "background:linear-gradient(0deg,var(--color-scrim-kicker-fallback) 0%,transparent 62%)";
+    box.insertBefore(f, t);
+  }
+  return box;
+}
+function composeRecap(holder, fx){
+  const box=el("div","RecapFull");
+  const comp=el("div","RecapComp");
+  ["TL","TR","BL","BR"].forEach(()=>comp.append(el("div","Frame")));
+  comp.style.filter="blur(8px) saturate(.4)"; comp.style.opacity=".5";
+  box.append(comp, el("div","Scrim7"));
+  const t=el("div","RecapFull__text stack gap2");
+  const cap=el("div","t-h1 c-on-image");
+  t.append(assign(el("div","t-meta c-thinking"),"COMPOSING WEEK 6"), cap);
+  box.append(t); holder.append(box);
+  const rs=UI.RenderStages(fx.stages); rs.classList.add("mt5"); holder.append(rs);
+  AI.run(fx,{
+    onStage(i,st){ rs.setStage(i);
+      if(st.id==="caption") AI.stream(cap, "“"+fx.caption+"”"); },
+    onSlow(f){ holder.append(assign(el("div","t-body c-thinking mt3"), f.slow_notice)); },
+    onDone(){ rs.remove(); comp.style.filter=""; comp.style.opacity="";
+      S._recapFixture="recap/success"; Router.swapTop("10"); }
+  });
+}
+
+/* --- 11 · Effects ------------------------------------------------------ */
+Screens["11"]=s=>{
+  const w=scrollBox(s,"effects");
+  w.append(assign(el("h1","t-display"),"Effects"));
+  w.append(UI.BalanceChip({coins:S.coins,sub:S.subscriber,onGet:()=>Sheets.coinPacks()}));
+  w.querySelector(".BalanceChip").classList.add("mt4");
+  w.append(assign(el("div","t-body c-secondary mt4"),
+    S.todayKept ? "More than one a day. Render today’s frame again — another world, another look."
+                : "Keep today’s frame first — effects render your day."));
+  const grid=el("div"); grid.style.cssText="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3)";
+  grid.classList.add("mt4");
+  [["Anime world",3,"fx-anime"],["Your street in 1995",4,"fx-1995"],
+   ["Change the weather",2,"fx-weather"],["Snow globe",4,"fx-snow"]].forEach(([n,p,a])=>{
+    const state = !S.todayKept ? "not-enough" : (S.coins<p ? "not-enough":"default");
+    Analytics.track("effect_price_seen",{preset_id:n.toLowerCase().replace(/[^a-z]+/g,"_"),price:p});
+    grid.append(UI.EffectTile({name:n,price:p,asset:a,state,onTap:()=>{
+      if(!S.todayKept){ banner("Keep today’s frame first"); return; }
+      if(S.coins<p){ Analytics.track("limit_reached",{limit_type:"coins"}); Sheets.coinPacks(); return; }
+      Sheets.confirmCoins({name:n,price:p});
+    }}));
+  });
+  w.append(grid);
+  w.append(UI.Button({label:"Why effects cost coins",variant:"text",onTap:()=>Sheets.whyCoins()}));
+  if(!S.todayKept)
+    w.append(assign(el("div","t-caption c-tertiary center"),
+      "Your photo leaves your phone only for an effect, only after you confirm"));
+};
+
+/* --- 14 · Результат AI-эффекта ----------------------------------------- */
+Screens["14"]=s=>{
+  const w=scrollBox(s,null,true);
+  const top=el("div"); top.append(navBack("Effects")); w.append(top);
+  const sg=segment(["Original","Upgraded","Snow globe"],2,(i)=>{
+    const f=w.querySelector(".Hero");
+    const nf=Img.make(["fx-before","today","fx-after"][i]);
+    f.replaceChild(nf, f.firstChild);
+  });
+  sg.classList.add("mt2"); w.append(sg);
+  const hero=el("div","Hero Hero--day flush mt4"); hero.style.marginTop="var(--space-4)";
+  hero.append(Img.make("fx-after"), el("div","CornerScrim"), watermark());
+  w.append(hero);
+  w.append(metaLine("AI · SNOW GLOBE · ◎ "+S.effectSpent+" SPENT · "+S.coins+" LEFT","t-counter-meta c-accent mt4"));
+  const a=el("div","stack gap3 mt4");
+  a.append(UI.Button({label:"Keep as today",onTap:()=>{
+    S.todayPreset="SNOW GLOBE"; S.todayKept=true; saveState();
+    Analytics.track("effect_kept",{preset_id:"snow_globe"});
+    Router.resetTo("03","06a");
+  }}));
+  a.append(UI.Button({label:"Share",variant:"secondary",onTap:()=>Router.go("09")}));
+  const r=el("div","row"); r.style.justifyContent="space-between";
+  const d=UI.Button({label:"Discard",variant:"text",onTap:()=>actionSheet([
+    {label:"Discard this render",role:"destructive",onTap:()=>{
+      Analytics.track("effect_discarded",{preset_id:"snow_globe"}); Router.tab("effects"); }},
+    {label:"Cancel",role:"cancel"}])});
+  d.style.width="auto"; d.style.color="var(--color-text-secondary)";
+  const g=UI.Button({label:"Render again · ◎ 4",variant:"text",
+    onTap:()=>Sheets.confirmCoins({name:"Snow globe",price:4})});
+  g.style.width="auto";
+  r.append(d,g); a.append(r); w.append(a);
+};
+
+/* ============================================================================
+   ШТОРКИ — все на одном компоненте Sheet, одно поведение (реестр №5–8)
+   ========================================================================= */
+const Sheets = {};
+
+/* 02 · Старт периода / смена периода из Diary */
+Sheets.period = (isStart)=>{
+  const opts=[["14 days","Ends Aug 18 · your recap composes then"],
+              ["100 days","Ends Nov 12 · your recap composes then"],
+              ["This year","Runs to the end of the year · your recap composes on Dec 31"]];
+  let sel=1;
+  UI.Sheet({detent:"medium", build(b, api){
+    b.append(assign(el("div","t-h1"),"How long is this diary?"),
+             assign(el("div","t-caption c-secondary"),"Change it any time from Diary."));
+    const sub=el("div","stack gap1");
+    const seg=segment(opts.map(o=>o[0]), sel, (i)=>{ sel=i; fill(); });
+    b.append(seg, sub);
+    function fill(){ sub.innerHTML="";
+      sub.append(assign(el("div","t-caption c-secondary"),"Starts today · Aug 5"),
+                 assign(el("div","t-caption c-secondary"),opts[sel][1])); }
+    fill();
+    b.append(assign(el("div","t-caption c-tertiary"),"Progress counts the days you keep. It never goes down."));
+    const sp=el("div"); sp.style.flex="1"; b.append(sp);
+    b.append(UI.Button({label:isStart?"Begin":"Save",onTap:()=>{
+      S.period=opts[sel][0];
+      Analytics.track("period_selected",{length:opts[sel][0],changed_from_default:sel!==1});
+      api.close();
+      if(isStart){ S.onboarded=true; saveState(); Router.reset("03"); }
+    }}));
+  }});
+};
+
+/* 04 · Системный пикер + ряд Meantime picked */
+Sheets.picker = (source)=>{
+  UI.Sheet({detent:"large", build(b, api){
+    b.style.paddingLeft="0"; b.style.paddingRight="0";
+    const bar=el("div","row"); bar.style.cssText="justify-content:space-between;padding:0 var(--size-gutter)";
+    const cancel=UI.Button({label:"Cancel",variant:"text",onTap:api.close}); cancel.style.width="auto";
+    const add=UI.Button({label:"Add",variant:"text",onTap:()=>pick(chosen, hasPicks?1:null)}); add.style.width="auto";
+    bar.append(cancel, assign(el("div","t-h2"),"Photos"), add);
+    b.append(bar);
+    const seg=segment(["Photos","Albums"],0); seg.style.margin="0 var(--size-gutter)"; b.append(seg);
+
+    const rowWrap=el("div","stack gap2"); b.append(rowWrap);
+    const label=el("div","t-meta c-tertiary"); label.style.padding="0 var(--size-gutter)";
+    const row=el("div","PickRow");
+    const hint=el("div","t-caption c-tertiary"); hint.style.padding="0 var(--size-gutter)";
+    rowWrap.append(label,row,hint);
+    let chosen="today", hasPicks=false;
+
+    label.textContent="LOOKING THROUGH TODAY…";
+    for(let i=0;i<3;i++){ const sk=el("div","PickTile Skeleton"); row.append(sk); }
+
+    const fx = !S.photoDatesAllowed ? "gallery-pick/none" : "gallery-pick/success";
+    AI.load(fx).then(f=>{
+      setTimeout(()=>{
+        row.innerHTML="";
+        if(f.confidence==="none"){
+          label.textContent=""; rowWrap.remove();
+          const line=el("div","t-caption c-accent"); line.style.padding="0 var(--size-gutter)";
+          line.textContent=f.fallback_line; b.insertBefore(line, b.children[2]);
+          Analytics.track("frame_suggested",{count_today:0,confidence:"none"});
+          return;
+        }
+        label.textContent=f.label; hint.textContent=f.hint||""; hasPicks=(f.picks||[]).length>0;
+        Analytics.track("frame_suggested",{count_today:f.count_today,confidence:f.confidence});
+        (f.picks||[]).forEach((p,i)=>{
+          const t=el("button","PickTile"); t.setAttribute("aria-selected",String(i===0));
+          t.append(Img.make(p.asset));
+          const bg=el("span","PickTile__badge"); bg.textContent=String(p.rank); t.append(bg);
+          t.addEventListener("click",()=>{
+            row.querySelectorAll(".PickTile").forEach(x=>x.setAttribute("aria-selected","false"));
+            t.setAttribute("aria-selected","true"); chosen=p.asset;
+            pick(p.asset, p.rank);
+          });
+          row.append(t);
+        });
+      }, f.latency_ms||300);
+    });
+
+    const rec=assign(el("div","t-h2"),"Recents");
+    rec.style.padding="0 var(--size-gutter)"; b.append(rec);
+    const grid=el("div","PickGrid");
+    for(let i=1;i<=12;i++){
+      const c=el("button"); c.style.cssText="padding:0;border:0;background:none";
+      const f=Img.make("day-"+String(i).padStart(2,"0")); f.style.height="var(--size-pick-cell)";
+      c.append(f);
+      c.addEventListener("click",()=>pick("day-"+String(i).padStart(2,"0"),null));
+      grid.append(c);
+    }
+    b.append(grid);
+
+    function pick(asset, rank){
+      S.pickedFrame=asset;
+      Analytics.track("photo_selected",{source:source==="suggested"?"suggested":(source==="camera"?"camera":"library"),
+        attempt:S.attempts+1});
+      if(rank) Analytics.track("suggestion_accepted",{rank});
+      api.close();
+      S._fixture = S._fixtureOverride || "daily-frame/success";
+      setTimeout(()=>Router.go("05"), 120);
+    }
+  }});
+};
+
+/* 07a · Доступ к датам фото — причина до системного диалога (решение 6.4) */
+Sheets.photoAccess = ()=>{
+  UI.Sheet({detent:"medium", build(b, api){
+    const ic=el("div"); ic.style.cssText="width:56px;height:56px;border-radius:var(--radius-lg);"+
+      "background:var(--color-accent-wash);display:flex;align-items:center;justify-content:center;"+
+      "box-shadow:var(--effect-glow-accent-sm)";
+    ic.innerHTML='<svg width="28" height="28" viewBox="0 0 20 20" fill="var(--color-accent-default)">'+
+      '<rect x="2" y="4" width="16" height="13" rx="2.5"/><circle cx="10" cy="10.5" r="3" fill="var(--color-bg-primary)"/>'+
+      '<rect x="7" y="2" width="6" height="2.5" rx="1"/></svg>';
+    b.append(ic, assign(el("div","t-h1"),"See what you already have"),
+      assign(el("div","t-body c-secondary"),
+        "Meantime reads only the dates of your photos — to mark the days that already have frames on your phone. "+
+        "The photos themselves stay where they are. Nothing leaves your phone until you pick a frame yourself."),
+      assign(el("div","t-caption c-tertiary"),
+        "Without this, past days simply look empty. You can change it later in Settings."));
+    const sp=el("div"); sp.style.flex="1"; b.append(sp);
+    b.append(UI.Button({label:"Continue",onTap:()=>{
+      S.photoDatesAllowed=true; saveState(); api.close();
+      setTimeout(()=>{ banner("Photo dates allowed"); Router.reset("07"); },320);
+    }}));
+    b.append(UI.Button({label:"Not now",variant:"text",onTap:api.close}));
+  }});
+};
+
+/* Мягкий пейвол — Save in full quality (решения 6.1, 7.5) */
+Sheets.softPaywall = (trigger)=>{
+  Analytics.track("paywall_shown",{type:"soft",trigger});
+  UI.Sheet({detent:"medium", build(b, api){
+    b.append(assign(el("div","t-h1"),"Save in full quality"));
+    const ul=el("ul","Bullets");
+    ["Full resolution, no watermark","Recaps every week, every month — and at day 100",
+     "Every past day — bring in the photos you already took","Replace your photo, any day",
+     "20 coins every month, for special days","Your 100 days, composed when they end"]
+      .forEach(t=>{ const li=el("li"); li.append(assign(el("span","t-caption"),t)); ul.append(li); });
+    b.append(ul);
+    b.append(plansRow());
+    b.append(UI.Button({label:"Continue with a plan",onTap:()=>{
+      Analytics.track("upgrade_clicked",{placement:trigger}); api.close(); setTimeout(Sheets.plan,320); }}));
+    b.append(UI.Button({label:"Not now",variant:"text",onTap:()=>{
+      Analytics.track("paywall_dismissed",{type:"soft"}); api.close(); }}));
+    b.append(legalRow());
+  }, onDismiss(){}});
+};
+
+/* Сильный пейвол на 10 — задержка 600 мс (решение 13.3) */
+Sheets.strongPaywall = (delay)=>{
+  UI.Sheet({detent:"medium", delay:delay||0, build(b, api){
+    b.append(assign(el("div","t-h1"),"Keep every week, composed"),
+             assign(el("div","t-caption c-secondary"),
+               "This week, every Sunday after — and your 100 days, when they end."));
+    const ul=el("ul","Bullets");
+    ["Recaps every week, every month — and at day 100",
+     "Every past day — bring in the 2 photos you took",
+     "Full resolution, no watermark",
+     "20 coins every month, for special days"]
+      .forEach(t=>{ const li=el("li"); li.append(assign(el("span","t-caption"),t)); ul.append(li); });
+    b.append(ul, plansRow());
+    b.append(UI.Button({label:"Continue with a plan",onTap:()=>{
+      Analytics.track("upgrade_clicked",{placement:"recap_week"}); api.close(); setTimeout(Sheets.plan,320); }}));
+    b.append(UI.Button({label:"Not now",variant:"text",onTap:()=>{
+      Analytics.track("paywall_dismissed",{type:"strong"}); api.close();
+      const scr=Router.stack[Router.stack.length-1];
+      if(scr && scr.route==="10" && !scr.el.querySelector(".UnlockBtn")){
+        const box=scr.el.querySelector(".Screen__scroll");
+        const btn=UI.Button({label:"Unlock with a plan",onTap:()=>Sheets.strongPaywall(0)});
+        btn.classList.add("UnlockBtn","mt5"); box.append(btn);
+      }
+    }}));
+    b.append(legalRow());
+    Analytics.track("paywall_shown",{type:"strong",trigger:"recap_week"});
+  }});
+};
+let PLAN="yearly";
+function plansRow(){
+  const r=el("div","row gap3"); r.style.alignItems="stretch";
+  const m=UI.PlanRow({price:"$6.99 / month",note:"BILLED MONTHLY",badge:"",selected:PLAN==="monthly"});
+  const y=UI.PlanRow({price:"$29.99 / year",note:"$2.49 / month",badge:"BEST VALUE",selected:PLAN==="yearly"});
+  const set=v=>{ PLAN=v; m.dataset.state=v==="monthly"?"selected":"default";
+                 y.dataset.state=v==="yearly"?"selected":"default"; };
+  m.addEventListener("click",()=>set("monthly")); y.addEventListener("click",()=>set("yearly"));
+  r.append(m,y); return r;
+}
+function legalRow(){
+  const l=el("div","t-caption c-tertiary center");
+  l.textContent="Restore purchases · Terms · Privacy"; return l;
+}
+
+/* 13 · Выбор плана + симуляция StoreKit */
+Sheets.plan = ()=>{
+  UI.Sheet({detent:"large", build(b, api){
+    b.append(assign(el("div","t-h1"),"Choose a plan"));
+    const col=el("div","stack gap3");
+    const y=UI.PlanRow({price:"$29.99 / year",note:"$2.49 / month",badge:"BEST VALUE",selected:PLAN==="yearly"});
+    const m=UI.PlanRow({price:"$6.99 / month",note:"BILLED MONTHLY",badge:"",selected:PLAN==="monthly"});
+    const cta=UI.Button({label:"Subscribe · $29.99 / year",onTap:()=>storeKit(api)});
+    const set=v=>{ PLAN=v; y.dataset.state=v==="yearly"?"selected":"default";
+      m.dataset.state=v==="monthly"?"selected":"default";
+      cta.querySelector(".Button__label").textContent =
+        "Subscribe · "+(v==="yearly"?"$29.99 / year":"$6.99 / month"); };
+    y.addEventListener("click",()=>set("yearly")); m.addEventListener("click",()=>set("monthly"));
+    col.append(y,m); b.append(col);
+    const ul=el("ul","Bullets");
+    ["Full quality, no watermark","Recaps, past days, replace your photo",
+     "20 coins a month for extra renders"].forEach(t=>{
+      const li=el("li"); li.append(assign(el("span","t-caption"),t)); ul.append(li); });
+    b.append(ul);
+    const sp=el("div"); sp.style.flex="1"; b.append(sp);
+    b.append(cta, legalRow(), UI.Button({label:"Not now",variant:"text",onTap:api.close}));
+  }});
+};
+function storeKit(sheetApi){
+  const layer=document.getElementById("sheetLayer"); layer.style.pointerEvents="auto";
+  const k=el("div","StoreKit stack gap3");
+  k.append(assign(el("div","t-meta c-tertiary"),"APP STORE"),
+           assign(el("div","t-h2"),"Meantime"),
+           assign(el("div","t-counter"), PLAN==="yearly"?"$29.99 / year":"$6.99 / month"),
+           assign(el("div","t-caption c-secondary"),"Double-click to pay"));
+  layer.append(k); requestAnimationFrame(()=>k.classList.add("is-in"));
+  setTimeout(()=>{
+    k.innerHTML=""; k.append(assign(el("div","t-h1 c-accent"),"Done ✓"));
+  },1500);
+  setTimeout(()=>{
+    k.classList.remove("is-in");
+    setTimeout(()=>k.remove(),320);
+    S.subscriber=true; S.coins=S.coins+20; saveState();
+    Analytics.track("plan_selected",{plan:PLAN});
+    sheetApi.close();
+    setTimeout(()=>{ banner("Plan active · simulated payment");
+      if(Router.current==="10") Router.swapTop("10"); },340);
+  },2600);
+}
+
+/* Точка пропуска (идея 16 · решения 10.7, 10.8) */
+Sheets.missedDay = (i)=>{
+  const d=dayDate(i), n=DEMO.skipped[i];
+  Analytics.track("paywall_shown",{type:"soft",trigger:"missed_day"});
+  UI.Sheet({detent:"medium", build(b, api){
+    b.append(assign(el("div","t-h1"),"You took "+n+" photo"+(n>1?"s":"")+" on "+fmtMD(d)+"."),
+             assign(el("div","t-body c-secondary"),
+               "Bring one into the diary — it gets the upgrade that day had."));
+    b.append(plansRow());
+    const sp=el("div"); sp.style.flex="1"; b.append(sp);
+    b.append(UI.Button({label:S.subscriber?"Bring it in":"Continue with a plan",onTap:()=>{
+      if(S.subscriber){ api.close(); banner("Restored "+fmtMD(d)+" · upgrade of that day"); return; }
+      Analytics.track("upgrade_clicked",{placement:"missed_day"}); api.close(); setTimeout(Sheets.plan,320);
+    }}));
+    b.append(UI.Button({label:"Not now",variant:"text",onTap:()=>{
+      Analytics.track("paywall_dismissed",{type:"soft"}); api.close(); }}));
+  }});
+};
+
+/* Пакеты монет */
+Sheets.coinPacks = ()=>{
+  Analytics.track("coins_pack_viewed",{pack:"list"});
+  UI.Sheet({detent:"medium", build(b, api){
+    b.append(assign(el("div","t-h1"),"Get coins"));
+    [["10 coins","$1.99",10],["30 coins","$4.99",30]].forEach(([n,p,c])=>{
+      const r=el("button","TapRow");
+      r.append(assign(el("span","t-counter"),n), assign(el("span","t-body c-accent"),p));
+      r.addEventListener("click",()=>{ S.coins+=c; saveState();
+        Analytics.track("coins_purchased",{pack:n}); api.close();
+        setTimeout(()=>{ banner(n+" added"); if(Router.current==="11") Router.swapTop("11"); },320); });
+      b.append(r);
+    });
+    b.append(UI.Button({label:"Why effects cost coins",variant:"text",onTap:()=>{ api.close(); setTimeout(Sheets.whyCoins,320); }}));
+    const sp=el("div"); sp.style.flex="1"; b.append(sp);
+    b.append(UI.Button({label:"Not now",variant:"text",onTap:api.close}));
+  }});
+};
+Sheets.whyCoins = ()=>{
+  UI.Sheet({detent:"medium", build(b, api){
+    b.append(assign(el("div","t-h1"),"Why effects cost coins"),
+      assign(el("div","t-body c-secondary"),
+        "One upgrade a day is on us — the same for everyone. Every render beyond that one is an extra "+
+        "trip to the servers, and coins pay for it. A plan includes 20 coins a month."));
+    const sp=el("div"); sp.style.flex="1"; b.append(sp);
+    b.append(UI.Button({label:"Got it",variant:"text",onTap:api.close}));
+  }});
+};
+
+/* 12 · Подтверждение траты монет */
+Sheets.confirmCoins = ({name, price, extra})=>{
+  UI.Sheet({detent:"medium", build(b, api){
+    const head=el("div","row gap3");
+    const th=Img.make("today"); th.style.cssText="width:72px;height:72px;border-radius:var(--radius-md);flex:0 0 auto";
+    const tx=el("div","stack gap1");
+    tx.append(assign(el("div","t-h2"),name),
+              assign(el("div","t-caption c-secondary"),"on today’s frame · "+fmtMDup(DEMO.today)),
+              assign(el("div","t-meta c-tertiary"),"EXTRA RENDER · BEYOND TODAY’S FREE ONE"));
+    head.append(th,tx); b.append(head);
+    const enough=S.coins>=price;
+    b.append(assign(el("div","t-counter"+(enough?"":" c-error")),
+      enough ? "◎ "+price+" coins → "+(S.coins-price)+" left after" : "◎ "+price+" coins · you have "+S.coins));
+    b.append(assign(el("div","t-caption c-tertiary"),"This photo leaves your phone to be rendered."),
+             assign(el("div","t-caption c-tertiary"),"Effects change what’s in the frame. Your original stays."));
+    const sp=el("div"); sp.style.flex="1"; b.append(sp);
+    if(enough){
+      b.append(UI.Button({label:"Render · "+price+" coins",onTap:()=>{
+        Analytics.track("effect_confirmed",{preset_id:name.toLowerCase().replace(/[^a-z]+/g,"_"),
+          price, balance_after:S.coins-price});
+        S.coins-=price; S.effectSpent=price; saveState(); api.close();
+        S._fixture = S._fixtureOverride && S._fixtureOverride.indexOf("effect/")===0
+          ? S._fixtureOverride : "effect/success";
+        setTimeout(()=>Router.go("05"),120);
+      }}));
+    }else{
+      b.append(UI.Button({label:"Get coins",onTap:()=>{ api.close(); setTimeout(Sheets.coinPacks,320); }}));
+    }
+    b.append(UI.Button({label:"Cancel",variant:"text",onTap:api.close}));
+  }});
+};
+
+/* ============================================================================
+   ЗАПУСК
+   ========================================================================= */
+const EventLogView = {
+  node:null,
+  push(e){ if(!this.node) return;
+    const l=el("div"); l.innerHTML="<b>"+e.event+"</b> "+
+      JSON.stringify(e, (k,v)=>["event","session_id","timestamp"].includes(k)?undefined:v);
+    this.node.prepend(l); }
+};
+(function boot(){
+  const qs=new URLSearchParams(location.search);
+  if(qs.get("reset")!==null) { try{ localStorage.clear(); }catch(e){} }
+  loadState();
+  EventLogView.node=document.getElementById("eventLog");
+
+  /* дев-панель: сценарии фикстур, чтобы состояния AI были достижимы вручную */
+  const bar=document.querySelector(".DevBar");
+  const sel=document.createElement("select");
+  sel.style.cssText="background:var(--color-surface-raised);color:var(--color-text-secondary);"+
+    "border:1px solid var(--color-border-default);border-radius:var(--radius-full);padding:5px 10px;font-size:12px";
+  Object.keys(FIXTURES).forEach(k=>{ const o=document.createElement("option"); o.value=k; o.textContent=k; sel.append(o); });
+  sel.value="daily-frame/success";
+  sel.addEventListener("change",()=>{ S._fixtureOverride=sel.value; });
+  bar.insertBefore(sel, bar.children[1]);
+  if(qs.get("fixture")) { S._fixtureOverride=qs.get("fixture"); sel.value=qs.get("fixture"); }
+
+  document.getElementById("devLog").addEventListener("click",()=>{
+    document.getElementById("eventLog").classList.toggle("is-on"); });
+  document.getElementById("eventLog").addEventListener("click",function(){ this.classList.remove("is-on"); });
+  document.getElementById("devReset").addEventListener("click",()=>{
+    try{ localStorage.clear(); }catch(e){} location.href=location.pathname; });
+
+  Analytics.track("session_started",{returning:S.onboarded,day_index:DEMO.dayIndex,period:S.period});
+
+  const hash=(location.hash||"").replace("#/","");
+  const start = hash && Screens[hash] ? hash : (S.onboarded ? "03" : "01");
+  Router.reset(start);
+})();
+
+/* ============================================================================
+   §12 · АВТОДЕМО (решение 14)
+   Включается ?demo или кнопкой в дев-панели. Прогоняет сквозной путь ядра
+   по кругу. Любое касание или клик мгновенно останавливает демо и отдаёт
+   управление человеку — без задержек, подтверждений и «доиграет шаг».
+   Выключается целиком: не вызывать Demo.start() — остального кода не касается.
+   ========================================================================= */
+const Demo = {
+  on:false, timers:[], badge:null, waiter:null,
+
+  ui(){
+    if(this.badge) return;
+    const dev=document.getElementById("device");
+    this.badge=el("div","DemoBadge t-caption");
+    this.badge.textContent="Demo paused · tap to resume";
+    this.badge.addEventListener("click",e=>{ e.stopPropagation(); this.start(); });
+    dev.append(this.badge);
+  },
+
+  /* перехват — на фазе захвата, чтобы сработать раньше любого обработчика экрана */
+  arm(){
+    if(this._armed) return; this._armed=true;
+    const stop=(e)=>{ if(this.on && !(this.badge && this.badge.contains(e.target))) this.stop(); };
+    const dev=document.getElementById("device");
+    ["pointerdown","touchstart","mousedown","keydown","wheel"].forEach(t=>
+      dev.addEventListener(t, stop, {capture:true, passive:true}));
+    document.addEventListener("keydown", stop, {capture:true});
+  },
+
+  start(){
+    this.ui(); this.arm();
+    this.on=true; this.badge.classList.remove("is-on");
+    document.querySelectorAll(".DemoTap").forEach(n=>n.remove());
+    this.loop();
+  },
+
+  stop(){
+    if(!this.on) return;
+    this.on=false;
+    this.timers.forEach(clearTimeout); this.timers=[];
+    if(this.waiter){ this.waiter.reject && this.waiter.reject("stopped"); this.waiter=null; }
+    document.querySelectorAll(".DemoTap").forEach(n=>n.remove());
+    this.badge.classList.add("is-on");
+  },
+
+  sleep(ms){
+    return new Promise((res,rej)=>{
+      if(!this.on) return rej("stopped");
+      const id=setTimeout(()=>{ this.waiter=null; this.on ? res() : rej("stopped"); }, ms);
+      this.timers.push(id);
+      this.waiter={reject:()=>{ clearTimeout(id); rej("stopped"); }};
+    });
+  },
+
+  /* видимый круг в точке тапа — иначе экраны просто мигают */
+  async point(node){
+    if(!this.on || !node) throw "stopped";
+    const dev=document.getElementById("device").getBoundingClientRect();
+    const r=node.getBoundingClientRect();
+    const t=el("div","DemoTap");
+    t.style.left=(r.left-dev.left+r.width/2)+"px";
+    t.style.top =(r.top -dev.top +r.height/2)+"px";
+    document.getElementById("device").append(t);
+    requestAnimationFrame(()=>t.classList.add("is-on"));
+    await this.sleep(420);
+    t.remove();
+  },
+
+  async tap(node){ await this.point(node); if(!this.on) throw "stopped"; node.click(); },
+
+  btn(label){
+    const n=[...document.querySelectorAll(".Button__label")]
+      .find(x=>x.textContent.trim()===label);
+    return n ? n.closest(".Button") : null;
+  },
+  /* ждём появления элемента, но не бесконечно — демо не должно зависать */
+  async until(fn, limit=9000){
+    const t0=Date.now();
+    while(this.on){
+      const v=fn(); if(v) return v;
+      await this.sleep(120);
+      if(Date.now()-t0>limit) throw "timeout";
+    }
+    throw "stopped";
+  },
+
+  async loop(){
+    try{
+      while(this.on){
+        await this.run();
+        await this.sleep(1200);
+      }
+    }catch(e){ if(e!=="stopped" && this.on){ console.warn("demo:",e); this.stop(); } }
+  },
+
+  /* сквозной путь ядра. Паузы стоят там, где есть что прочесть. ~45 с круг. */
+  async run(){
+    /* сброс в начало */
+    Object.assign(S,{todayKept:false,todayPreset:null,attempts:0,subscriber:false,
+      coins:DEMO.coinsStart,diarySeen:true,photoDatesAllowed:true,onboarded:true});
+    S._fixtureOverride=null; S._fixture="daily-frame/success"; S._recapFixture="recap/success";
+    document.querySelectorAll("#sheetLayer .Sheet,#sheetLayer .Scrim,.StoreKit").forEach(n=>n.remove());
+    document.getElementById("sheetLayer").style.pointerEvents="none";
+    Router.reset("03");
+
+    /* 03 — карточка фильтра дня: имя фильтра, обещание квоты, тикающий отсчёт */
+    await this.sleep(4200);
+    await this.tap(await this.until(()=>this.btn("Pick from today’s photos")));
+
+    /* 04 — ряд Meantime picked собирается на устройстве */
+    await this.sleep(1500);
+    const pick=await this.until(()=>document.querySelectorAll(".PickRow .PickTile")[0]);
+    await this.sleep(900);
+    await this.tap(pick);
+
+    /* 05 — проявление идёт своим ходом: этапы, строка про 24 часа */
+    await this.until(()=>this.btn("Keep in diary"), 14000);
+    await this.sleep(2600);
+    await this.tap(this.btn("Keep in diary"));
+
+    /* 06 — день сохранён: подпись кадра, счётчик, блок TOMORROW */
+    await this.sleep(4600);
+    await this.tap(await this.until(()=>this.btn("Open diary")));
+
+    /* 07 — полка итогов и поле периода */
+    await this.sleep(3800);
+    const card=await this.until(()=>document.querySelector(".RecapCard"));
+    await this.sleep(1400);
+    await this.tap(card);
+
+    /* 10 — рекап во весь экран, через 600 мс приходит пейвол */
+    await this.sleep(3000);
+    await this.until(()=>document.querySelector("#sheetLayer .Sheet"), 4000);
+    await this.sleep(6000);           /* время прочитать список и оба плана */
+    const yearly=[...document.querySelectorAll("#sheetLayer .PlanRow")][1];
+    if(yearly) { await this.tap(yearly); await this.sleep(2200); }
+    await this.tap(await this.until(()=>this.btn("Not now")));
+    await this.sleep(2000);
+  }
+};
+(function demoBoot(){
+  const qs=new URLSearchParams(location.search);
+  const bar=document.querySelector(".DevBar");
+  if(bar){
+    const b=document.createElement("button");
+    b.textContent="Run demo";
+    b.addEventListener("click",()=>Demo.start());
+    bar.append(b);
+  }
+  if(qs.get("demo")!==null) setTimeout(()=>Demo.start(), 600);
+})();
+</script>
+</body>
+</html>

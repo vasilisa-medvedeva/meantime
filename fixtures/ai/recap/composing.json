@@ -1,0 +1,27 @@
+{
+  "scenario": "recap",
+  "fixture": "composing",
+  "period": "week",
+  "week": 6,
+  "latency_ms": 8000,
+  "slow_threshold_ms": 20000,
+  "stages": [
+    {
+      "id": "choosing",
+      "label": "Choosing frames…",
+      "ms": 2600
+    },
+    {
+      "id": "laying",
+      "label": "Laying out…",
+      "ms": 2600
+    },
+    {
+      "id": "caption",
+      "label": "Writing the caption…",
+      "ms": 2800
+    }
+  ],
+  "caption": "Mostly outdoors. One rainy Tuesday.",
+  "slow_notice": "Still composing — it’ll be on the shelf when it’s ready"
+}

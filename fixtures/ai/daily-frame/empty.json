@@ -1,0 +1,21 @@
+{
+  "scenario": "daily_frame",
+  "fixture": "empty",
+  "error_type": "empty",
+  "fail_after_ms": 3000,
+  "quota_spent": false,
+  "title": "Nothing changed on this one.",
+  "body": "Your daily frame is still yours.",
+  "actions": [
+    {
+      "id": "retry",
+      "label": "Try again",
+      "variant": "primary"
+    },
+    {
+      "id": "nofilter",
+      "label": "Keep without the upgrade",
+      "variant": "secondary"
+    }
+  ]
+}

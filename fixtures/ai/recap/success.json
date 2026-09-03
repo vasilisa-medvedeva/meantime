@@ -1,0 +1,46 @@
+{
+  "scenario": "recap",
+  "fixture": "success",
+  "period": "week",
+  "week": 6,
+  "range": "SEP 7 – SEP 13",
+  "frames_in": 5,
+  "of": 7,
+  "on_phone": 2,
+  "latency_ms": 0,
+  "caption": "Mostly outdoors. One rainy Tuesday.",
+  "kicker": "WEEK 6 · SEP 7 – SEP 13 · BY MEANTIME",
+  "stat": "5 OF 7 KEPT · 2 MORE ARE ON YOUR PHONE",
+  "quadrants": [
+    {
+      "q": "TL",
+      "day": 39,
+      "asset": "recap-2",
+      "luma": 0.44,
+      "locked": true
+    },
+    {
+      "q": "TR",
+      "day": 40,
+      "asset": "recap-3",
+      "luma": 0.52,
+      "locked": true
+    },
+    {
+      "q": "BL",
+      "day": 34,
+      "asset": "recap-1",
+      "luma": 0.17,
+      "locked": false
+    },
+    {
+      "q": "BR",
+      "day": 37,
+      "asset": "recap-4",
+      "luma": 0.38,
+      "locked": false
+    }
+  ],
+  "dark_quadrant": "BL",
+  "kicker_scrim_fallback": false
+}

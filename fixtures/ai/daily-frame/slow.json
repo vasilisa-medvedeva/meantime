@@ -1,0 +1,31 @@
+{
+  "scenario": "daily_frame",
+  "fixture": "slow",
+  "tier": "fast",
+  "latency_ms": 15000,
+  "slow_threshold_ms": 12000,
+  "cancelable_until": "developing",
+  "stages": [
+    {
+      "id": "reading",
+      "label": "Reading your frame",
+      "ms": 1200
+    },
+    {
+      "id": "rendering",
+      "label": "Upgrading your frame…",
+      "ms": 11000
+    },
+    {
+      "id": "developing",
+      "label": "Developing",
+      "ms": 2800
+    }
+  ],
+  "slow_notice": "Taking longer than usual. Your daily frame isn’t used until it’s done.",
+  "result": {
+    "preset": "UPGRADED",
+    "asset": "today",
+    "confidence": "ok"
+  }
+}

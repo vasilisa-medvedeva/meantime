@@ -1,0 +1,33 @@
+{
+  "scenario": "effect",
+  "fixture": "low-confidence",
+  "tier": "quality",
+  "latency_ms": 5200,
+  "slow_threshold_ms": 12000,
+  "cancelable_until": "developing",
+  "preset_id": "snow_globe",
+  "preset": "Snow globe",
+  "stages": [
+    {
+      "id": "reading",
+      "label": "Reading your day…",
+      "ms": 1200
+    },
+    {
+      "id": "rendering",
+      "label": "Rendering Snow globe…",
+      "ms": 2800
+    },
+    {
+      "id": "developing",
+      "label": "Developing",
+      "ms": 1200
+    }
+  ],
+  "result": {
+    "preset": "SNOW GLOBE",
+    "asset": "fx-after",
+    "confidence": "low"
+  },
+  "notice": "Not our best. Render once more — on us."
+}

@@ -1,0 +1,8 @@
+{
+  "scenario": "gallery_pick",
+  "fixture": "low-confidence",
+  "on_device": true,
+  "count_today": 4,
+  "confidence": "low",
+  "label": "NOTHING STOOD OUT TODAY — PICK YOURSELF"
+}

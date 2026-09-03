@@ -1,0 +1,13 @@
+{
+  "scenario": "recap",
+  "fixture": "error",
+  "error_type": "network",
+  "title": "Couldn’t compose yet",
+  "actions": [
+    {
+      "id": "retry",
+      "label": "Try again",
+      "variant": "primary"
+    }
+  ]
+}

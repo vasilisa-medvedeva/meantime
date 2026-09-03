@@ -1,0 +1,31 @@
+{
+  "scenario": "daily_frame",
+  "fixture": "low-confidence",
+  "tier": "fast",
+  "latency_ms": 3600,
+  "slow_threshold_ms": 12000,
+  "cancelable_until": "developing",
+  "stages": [
+    {
+      "id": "reading",
+      "label": "Reading your frame",
+      "ms": 900
+    },
+    {
+      "id": "rendering",
+      "label": "Upgrading your frame…",
+      "ms": 1900
+    },
+    {
+      "id": "developing",
+      "label": "Developing",
+      "ms": 800
+    }
+  ],
+  "result": {
+    "preset": "UPGRADED",
+    "asset": "today",
+    "confidence": "low"
+  },
+  "notice": "Not our best. Render once more — on us."
+}

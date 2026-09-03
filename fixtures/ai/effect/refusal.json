@@ -1,0 +1,17 @@
+{
+  "scenario": "effect",
+  "fixture": "refusal",
+  "error_type": "refusal",
+  "fail_after_ms": 2600,
+  "charged": false,
+  "preset": "Snow globe",
+  "title": "Snow globe needs a scene, not a close-up.",
+  "body": "Pick another effect — nothing was charged.",
+  "actions": [
+    {
+      "id": "back",
+      "label": "Back to effects",
+      "variant": "primary"
+    }
+  ]
+}

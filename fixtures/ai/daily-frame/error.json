@@ -1,0 +1,21 @@
+{
+  "scenario": "daily_frame",
+  "fixture": "error",
+  "error_type": "network",
+  "fail_after_ms": 2600,
+  "quota_spent": false,
+  "title": "Couldn’t render.",
+  "body": "Your daily frame is still yours.",
+  "actions": [
+    {
+      "id": "retry",
+      "label": "Try again",
+      "variant": "primary"
+    },
+    {
+      "id": "nofilter",
+      "label": "Keep without the upgrade",
+      "variant": "secondary"
+    }
+  ]
+}

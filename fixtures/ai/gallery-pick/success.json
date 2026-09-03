@@ -1,0 +1,24 @@
+{
+  "scenario": "gallery_pick",
+  "fixture": "success",
+  "on_device": true,
+  "latency_ms": 700,
+  "count_today": 3,
+  "confidence": "ok",
+  "label": "MEANTIME PICKED · FROM 3 TODAY",
+  "hint": "Tap any other frame to pick it yourself",
+  "picks": [
+    {
+      "rank": 1,
+      "asset": "today"
+    },
+    {
+      "rank": 2,
+      "asset": "day-11"
+    },
+    {
+      "rank": 3,
+      "asset": "day-06"
+    }
+  ]
+}
