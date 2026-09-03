@@ -236,15 +236,20 @@ h1,h2,h3,p,ul,ol{margin:0;padding:0}
 .c-thinking{color:var(--color-ai-thinking)}
 
 /* --- сцена и устройство --- */
-.Stage{position:relative;display:flex;flex-direction:column;align-items:center;gap:var(--space-4)}
+/* решение 17.45 — полноэкранная раскладка стала БАЗОВОЙ, без медиаусловий: на любом телефоне
+   и внутри рамки кейса устройство занимает весь вьюпорт. Витрина для компьютера — исключение ниже
+   с явным условием. Раньше было наоборот, и телефон, не прошедший условие, получал устройство
+   390×844 по центру вместе с отладочной панелью под ним: панель занимала низ, верх уходил за экран */
+.Stage{position:relative;display:flex;flex-direction:column;align-items:center;gap:0}
 .Device{
-  position:relative;
-  width:var(--size-frame-w);height:var(--size-frame-h);
-  border-radius:var(--size-device-radius);overflow:hidden;
+  position:fixed;inset:0;
+  width:auto;height:100vh;height:100dvh;
+  border-radius:0;overflow:hidden;
   background:var(--color-bg-primary);
-  box-shadow:0 0 0 10px var(--color-bezel-outer), 0 0 0 12px var(--color-bezel-inner), var(--effect-chrome-shadow);
+  box-shadow:none;
   touch-action:pan-y;
 }
+.DevBar{display:none!important}
 /* Мобильная ветка: устройство занимает окно целиком. Эта же ветка работает внутри рамки
    кейса шириной 390 — прототип и там обязан занимать её полностью.
    `dvh` убран: динамическая высота меняется непрерывно, пока Safari прячет и достаёт
@@ -253,22 +258,6 @@ h1,h2,h3,p,ul,ol{margin:0;padding:0}
    пунктов высоты, которыми мы всё равно не могли пользоваться надёжно.
    `position:fixed` вместо участия в потоке: `overflow:hidden` на body в iOS не гарантирует,
    что не прокрутится сама страница. Скроллится только .Screen__scroll внутри. */
-/* решение 17.39 — мобильная ветка включается и по сенсорному экрану: часть телефонов отдаёт
-   вьюпорт шире 460 (Android с крупным экраном), и они попадали в витрину с устройством 390 по центру */
-@media (max-width:620px),(max-height:900px),(hover:none) and (pointer:coarse){
-  .Stage{gap:0}
-  .Device{
-    position:fixed;inset:0;
-    width:auto;                   /* ширину задаёт inset:0, иначе базовые 390 переучреждают right */
-    height:100vh;                 /* фолбэк для браузеров без новых единиц */
-    height:100dvh;                /* решение 17.40 — динамическая высота: устройство занимает весь экран
-                                     и когда панель Safari видна, и когда спрятана; svh оставлял снизу
-                                     пустую шестую часть. Устройство закреплено, поэтому пересчёт высоты
-                                     больше не рисует полосу, как было при svh-правке 17.29 */
-    border-radius:0;box-shadow:none;
-  }
-  .DevBar{display:none!important}
-}
 /* Витрина по прямой ссылке (решение 17.26) — противоположная ветка того же условия:
    применяется ровно тогда, когда устройство НЕ растянуто на весь вьюпорт.
    На телефоне и внутри рамки кейса шириной 390 работает ветка выше, и здесь не меняется
@@ -276,9 +265,14 @@ h1,h2,h3,p,ul,ol{margin:0;padding:0}
    ни один экран приложения об этой правке не знает. */
 @media (min-width:621px) and (min-height:901px) and (hover:hover){
   body{background:var(--color-stage-bg)}
+  .Stage{gap:var(--space-4)}
   .Device{
+    position:relative;inset:auto;
+    width:var(--size-frame-w);height:var(--size-frame-h);
+    border-radius:var(--size-device-radius);
     box-shadow:0 0 0 var(--size-stage-bezel) var(--color-stage-bezel), var(--effect-stage-shadow);
   }
+  body .DevBar{display:flex!important}
   /* Панель управления витрины (решение 17.31): человек приходит по прямой ссылке
      из кейса, круг он уже видел и хочет потрогать — поэтому автостарта тут нет,
      экран открывается обычным и всё кликабельно. Кнопка запускает тот же Demo.start(). */
