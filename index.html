@@ -138,9 +138,10 @@
   --motion-viewfinder:20000ms; /* решение 17.19 — 1.0 → 1.04 в видоискателе, туда и обратно */
   /* однократный показ дельты после проявления (решение 17.32) */
   --motion-delta-hold-result:900ms;    /* результат стоит, прежде чем показать оригинал */
-  --motion-delta-fade:600ms;           /* кросс-фейд туда и обратно */
+  --motion-delta-fade:800ms;           /* кросс-фейд туда и обратно (17.50: было 600) */
   --motion-delta-hold-original:1200ms; /* оригинал стоит */
   --ease-standard:cubic-bezier(.32,.72,0,1);
+  --ease-crossfade:cubic-bezier(.45,0,.55,1); /* решение 17.50 — симметричная кривая для смены кадра: без рывка на старте */
   --ease-sheet:cubic-bezier(.34,1.2,.64,1);
   --ease-accel:cubic-bezier(.3,0,.8,.15);
 
@@ -665,7 +666,7 @@ h1,h2,h3,p,ul,ol{margin:0;padding:0}
 
 /* подмена версии кадра — кросс-фейд поверх старого слоя, размер не меняется (реестр №33) */
 .Frame--fade{position:absolute;inset:0;opacity:0;
-  transition:opacity var(--motion-menu) var(--ease-standard)}
+  transition:opacity var(--motion-menu) var(--ease-crossfade)}
 .Frame--fade.is-in{opacity:1}
 .Frame__ph{
   position:absolute;inset:0;
@@ -2425,8 +2426,22 @@ Screens["05"]=s=>{
     /* решение 17.2 — оригинал стоит чётким --motion-reveal-hold, затем верхний слой
        набирает непрозрачность за остаток рендера: кадр и подпись доходят вместе */
     const hold = MS("--motion-reveal-hold");
-    after.style.transition="opacity "+Math.max(MS("--motion-menu"), dur-hold)+"ms var(--ease-standard)";
-    setTimeout(()=>{ after.style.opacity="1"; }, hold);
+    /* решение 17.50 — кросс-фейд по симметричной кривой и только с декодированным кадром:
+       раньше «после» вспыхивало внутри уже полупрозрачного слоя, если файл догружался
+       во время проявления, а кривая --ease-standard отдавала 70 % смены первой трети времени.
+       Длительность считаем от оставшегося: кадр и подпись «готово» по-прежнему сходятся. */
+    const tFade0=Date.now();
+    const startFade=()=>{
+      const left=Math.max(MS("--motion-menu"), dur-(Date.now()-tFade0));
+      after.style.transition="opacity "+left+"ms var(--ease-crossfade)";
+      void after.offsetWidth; after.style.opacity="1";
+    };
+    const afterImg=after.querySelector(".Frame__img");
+    setTimeout(()=>{
+      if(afterImg.classList.contains("is-in")) return startFade();
+      const cap=setTimeout(()=>{ clearInterval(iv); startFade(); }, Math.max(0, dur-hold-MS("--motion-menu")));
+      const iv=setInterval(()=>{ if(afterImg.classList.contains("is-in")){ clearInterval(iv); clearTimeout(cap); startFade(); } }, 40);
+    }, hold);
 
     const ctl = AI.run(fx,{
       onStage(i,st){
@@ -2449,7 +2464,7 @@ Screens["05"]=s=>{
         setTimeout(()=>rs.remove(), DM+20);
         [title,kick].forEach(n=>{ n.style.transition="opacity "+DM+"ms "+ease; n.style.opacity="0"; });
         /* проявка кончилась — сводим два слоя в один: дальше кадром правит переключатель */
-        after.style.transition=""; after.style.opacity="1";
+        after.style.opacity="1"; setTimeout(()=>{ after.style.transition=""; }, DM);
         after.classList.remove("Reveal__after");
         if(before.parentNode) before.remove();
         const small = !!(f.result && f.result.delta==="small");
@@ -3331,7 +3346,7 @@ const Demo = {
   /* Полный период круга вместе с паузой 1200 мс между кругами — замерено прогоном,
      два круга подряд дали одно и то же: 25.8 с (сам круг 25.4 с). Полоса на странице кейса
      берёт длительность отсюда, поэтому число обязано быть измеренным, а не прикинутым. */
-  totalMs:28500,   /* 17.49: +0.4 с — оригинал стоит секунду */
+  totalMs:28900,   /* 17.49: +0.4 с — оригинал стоит секунду; 17.50: +0.4 с — кросс-фейд дельты 800 мс */
   t0:0, step:"", beat:null,
 
   tick(){
