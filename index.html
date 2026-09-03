@@ -72,6 +72,7 @@
   --size-hero-day-h:520px;       /* ux-brief §08 — кадр 390×520 */
   --size-frame-square:342px;     /* ui-spec §06 — кадр 342×342 */
   --size-frame-square-sm:300px;  /* ui-spec §06a — кадр ужат до 342×300 */
+  --size-frame-today:300px;      /* решение 17.8 — кадр на вкладке Today, состояние «сохранено» */
   --size-filter-img-h:240px;     /* ui-spec §03 — образец кадра 342×240 */
   --size-recap-comp-h:250px;     /* ui-spec §10 — композиция 342×250 */
   --size-sheet-medium:440px;     /* компонент Sheet 95:14 */
@@ -83,6 +84,13 @@
   --size-pick-tile:110px;        /* ux-brief §04 — плитки ряда 110×110 */
   --size-pick-cell:94px;         /* ux-brief §04 — ячейка сетки 94 */
   --size-tomorrow-h:56px;        /* ui-spec §06 — блок TOMORROW сжат до 56 */
+  /* шит шеринга (решение 17) — имитация системного листа iOS в токенах проекта */
+  --size-share-thumb-h:96px;       /* высота миниатюры карточки в строке превью */
+  --size-share-thumb-day-w:54px;   /* 96 × 9/16 — карточка дня, ux-brief §09 */
+  --size-share-thumb-week-w:132px; /* 96 × 342/250 — композиция рекапа, ui-spec §10 */
+  --size-share-dest:60px;          /* круглая плитка адресата; ≥ 44 pt тап-зоны */
+  --size-share-dest-icon:28px;     /* монохромный силуэт внутри плитки */
+  --size-share-dest-col:68px;      /* колонка «плитка + подпись» — шаг ряда адресатов */
 
   /* моушен · hig-numbers.md + Material 3 Motion — interaction-registry.md */
   --motion-micro:100ms;  --motion-icon:150ms;  --motion-alert:200ms;
@@ -90,6 +98,7 @@
   --motion-sheet-in:400ms;
   --motion-render-fast:4000ms; --motion-render-quality:6000ms;
   --motion-stream-char:22ms;
+  --motion-reveal-hold:600ms;  /* решение 17.2 — оригинал стоит чётким до кросс-фейда */
   --ease-standard:cubic-bezier(.32,.72,0,1);
   --ease-sheet:cubic-bezier(.34,1.2,.64,1);
   --ease-accel:cubic-bezier(.3,0,.8,.15);
@@ -509,7 +518,32 @@ h1,h2,h3,p,ul,ol{margin:0;padding:0}
    ========================================================================= */
 
 /* --- кадр и процедурная заглушка (решение 8.12) ------------------------- */
-.Frame{position:relative;overflow:hidden;background:var(--color-surface-raised)}
+/* height:100% — у .Frame нет содержимого в потоке (все слои абсолютные), поэтому
+   без этого он схлопывается в 0 в любом контейнере с заданной высотой:
+   .Hero, .Reveal, .KeptFrame, .ShareCard, .FilterCard__img, .PickTile, .RecapSpine.
+   Там, где высота задана точечно (.PickGrid, инлайн-стиль), правило перекрывается. */
+.Frame{position:relative;overflow:hidden;background:var(--color-surface-raised);height:100%}
+/* ЗАГЛУШКА, НЕ ДИЗАЙН. Кадра под эффектом Snow globe в макете нет: нода `106:92` содержит
+   тот же файл, что обычный апгрейд (assets/FRAMES.md п. 3). Без обработки третья позиция
+   переключателя читалась бы как «ничего не произошло». Берём today.jpg и гоним через
+   выраженный холодный сдвиг, подъём яркости и размытие по краям. Заменить настоящим
+   рендером по промпту из assets/PROMPTS.md — см. «известные срезы» в component-map.md. */
+.Frame--fx .Frame__img{filter:hue-rotate(-38deg) saturate(1.55) brightness(1.16) contrast(1.06)}
+.Frame--fx::after{
+  content:"";position:absolute;inset:0;pointer-events:none;z-index:1;
+  backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);
+  -webkit-mask-image:radial-gradient(112% 92% at 50% 44%,transparent 50%,var(--color-bg-primary) 100%);
+          mask-image:radial-gradient(112% 92% at 50% 44%,transparent 50%,var(--color-bg-primary) 100%);
+}
+.Frame--fx::before{
+  content:"";position:absolute;inset:0;pointer-events:none;z-index:2;
+  background:linear-gradient(180deg,var(--color-accent-wash) 0%,transparent 58%);
+}
+
+/* подмена версии кадра — кросс-фейд поверх старого слоя, размер не меняется (реестр №33) */
+.Frame--fade{position:absolute;inset:0;opacity:0;
+  transition:opacity var(--motion-menu) var(--ease-standard)}
+.Frame--fade.is-in{opacity:1}
 .Frame__ph{
   position:absolute;inset:0;
   background:
@@ -569,7 +603,18 @@ h1,h2,h3,p,ul,ol{margin:0;padding:0}
   background:radial-gradient(60% 40% at 50% 42%,var(--color-accent-wash) 0%,transparent 70%)}
 .Hero__text{position:absolute;left:var(--size-gutter);right:var(--size-gutter);bottom:var(--space-6);z-index:3}
 .Reveal{position:absolute;inset:0;transition:filter var(--motion-menu) linear}
-.Reveal__veil{position:absolute;inset:0;background:var(--color-bg-primary);pointer-events:none}
+/* .Reveal__veil убран решением 17.2: вуаль означала «ещё не готово», а теперь
+   оригинал готов с первого кадра. Читаемость заголовка держит .Scrim7 */
+/* --- заставка (решение 17.4): вордмарк на свечении героя, без спиннера и прогресса --- */
+.Splash{position:absolute;inset:0;z-index:35;pointer-events:none;
+  display:flex;align-items:center;justify-content:center;
+  background:var(--color-bg-primary);opacity:0;
+  transition:opacity var(--motion-sheet-in) var(--ease-standard)}
+.Splash.is-in{opacity:1}
+.Splash.is-out{transition:opacity var(--motion-alert) var(--ease-accel)}
+.Splash > .t-display{position:relative;z-index:1}
+/* решение 17.2 — снизу настоящий оригинал, сверху результат; кросс-фейд идёт весь рендер */
+.Reveal__after{position:absolute;inset:0;opacity:0}
 
 /* --- вотермарк на кадре, без плашки --- */
 .Watermark{position:absolute;right:var(--space-3);bottom:var(--space-3);z-index:3;
@@ -612,6 +657,44 @@ h1,h2,h3,p,ul,ol{margin:0;padding:0}
   background:var(--color-surface-raised);border:var(--size-hairline) solid var(--color-border-default);
   transition:transform var(--motion-micro) var(--ease-standard)}
 .TapRow:active{transform:scale(.98)}
+
+/* --- ShareSheet · шит после шеринга (решение 17) ------------------------
+   Имитация системного листа iOS в токенах проекта: строка превью,
+   ряд адресатов горизонтальным скроллом, группа действий. --------------- */
+.ShareSheet{display:flex;flex-direction:column;gap:var(--space-4)}
+.ShareSheet__prev{display:flex;align-items:center;gap:var(--space-3);
+  padding:0 var(--size-gutter)}
+.ShareSheet__thumb{position:relative;flex:0 0 auto;
+  height:var(--size-share-thumb-h);border-radius:var(--radius-md);overflow:hidden}
+.ShareSheet[data-kind="day"]  .ShareSheet__thumb{width:var(--size-share-thumb-day-w)}
+.ShareSheet[data-kind="week"] .ShareSheet__thumb{width:var(--size-share-thumb-week-w)}
+/* вотермарк на миниатюре — тот же знак, ужатый до масштаба превью, а не другой элемент */
+.ShareSheet__thumb .Watermark{transform:scale(.5);transform-origin:100% 100%;white-space:nowrap;
+  right:var(--space-1);bottom:var(--space-1)}
+.ShareSheet__dests{display:flex;gap:var(--space-3);overflow-x:auto;scrollbar-width:none;
+  padding:0 var(--size-gutter)}
+.ShareSheet__dests::-webkit-scrollbar{display:none}
+.ShareSheet__dest{flex:0 0 auto;width:var(--size-share-dest-col);
+  display:flex;flex-direction:column;align-items:center;gap:var(--space-2);
+  transition:transform var(--motion-micro) var(--ease-standard)}
+.ShareSheet__dest:active{transform:scale(.97);opacity:.8}
+.ShareSheet__disc{width:var(--size-share-dest);height:var(--size-share-dest);
+  border-radius:var(--radius-full);display:flex;align-items:center;justify-content:center;
+  background:var(--color-surface-raised);
+  border:var(--size-hairline) solid var(--color-border-default);
+  color:var(--color-text-secondary)}
+.ShareSheet__disc svg{width:var(--size-share-dest-icon);height:var(--size-share-dest-icon)}
+.ShareSheet__cap{color:var(--color-text-secondary);text-align:center;
+  width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ShareSheet__acts{margin:0 var(--size-gutter)}
+.ShareSheet__act{display:flex;align-items:center;justify-content:space-between;width:100%;
+  min-height:var(--size-tap-min);height:var(--size-button-h);padding:0 var(--space-4);
+  color:var(--color-text-primary);
+  transition:background var(--motion-micro) var(--ease-standard)}
+.ShareSheet__act:active{background:var(--color-accent-wash)}
+.ShareSheet__act svg{color:var(--color-text-secondary);flex:0 0 auto;
+  width:var(--space-5);height:var(--space-5)}
+.ShareSheet__act > span:last-child{display:flex;align-items:center}
 
 /* --- 10 композиция рекапа --- */
 .RecapFull{position:relative;height:var(--size-recap-comp-h);border-radius:var(--radius-lg);overflow:hidden}
@@ -773,11 +856,13 @@ const S = {
   photoDatesAllowed:false,
   diarySeen:false,
   todayKept:false,
-  todayPreset:null,       // "upgraded" | "SNOW GLOBE" | "no filter"
+  todayPreset:null,       // "upgraded" | "EXTRA" | "none"; имя эффекта — в effectName
   attempts:0,             // попытки рендера сегодня (мягкий потолок 3, решение 8.1)
   pickedFrame:null,
   effectPreset:null,
   effectSpent:0,
+  effectName:null,        // имя эффекта из плитки каталога (находка QA №2)
+  effectPrice:0,
   entered:false,
   countdown:DEMO.countdownStart,
   onboarded:false
@@ -789,7 +874,7 @@ function dayDate(i){ const d=new Date(DEMO.periodStart); d.setDate(d.getDate()+i
 function fmtMD(d){ return MONTH[d.getMonth()]+" "+d.getDate(); }
 function fmtMDup(d){ return (MONTH[d.getMonth()]+" "+d.getDate()).toUpperCase(); }
 function dayState(i){
-  if(i===DEMO.dayIndex) return S.todayKept ? (S.todayPreset==="SNOW GLOBE" ? "kept-extra":"kept") : "today";
+  if(i===DEMO.dayIndex) return S.todayKept ? (isExtra() ? "kept-extra":"kept") : "today";
   if(i>DEMO.dayIndex) return "future";
   if(i in DEMO.skipped) return DEMO.skipped[i]>0 && S.photoDatesAllowed ? "skipped-available" : "skipped-empty";
   return "kept";
@@ -808,20 +893,29 @@ function firstKeptOfMonth(i){
   return true;
 }
 
-/* кадр дня: 16 уникальных кадров переиспользуются по сетке (скил demo-imagery) */
+/* кадр дня. Номер файла ≠ номер дня периода: пропущенные дни номер не занимают
+   (карта `assets/FRAMES.md`, решение 17.7). Пропуски — 12 (16 авг), 36 (9 сен), 38 (11 сен).
+   Последняя ячейка (день 40) несёт кадр сегодняшнего дня, а не `day-37` — решение 17.7. */
 function frameOf(i){
   if(i===DEMO.dayIndex) return "today";
-  return "day-" + String(((i-1)%16)+1).padStart(2,"0");
+  if(i>DEMO.dayIndex || (i in DEMO.skipped)) return null;   /* будущее и пропуски кадра не имеют */
+  let n=i;
+  if(i>12) n--;
+  if(i>36) n--;
+  if(i>38) n--;
+  return "day-" + String(n).padStart(2,"0");
 }
 function saveState(){ try{ localStorage.setItem("meantime.state", JSON.stringify(S)); }catch(e){} }
-function loadState(){
-  try{ const r=localStorage.getItem("meantime.state"); if(r) Object.assign(S, JSON.parse(r)); }catch(e){}
-}
+/* loadState убран решением 17.4: состояние живёт только внутри сессии.
+   saveState() остаётся — он держит состояние при переходах между экранами. */
 
 /* ============================================================================
    §6 · Img — кадры из ./assets, процедурная заглушка из токенов (решение 8.12)
    Пути только относительные — прототип уезжает на GitHub Pages (решение 12.2).
    ========================================================================= */
+/* Заглушка эффекта: `fx-after` физически не существует, см. assets/FRAMES.md п. 3 */
+const ASSET_ALIAS = {"fx-after":"today"};
+
 const Img = {
   status:{},   // name -> "ok" | "miss" | Promise
   hash(s){ let h=2166136261; for(let i=0;i<s.length;i++){ h^=s.charCodeAt(i); h=Math.imul(h,16777619);} return Math.abs(h); },
@@ -878,8 +972,13 @@ const Img = {
     }
     const im=document.createElement("div"); im.className="Frame__img";
     f.append(im);
-    Promise.resolve(this.status[name] instanceof Promise ? this.status[name] : this.probe(name)).then(r=>{
-      if(r==="ok"){ im.style.backgroundImage="url(./assets/"+name+".jpg)"; requestAnimationFrame(()=>im.classList.add("is-in")); }
+    if(!name) return f;   /* пропуск или будущий день — остаётся только заглушка */
+    /* fx-after в макете нет: нода эффекта содержит тот же файл, что обычный апгрейд
+       (assets/FRAMES.md п. 3). Берём today.jpg и метим слой под CSS-обработку. */
+    const file = ASSET_ALIAS[name] || name;
+    if(ASSET_ALIAS[name]) f.classList.add("Frame--fx");
+    Promise.resolve(this.status[file] instanceof Promise ? this.status[file] : this.probe(file)).then(r=>{
+      if(r==="ok"){ im.style.backgroundImage="url(./assets/"+file+".jpg)"; requestAnimationFrame(()=>im.classList.add("is-in")); }
     });
     return f;
   }
@@ -923,13 +1022,13 @@ const FIXTURES = {
 "daily-frame/success":{scenario:"daily_frame",fixture:"success",tier:"fast",latency_ms:4000,
   slow_threshold_ms:12000,cancelable_until:"developing",
   stages:[{id:"reading",label:"Reading your frame",ms:900},
-          {id:"rendering",label:"Upgrading your frame…",ms:2100},
+          {id:"rendering",label:"Rendering…",ms:2100},
           {id:"developing",label:"Developing",ms:1000}],
   result:{preset:"UPGRADED",asset:"today",confidence:"ok"}},
 "daily-frame/slow":{scenario:"daily_frame",fixture:"slow",tier:"fast",latency_ms:15000,
   slow_threshold_ms:12000,cancelable_until:"developing",
   stages:[{id:"reading",label:"Reading your frame",ms:1200},
-          {id:"rendering",label:"Upgrading your frame…",ms:11000},
+          {id:"rendering",label:"Rendering…",ms:11000},
           {id:"developing",label:"Developing",ms:2800}],
   slow_notice:"Taking longer than usual. Your daily frame isn’t used until it’s done.",
   result:{preset:"UPGRADED",asset:"today",confidence:"ok"}},
@@ -944,14 +1043,14 @@ const FIXTURES = {
 "daily-frame/low-confidence":{scenario:"daily_frame",fixture:"low-confidence",tier:"fast",latency_ms:3600,
   slow_threshold_ms:12000,cancelable_until:"developing",
   stages:[{id:"reading",label:"Reading your frame",ms:900},
-          {id:"rendering",label:"Upgrading your frame…",ms:1900},
+          {id:"rendering",label:"Rendering…",ms:1900},
           {id:"developing",label:"Developing",ms:800}],
   result:{preset:"UPGRADED",asset:"today",confidence:"low"},
   notice:"Not our best. Render once more — on us."},
 "daily-frame/small-delta":{scenario:"daily_frame",fixture:"small-delta",tier:"fast",latency_ms:3400,
   slow_threshold_ms:12000,cancelable_until:"developing",
   stages:[{id:"reading",label:"Reading your frame",ms:800},
-          {id:"rendering",label:"Upgrading your frame…",ms:1800},
+          {id:"rendering",label:"Rendering…",ms:1800},
           {id:"developing",label:"Developing",ms:800}],
   /* штатное состояние, не ошибка: кадр снят удачно, честнее показать маленькую разницу */
   result:{preset:"UPGRADED",asset:"today",confidence:"ok",delta:"small"},
@@ -967,7 +1066,8 @@ const FIXTURES = {
 "gallery-pick/success":{scenario:"gallery_pick",fixture:"success",on_device:true,latency_ms:700,
   count_today:3,confidence:"ok",label:"MEANTIME PICKED · FROM 3 TODAY",
   hint:"Tap any other frame to pick it yourself",
-  picks:[{rank:1,asset:"today"},{rank:2,asset:"day-11"},{rank:3,asset:"day-06"}]},
+  /* решение 17.10 — первым идёт кадр настоящей пары «до / после» */
+  picks:[{rank:1,asset:"today-original"},{rank:2,asset:"day-11"},{rank:3,asset:"day-06"}]},
 "gallery-pick/none":{scenario:"gallery_pick",fixture:"none",on_device:true,count_today:0,confidence:"none",
   fallback_line:"Allow photo dates to get suggestions"},
 "gallery-pick/low-confidence":{scenario:"gallery_pick",fixture:"low-confidence",on_device:true,
@@ -979,10 +1079,15 @@ const FIXTURES = {
   kicker:"WEEK 6 · SEP 7 – SEP 13 · BY MEANTIME",
   stat:"5 OF 7 KEPT · 2 MORE ARE ON YOUR PHONE",
   /* решение 10.14 — самый тёмный кадр в нижний левый квадрант, под кикер и заголовок */
-  quadrants:[{q:"TL",day:39,asset:"recap-2",luma:0.44,locked:true},
-             {q:"TR",day:40,asset:"recap-3",luma:0.52,locked:true},
-             {q:"BL",day:34,asset:"recap-1",luma:0.17,locked:false},
-             {q:"BR",day:37,asset:"recap-4",luma:0.38,locked:false}],
+  /* Имена recap-N позиционные: 1=TL, 2=TR, 3=BL, 4=BR (assets/FRAMES.md).
+     Нижние квадранты обменяны содержимым целиком — кадр, день и luma переехали вместе,
+     фотография осталась при своём дне. Причина: в макете под кикером лежал самый СВЕТЛЫЙ
+     кадр (кухня, 63 %), а решение 10.14 требует там самый тёмный (горы, 21 %).
+     luma — измеренные значения из assets/FRAMES.md п. 1, а не прежние выдуманные. */
+  quadrants:[{q:"TL",day:39,asset:"recap-1",luma:0.58,locked:true},
+             {q:"TR",day:40,asset:"recap-2",luma:0.60,locked:true},
+             {q:"BL",day:37,asset:"recap-4",luma:0.21,locked:false},
+             {q:"BR",day:34,asset:"recap-3",luma:0.63,locked:false}],
   dark_quadrant:"BL",kicker_scrim_fallback:false},
 "recap/composing":{scenario:"recap",fixture:"composing",period:"week",week:6,latency_ms:8000,
   slow_threshold_ms:20000,
@@ -995,7 +1100,7 @@ const FIXTURES = {
   title:"Couldn’t compose yet",actions:[{id:"retry",label:"Try again",variant:"primary"}]},
 "recap/single":{scenario:"recap",fixture:"single",period:"week",week:6,frames_in:1,of:7,
   caption:"One frame this week.",kicker:"WEEK 6 · SEP 7 – SEP 13 · BY MEANTIME",
-  stat:"1 OF 7 KEPT",quadrants:[{q:"BL",day:34,asset:"recap-1",luma:0.17,locked:false}]},
+  stat:"1 OF 7 KEPT",quadrants:[{q:"BL",day:37,asset:"recap-4",luma:0.21,locked:false}]},
 
 "effect/success":{scenario:"effect",fixture:"success",tier:"quality",latency_ms:6000,
   slow_threshold_ms:12000,cancelable_until:"developing",preset_id:"snow_globe",preset:"Snow globe",
@@ -1103,6 +1208,45 @@ const el=(tag,cls,txt)=>{ const n=document.createElement(tag); if(cls) n.classNa
   if(txt!=null) n.textContent=txt; return n; };
 const frag=(...kids)=>{ const f=document.createDocumentFragment(); f.append(...kids); return f; };
 
+/* --- ShareSheet: адресаты, действия и монохромные силуэты (решение 17) -----
+   Никаких чужих логотипов: нейтральные силуэты в currentColor, как в токенах.
+   Имя адресата уезжает в событие как destination в snake_case. ------------ */
+const SHARE_DESTS=[["AirDrop","airdrop"],["Messages","messages"],
+                   ["Instagram","instagram"],["WhatsApp","whatsapp"],["Mail","mail"]];
+const SHARE_ACTS =[["Save Image","save_image"],["Copy","copy"],["More…","more"]];
+const SHARE_BANNER={airdrop:"Shared with AirDrop", messages:"Shared to Messages",
+  instagram:"Shared to Instagram", whatsapp:"Shared to WhatsApp", mail:"Shared by Mail",
+  save_image:"Saved to Photos", copy:"Copied", more:"Shared"};
+function shareGlyph(id){
+  /* размер задаётся в CSS токеном, в разметке его нет */
+  const S1='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" '+
+    'stroke-linecap="round" stroke-linejoin="round">';
+  const S2=S1;
+  const g={
+    /* волны и точка — «раздача рядом», а не знак производителя */
+    airdrop:S1+'<path d="M4.8 10.2a10 10 0 0 1 14.4 0"/><path d="M8 13.3a5.6 5.6 0 0 1 8 0"/>'+
+      '<circle cx="12" cy="17" r="1.5" fill="currentColor" stroke="none"/></svg>',
+    messages:S1+'<path d="M20.5 11.4c0 3.6-3.8 6.6-8.5 6.6-1 0-1.9-.1-2.8-.4-1 .8-2.4 1.5-4 1.7'+
+      '.8-.9 1.3-1.9 1.5-2.9C4.8 15.2 3.5 13.4 3.5 11.4 3.5 7.8 7.3 4.8 12 4.8s8.5 3 8.5 6.6z"/></svg>',
+    /* обычная камера, без радужного контура и без квадрата с точкой в углу */
+    instagram:S1+'<rect x="3.2" y="7" width="17.6" height="12.4" rx="3.2"/>'+
+      '<circle cx="12" cy="13.2" r="3.5"/><path d="M8.6 7l1.1-2.2h4.6L15.4 7"/></svg>',
+    /* две реплики внахлёст — разговор, а не телефонная трубка в круге */
+    whatsapp:S1+'<path d="M3.6 9.2c0-2.6 2.8-4.7 6.2-4.7s6.2 2.1 6.2 4.7-2.8 4.7-6.2 4.7'+
+      'c-.7 0-1.4-.1-2-.3-.8.6-1.8 1.1-2.9 1.3.6-.7 1-1.4 1.1-2.1C4.5 11.9 3.6 10.6 3.6 9.2z"/>'+
+      '<path d="M13.4 15.6c1.9-.2 3.5-1 4.5-2.1 1.4.9 2.3 2.2 2.3 3.6 0 .9-.4 1.8-1.1 2.5'+
+      '.1.6.5 1.2 1 1.8-1-.2-1.8-.6-2.5-1.1-.6.2-1.2.3-1.9.3-2.1 0-3.9-1-4.7-2.4"/></svg>',
+    mail:S1+'<rect x="3" y="5.6" width="18" height="12.8" rx="2.6"/><path d="M4 8l8 5.6L20 8"/></svg>',
+    save_image:S2+'<path d="M12 4v10"/><path d="M8 10.5l4 4 4-4"/><path d="M4.5 17.5v1.2'+
+      'a1.3 1.3 0 0 0 1.3 1.3h12.4a1.3 1.3 0 0 0 1.3-1.3v-1.2"/></svg>',
+    copy:S2+'<rect x="8.5" y="8.5" width="11" height="11" rx="2.4"/>'+
+      '<path d="M15.5 5.5H6.9A2.4 2.4 0 0 0 4.5 7.9v8.6"/></svg>',
+    more:S2+'<circle cx="12" cy="12" r="8.2"/><circle cx="8.4" cy="12" r=".9" fill="currentColor"/>'+
+      '<circle cx="12" cy="12" r=".9" fill="currentColor"/><circle cx="15.6" cy="12" r=".9" fill="currentColor"/></svg>'
+  };
+  return g[id]||"";
+}
+
 const UI = {
   /* Button · 88:50 · Variant = Primary|Secondary|Text × State = Default|Pressed|Disabled|Loading */
   Button({label, variant="primary", state="default", onTap, icon}){
@@ -1123,7 +1267,7 @@ const UI = {
     const hasFrame = (state==="kept"||state==="kept-extra"||(state==="today"&&S.todayKept));
     if(hasFrame){
       c.append(Img.make(frameOf(index), null,
-        index===DEMO.dayIndex ? {seed:"fx-before",variant:"upgraded"} : null));
+        index===DEMO.dayIndex ? VERSION_OPTS[1] : null));
       /* решение 16.2 — число несут все три состояния с кадром: kept, kept-extra, today.
          Пустые (skipped-available с +N, skipped-empty, future) — не несут. */
       const d=dayDate(index), isMonthMark=firstKeptOfMonth(index);
@@ -1275,6 +1419,47 @@ const UI = {
     return p;
   },
 
+  /* ShareSheet · решение 17 · Kind = Day|Week × Watermark = On|Off
+     Имитация системного листа iOS в токенах проекта: строка превью,
+     ряд адресатов, группа действий. Содержимое шторки, сама шторка — UI.Sheet */
+  ShareSheet({kind="day", watermark=false, thumb, title, sub, onPick}){
+    const n=el("div","ShareSheet");
+    n.dataset.kind=kind; n.dataset.watermark=watermark?"on":"off";
+
+    const prev=el("div","ShareSheet__prev");
+    const th=el("div","ShareSheet__thumb");
+    if(thumb) th.append(thumb);
+    if(watermark) th.append(el("div","CornerScrim"), watermarkEl());
+    const txt=el("div","stack gap1");
+    txt.append(assign(el("div","t-h2"),title), assign(el("div","t-caption c-secondary"),sub));
+    prev.append(th, txt);
+    n.append(prev);
+
+    const dests=el("div","ShareSheet__dests");
+    SHARE_DESTS.forEach(([label,id])=>{
+      const b=el("button","ShareSheet__dest");
+      const disc=el("div","ShareSheet__disc"); disc.innerHTML=shareGlyph(id);
+      const cap=assign(el("span","ShareSheet__cap t-caption"),label);
+      b.append(disc, cap);
+      b.setAttribute("aria-label","Share to "+label);
+      b.addEventListener("click",()=>onPick && onPick(id,label));
+      dests.append(b);
+    });
+    n.append(dests);
+
+    const acts=el("div","ShareSheet__acts card");
+    SHARE_ACTS.forEach(([label,id],i)=>{
+      if(i) acts.append(el("div","hair"));
+      const b=el("button","ShareSheet__act t-body");
+      b.append(assign(el("span"),label));
+      const g=el("span"); g.innerHTML=shareGlyph(id); b.append(g);
+      b.addEventListener("click",()=>onPick && onPick(id,label));
+      acts.append(b);
+    });
+    n.append(acts);
+    return n;
+  },
+
   /* Sheet · 95:14 · Detent = Medium|Large */
   Sheet({detent="medium", build, dismissible=true, onDismiss, delay=0}){
     const layer=document.getElementById("sheetLayer");
@@ -1343,6 +1528,22 @@ function banner(text){
   setTimeout(()=>{ b.classList.add("is-out"); b.classList.remove("is-in");
     setTimeout(()=>b.remove(), 260); }, 2500);
 }
+
+/* --- заставка (решение 17.4, реестр №34) -------------------------------
+   Вордмарк на свечении героя, кросс-фейд туда и обратно, ~1200 мс.
+   Ни спиннера, ни прогресса: это точка входа в демо, а не настоящая загрузка. */
+function splash(){
+  const dev=document.getElementById("device");
+  const n=el("div","Splash");
+  n.append(el("div","Hero__glow"), assign(el("h1","t-display"),"meantime"));
+  dev.append(n);
+  requestAnimationFrame(()=>n.classList.add("is-in"));
+  setTimeout(()=>{
+    n.classList.add("is-out"); n.classList.remove("is-in");
+    setTimeout(()=>n.remove(), MS("--motion-alert")+40);
+  }, MS("--motion-sheet-in")+MS("--motion-reveal-hold"));
+}
+const SPLASH_MS = ()=>MS("--motion-sheet-in")+MS("--motion-reveal-hold")+MS("--motion-alert");
 
 /* --- action sheet (реестр №23) --- */
 function actionSheet(items){
@@ -1573,11 +1774,58 @@ function navBack(label){
 }
 function counterEl(cls){ const n=el("span",cls||"t-counter c-accent");
   n.dataset.countdown="1"; n.textContent=Countdown.fmt(); return n; }
-function watermark(){ const w=el("span","Watermark t-meta"); w.textContent="meantime · AI"; return w; }
+function watermarkEl(){ const w=el("span","Watermark t-meta"); w.textContent="meantime · AI"; return w; }
 function metaLine(txt,cls){ return assign(el("div",cls||"t-counter-meta c-secondary"), txt); }
 
-/* три версии одного кадра: оригинал · дневной апгрейд · эффект (решения 15.6, 10.20) */
-const VERSION_OPTS=[null,{seed:"fx-before",variant:"upgraded"},{seed:"fx-before",variant:"effect"}];
+/* три версии одного кадра: оригинал · дневной апгрейд · эффект (решения 15.6, 10.20).
+   Зерно заглушки — today-original: один сюжет во всех состояниях (решение 17.1). */
+const VERSION_OPTS=[null,{seed:"today-original",variant:"upgraded"},{seed:"today-original",variant:"effect"}];
+
+/* позиция сегмента → кадр и вариант заглушки. Ключ — индекс, а не подпись:
+   третья позиция называется именем купленного эффекта, а не всегда «Snow globe» */
+const FRAME_VERSIONS=[
+  {src:"today-original", opts:VERSION_OPTS[0]},
+  {src:"today",          opts:VERSION_OPTS[1]},
+  {src:"fx-after",       opts:VERSION_OPTS[2]}
+];
+/* Имя эффекта берётся из плитки каталога, а не из фикстуры (находка QA №2):
+   фикстура одна на каталог, кадр тоже один — fx-after, это осознанный срез.
+   todayPreset несёт маркер "EXTRA", имя живёт отдельно в effectName. */
+const presetId    = n => String(n||"").toLowerCase().replace(/[^a-z]+/g,"_");
+const effectTitle = ()=> S.effectName || "Snow globe";
+const effectUpper = ()=> effectTitle().toUpperCase();
+const effectPrice = ()=> S.effectPrice || 4;
+const isExtra     = ()=> S.todayPreset==="EXTRA";
+/* подстановка имени поверх фикстуры эффекта: preset, preset_id и подписи стадий */
+function effectFixture(fx){
+  if(!fx || fx.scenario!=="effect") return fx;
+  const name=effectTitle(), id=presetId(name);
+  const c=Object.assign({},fx);
+  if(c.preset)    c.preset=name;
+  if(c.preset_id) c.preset_id=id;
+  if(c.title)     c.title=c.title.replace(/Snow globe/g, name);
+  if(c.stages)    c.stages=c.stages.map(st=>Object.assign({},st,{label:st.label.replace(/Snow globe/g,name)}));
+  if(c.result)    c.result=Object.assign({},c.result,{preset:name.toUpperCase(),preset_id:id});
+  return c;
+}
+/* Переключатель версий кадра (реестр №33, решения 15.6, 15.14, 17.1).
+   hostFn возвращает контейнер, первый ребёнок которого — текущий кадр.
+   Подмена кросс-фейдом в том же размере: «свет изменился», а не прыжок вёрстки. */
+function versionSegment(labels, sel, hostFn, override){
+  return segment(labels, sel, (i)=>{
+    const host = hostFn(); if(!host) return;
+    const v = FRAME_VERSIONS[i]; if(!v) return;
+    const old = host.firstChild;
+    const nf = Img.make(v.src, null, (override && override[i]) || v.opts);
+    nf.classList.add("Frame--fade");
+    host.insertBefore(nf, old ? old.nextSibling : null);
+    requestAnimationFrame(()=>nf.classList.add("is-in"));
+    setTimeout(()=>{
+      if(old && old.parentNode===host) old.remove();
+      nf.classList.remove("Frame--fade","is-in");
+    }, MS("--motion-menu")+40);
+  });
+}
 
 const Screens = {};
 
@@ -1603,47 +1851,54 @@ Screens["03"]=s=>{
   const w=scrollBox(s,"today");
   w.append(assign(el("h1","t-display"),"meantime"));
   w.append(metaLine("SUN · DAY "+DEMO.dayIndex+" OF "+DEMO.periodLength,"t-counter-meta c-secondary mt3"));
-  const card=el("div","FilterCard mt5");
-  const img=el("div","FilterCard__img");
-  img.append(Img.make(S.todayKept?"today":"day-16", null, S.todayKept?VERSION_OPTS[1]:null), el("div","Scrim7"));
-  const it=el("div","FilterCard__text stack gap1");
-  it.append(assign(el("div","t-h1 c-on-image"),
-            S.todayKept ? (S.todayPreset==="SNOW GLOBE" ? "SNOW GLOBE" : "TODAY · KEPT")
-                        : DEMO.upgradeToday));
-  img.append(it); card.append(img);
-  const foot=el("div","FilterCard__foot");
   if(!S.todayKept){
-    foot.append(assign(el("div","t-body c-secondary"),"One upgrade a day, on us — the same for everyone."));
+    /* день ещё не снят — плотная карточка дня с макета 104:47, без изменений */
+    const card=el("div","FilterCard mt5");
+    const img=el("div","FilterCard__img");
+    img.append(Img.make("day-16"), el("div","Scrim7"));
+    const it=el("div","FilterCard__text stack gap1");
+    it.append(assign(el("div","t-h1 c-on-image"), DEMO.upgradeToday));
+    img.append(it); card.append(img);
+    const foot=el("div","FilterCard__foot");
+    foot.append(assign(el("div","t-body c-secondary"),"One upgrade a day, on us — the same one for everyone."));
     const r=el("div","row gap2");
     r.append(metaLine("NEXT UPGRADE IN","t-counter-meta c-tertiary"), counterEl());
     foot.append(r);
-  }else{
-    const q=el("button","row gap2"); q.style.justifyContent="space-between"; q.style.width="100%";
-    q.append(assign(el("span","t-body c-secondary"),"Today’s render used · more with coins"),
-             assign(el("span","t-body c-accent"),"›"));
-    q.addEventListener("click",()=>Router.tab("effects"));
-    foot.append(q);
-    const tm=el("div","Tomorrow"); tm.style.marginTop="var(--space-1)";
-    const tl=el("div","stack"); tl.style.flex="1";
-    tl.append(assign(el("div","t-meta c-tertiary"),"TOMORROW"), assign(el("div","t-h2"),DEMO.upgradeTomorrow));
-    tm.append(tl, metaLine("IN","t-counter-meta c-tertiary"), counterEl());
-    foot.append(tm);
-  }
-  card.append(foot); w.append(card);
+    card.append(foot); w.append(card);
 
-  const a=el("div","stack gap3 mt5");
-  if(!S.todayKept){
+    const a=el("div","stack gap3 mt5");
     a.append(UI.Button({label:"Take a photo",onTap:()=>Sheets.picker("camera")}));
     a.append(UI.Button({label:"Pick from today’s photos",variant:"secondary",onTap:()=>Sheets.picker("suggested")}));
     a.append(assign(el("div","t-caption c-tertiary center"),
       S.photoDatesAllowed ? "Meantime chooses · 3 photos today" : "Meantime chooses"));
     a.append(UI.Button({label:"Choose from library",variant:"text",onTap:()=>Sheets.picker("library")}));
+    w.append(a);
   }else{
+    /* решение 17.5 — день сохранён: та же раскладка, что на 06 (110:91), внутри вкладки.
+       Вордмарк, строка дня, ряд про монеты и таб-бар остаются: это Today, а не push-экран. */
+    const kb=keptBlock(w,{extra:isExtra(), height:"var(--size-frame-today)"});   /* 300, решение 17.8 */
+    kb.seg.classList.add("mt4"); kb.box.classList.add("mt3"); kb.meta.classList.add("mt3");
+    w.append(kb.seg, kb.box, kb.meta);
+
+    const q=el("button","row gap2 mt3"); q.style.justifyContent="space-between"; q.style.width="100%";
+    q.append(assign(el("span","t-body c-secondary"),"Today’s render used · more with coins"),
+             assign(el("span","t-body c-accent"),"›"));
+    q.addEventListener("click",()=>Router.tab("effects"));
+    w.append(q);
+
+    const tm=el("div","Tomorrow mt3");
+    const tl=el("div","stack"); tl.style.flex="1";
+    tl.append(assign(el("div","t-meta c-tertiary"),"TOMORROW"), assign(el("div","t-h2"),DEMO.upgradeTomorrow));
+    tm.append(tl, metaLine("IN","t-counter-meta c-tertiary"), counterEl());
+    w.append(tm);
+
+    const a=el("div","stack gap3 mt4");
     a.append(UI.Button({label:"Share today",onTap:()=>Router.go("09")}));
-    a.append(UI.Button({label:"Open diary",variant:"secondary",onTap:()=>Router.tab("diary")}));
+    /* решение 17.8 — `Open diary` здесь дубль: под ней таб-бар с вкладкой DIARY.
+       На 06 кнопка остаётся, там таб-бара нет */
     a.append(UI.Button({label:"Replace photo",variant:"text",onTap:()=>Sheets.softPaywall("replace_photo")}));
+    w.append(a);
   }
-  w.append(a);
   Analytics.track("filter_revealed",{filter_id:"daily_upgrade",missing:false});
 };
 
@@ -1656,12 +1911,16 @@ Screens["05"]=s=>{
 
   const hero=el("div","Hero flush");
   const reveal=el("div","Reveal");
-  reveal.append(isEffect ? Img.make("fx-after",null,{seed:"fx-before",variant:"effect"})
-                       : Img.make("today",null,{seed:"fx-before",variant:"upgraded"}));
-  const veil=el("div","Reveal__veil"); veil.style.opacity=".32";
-  hero.append(reveal, veil, el("div","Hero__glow"), el("div","Scrim7"));
+  /* решение 17.2 — снизу настоящий оригинал, чёткий с первого кадра;
+     сверху результат, пока прозрачный. Резкость больше не изображает проявку. */
+  const before=Img.make("today-original");
+  const after = isEffect ? Img.make("fx-after",null,VERSION_OPTS[2])
+                         : Img.make("today",   null,VERSION_OPTS[1]);
+  after.classList.add("Reveal__after");
+  reveal.append(before, after);
+  hero.append(reveal, el("div","Hero__glow"), el("div","Scrim7"));
   const ht=el("div","Hero__text stack gap2");
-  const kick=assign(el("div","t-meta c-on-image"), fmtMDup(DEMO.today)+(isEffect?" · SNOW GLOBE":""));
+  const kick=assign(el("div","t-meta c-on-image"), fmtMDup(DEMO.today)+(isEffect?" · "+effectUpper():""));
   const title=assign(el("div","t-h1 c-on-image"),"Rendering…");
   ht.append(kick,title); hero.append(ht);
   w.append(hero);
@@ -1669,7 +1928,8 @@ Screens["05"]=s=>{
   const panel=el("div","stack gap4"); panel.style.padding="var(--space-5) var(--size-gutter) 0";
   w.append(panel);
 
-  AI.load(path).then(fx=>{
+  AI.load(path).then(raw=>{
+    const fx = effectFixture(raw);
     if(!fx){ panel.append(assign(el("div","t-body c-error"),"Fixture not found: "+path)); return; }
     const stages=fx.stages||[{id:"reading",label:"Reading your frame",ms:600}];
     const rs=UI.RenderStages(stages);
@@ -1689,11 +1949,12 @@ Screens["05"]=s=>{
     actions.append(cancel);
 
     title.textContent = stages[0].label.replace("…","") + "…";
-    const dur = fx.latency_ms || 4000;
-    reveal.style.transition="filter "+dur+"ms linear";
-    veil.style.transition="opacity "+dur+"ms linear";
-    reveal.style.filter="blur(7px) saturate(.35)";
-    requestAnimationFrame(()=>{ reveal.style.filter="blur(0px) saturate(1)"; veil.style.opacity="0"; });
+    const dur = fx.latency_ms || MS("--motion-render-fast");
+    /* решение 17.2 — оригинал стоит чётким --motion-reveal-hold, затем верхний слой
+       набирает непрозрачность за остаток рендера: кадр и подпись доходят вместе */
+    const hold = MS("--motion-reveal-hold");
+    after.style.transition="opacity "+Math.max(MS("--motion-menu"), dur-hold)+"ms var(--ease-standard)";
+    setTimeout(()=>{ after.style.opacity="1"; }, hold);
 
     const ctl = AI.run(fx,{
       onStage(i,st){
@@ -1706,20 +1967,39 @@ Screens["05"]=s=>{
       },
       onDone(f){
         rs.finish(); rs.remove();
-        if(f.result && f.result.delta==="small"){
-          const v=reveal.querySelector(".Frame__vig"); if(v) v.style.opacity=".22";
-          const ph=reveal.querySelector(".Frame__ph");
-          if(ph) ph.setAttribute("style", Img.phVars("fx-before","small-delta"));
+        /* проявка кончилась — сводим два слоя в один: дальше кадром правит переключатель */
+        after.style.transition=""; after.style.opacity="1";
+        after.classList.remove("Reveal__after");
+        if(before.parentNode) before.remove();
+        const small = !!(f.result && f.result.delta==="small");
+        if(small){
+          const v=after.querySelector(".Frame__vig"); if(v) v.style.opacity=".22";
+          const ph=after.querySelector(".Frame__ph");
+          if(ph) ph.setAttribute("style", Img.phVars("today-original","small-delta"));
         }
-        title.textContent = fmtMD(DEMO.today)+(f.result.preset==="SNOW GLOBE"?" · Snow globe":" · Upgraded");
+        title.textContent = fmtMD(DEMO.today)+(isEffect?" · "+effectTitle():" · Upgraded");
         kick.textContent = f.result.confidence==="low" ? "LOW CONFIDENCE" : "READY";
+        /* решения 15.6, 17.1 — пара «до / после» доступна и на бесплатном пути.
+           На 05 переключатель стоит ПОД кадром, а не над ним, как на 03/06/08/14:
+           кадр здесь во всю ширину и прижат к верхнему краю, над ним только
+           Dynamic Island. Место названо в отчёте как расхождение с заданием. */
+        if(!isEffect && !panel.querySelector(".Segment")){
+          const seg=versionSegment(["Original","Upgraded"], 1, ()=>reveal,
+            small ? {1:{seed:"today-original",variant:"small-delta"}} : null);
+          seg.style.marginBottom="var(--space-4)";
+          panel.insertBefore(seg, panel.firstChild);
+        }
         actions.innerHTML="";
         if(f.notice) actions.append(assign(el("div","t-body c-thinking"), f.notice));
         if(isEffect) Screens._effectDone(actions, f);
         else Screens._dailyDone(actions, f);
       },
       onFail(f){
-        rs.remove(); reveal.style.filter="blur(7px) saturate(.35)"; veil.style.opacity=".32";
+        rs.remove();
+        /* решение 17.2 — при ошибке верхний слой уходит в ноль: остаётся чистый оригинал,
+           кадр никуда не делся. Размывать его обратно было бы неправдой */
+        after.style.transition="opacity var(--motion-menu) var(--ease-standard)";
+        after.style.opacity="0";
         title.textContent=f.title; kick.textContent="";
         actions.innerHTML="";
         actions.append(assign(el("div","t-body c-error"), f.body||""));
@@ -1756,7 +2036,8 @@ Screens._dailyDone=(box, f)=>{
       onTap:()=>Sheets.confirmCoins({name:"Upgrade again",price:2,extra:true})}));
 };
 Screens._effectDone=(box, f)=>{
-  S.effectPreset=f.result.preset; S.effectSpent=4; saveState();
+  /* находка QA №1 — цена записана при покупке в confirmCoins, здесь её не трогаем */
+  S.effectPreset=f.result.preset; saveState();
   box.append(UI.Button({label:"See result",onTap:()=>Router.swapTop("14")}));
 };
 Screens._failAction=(id, f)=>{
@@ -1768,32 +2049,32 @@ Screens._failAction=(id, f)=>{
   if(id==="back"){ Router.tab("effects"); return; }
 };
 
+/* Блок «сохранённый день»: переключатель версий · кадр с вотермарком · две мета-строки.
+   Один и тот же на 06 / 06a (push) и на 03 в состоянии todayKept (вкладка) — решение 17.5.
+   Высота кадра — параметр: на вкладке над ним ещё вордмарк, строка дня и таб-бар. */
+function keptBlock(w, {extra=false, height="var(--size-frame-square-sm)"}={}){
+  const seg=versionSegment(extra ? ["Original","Upgraded",effectTitle()] : ["Original","Upgraded"],
+                           extra ? 2 : 1, ()=>w.querySelector(".KeptFrame"));
+  const box=el("div","KeptFrame");
+  box.style.position="relative"; box.style.borderRadius="var(--radius-lg)"; box.style.overflow="hidden";
+  box.style.height=height;
+  box.append(Img.make(extra?"fx-after":"today", null, extra?VERSION_OPTS[2]:VERSION_OPTS[1]),
+             el("div","CornerScrim"), watermarkEl());
+  const meta=el("div","stack gap1");
+  meta.append(metaLine((extra?effectUpper()+" · ":"")+fmtMDup(DEMO.today)),
+              metaLine(DEMO.kept+" DAYS KEPT · "+DEMO.periodLength+"-DAY DIARY","t-counter-meta c-tertiary"));
+  return {seg, box, meta};
+}
+
 /* --- 06 / 06a · День сохранён ------------------------------------------ */
 function keptScreen(s, extra){
   const w=scrollBox(s);
   w.append(navBack("Today"));
   w.append(assign(el("h1","t-display"),"Kept · "+fmtMD(DEMO.today)));
-  if(extra){
-    const seg=segment(["Original","Upgraded","Snow globe"],2,(i)=>{
-      const f=w.querySelector(".KeptFrame");
-      const src=["fx-before","today","fx-after"][i];
-      const nf=Img.make(src,null,VERSION_OPTS[i]); nf.className="Frame";
-      f.replaceChild(nf, f.firstChild);
-    });
-    seg.classList.add("mt4"); w.append(seg);
-  }
-  const box=el("div","KeptFrame mt3");
-  box.style.position="relative"; box.style.borderRadius="var(--radius-lg)"; box.style.overflow="hidden";
-  box.style.height = extra ? "var(--size-frame-square-sm)" : "var(--size-frame-square)";
-  box.append(Img.make(extra?"fx-after":"today", null, extra?VERSION_OPTS[2]:VERSION_OPTS[1]),
-             el("div","CornerScrim"), watermark());
-  w.append(box);
-
-  const meta=el("div","stack gap1 mt3");
-  meta.append(metaLine((extra?"SNOW GLOBE · ":"")+fmtMDup(DEMO.today)),
-              metaLine(DEMO.kept+" DAYS KEPT · 100-DAY DIARY","t-counter-meta c-tertiary"));
-  if(extra) meta.append(metaLine("◎ "+S.effectSpent+" SPENT · "+S.coins+" LEFT","t-counter-meta c-accent"));
-  w.append(meta);
+  const kb=keptBlock(w,{extra});
+  kb.seg.classList.add("mt4"); kb.box.classList.add("mt3"); kb.meta.classList.add("mt3");
+  if(extra) kb.meta.append(metaLine("◎ "+S.effectSpent+" SPENT · "+S.coins+" LEFT","t-counter-meta c-accent"));
+  w.append(kb.seg, kb.box, kb.meta);
 
   const tm=el("div","Tomorrow mt3");
   const tl=el("div","stack"); tl.style.flex="1";
@@ -1808,12 +2089,12 @@ function keptScreen(s, extra){
     const r=el("div","row"); r.style.justifyContent="space-between";
     const d=UI.Button({label:"Discard",variant:"text",onTap:()=>actionSheet([
       {label:"Discard this render",role:"destructive",onTap:()=>{
-        Analytics.track("effect_discarded",{preset_id:"snow_globe"});
+        Analytics.track("effect_discarded",{preset_id:presetId(effectTitle())});
         S.todayPreset="upgraded"; saveState(); Router.resetTo("03","06"); }},
       {label:"Cancel",role:"cancel"}])});
     d.style.width="auto"; d.style.color="var(--color-text-secondary)";
-    const g=UI.Button({label:"Render again · ◎ 4",variant:"text",
-      onTap:()=>Sheets.confirmCoins({name:"Snow globe",price:4})});
+    const g=UI.Button({label:"Render again · ◎ "+effectPrice(),variant:"text",
+      onTap:()=>Sheets.confirmCoins({name:effectTitle(),price:effectPrice()})});
     g.style.width="auto";
     r.append(d,g); a.append(r);
   }else{
@@ -1862,7 +2143,9 @@ Screens["07"]=s=>{
       Analytics.track("recap_opened",{period:"week",index:0});
       Router.go("10",{from:card});
     }}));
-    [["AUG 31 – SEP 6","day-14"],["AUG 24 – 30","day-09"],["AUG 17 – 23","day-04"]].forEach(([lb,a])=>{
+    /* кадр спайна — первый сохранённый день его недели по таблице `assets/FRAMES.md`:
+       31 авг = day-26, 24 авг = day-19, 17 авг = day-12 (в макете стояли чужие недели, п. 5) */
+    [["AUG 31 – SEP 6","day-26"],["AUG 24 – 30","day-19"],["AUG 17 – 23","day-12"]].forEach(([lb,a])=>{
       shelf.append(UI.RecapSpine({label:lb,asset:a,onTap:()=>Sheets.softPaywall("past_recap")}));
     });
   });
@@ -1896,18 +2179,20 @@ Screens["07"]=s=>{
 Screens["08"]=s=>{
   const i=S._viewDay||DEMO.dayIndex;
   const d=dayDate(i);
-  const extra = i===DEMO.dayIndex && S.todayPreset==="SNOW GLOBE";
+  const extra = i===DEMO.dayIndex && isExtra();
   const w=scrollBox(s,null,true);
   const top=el("div"); top.append(navBack("Diary"), assign(el("h1","t-display"),fmtMD(d)));
   w.append(top);
-  if(extra){ const sg=segment(["Original","Upgraded","Snow globe"],2); sg.classList.add("mt3"); w.append(sg); }
+  /* переключатель был декоративным — тапы ничего не меняли; тот же versionSegment, что на 06a */
+  if(extra){ const sg=versionSegment(["Original","Upgraded",effectTitle()],2,()=>w.querySelector(".Hero"));
+             sg.classList.add("mt3"); w.append(sg); }
   const hero=el("div","Hero Hero--day flush mt4"); hero.style.marginTop="var(--space-4)";
   hero.append(Img.make(frameOf(i), null, i===DEMO.dayIndex?VERSION_OPTS[1]:null),
-              el("div","CornerScrim"), watermark());
+              el("div","CornerScrim"), watermarkEl());
   w.append(hero);
   const m=el("div","stack gap1 mt4");
   const WD=["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
-  m.append(metaLine((extra?"SNOW GLOBE · ":"")+fmtMDup(d)+" · DAY "+i),
+  m.append(metaLine((extra?effectUpper()+" · ":"")+fmtMDup(d)+" · DAY "+i),
            assign(el("div","t-caption c-secondary"), WD[d.getDay()]+". Kept at 22:40."));
   w.append(m);
   const a=el("div","stack gap3 mt5");
@@ -1926,17 +2211,17 @@ Screens["09"]=s=>{
   w.append(n);
 
   const card=el("div","ShareCard mt4");
-  card.append(Img.make(S.todayPreset==="SNOW GLOBE"?"fx-after":"today", null,
-    S.todayPreset==="SNOW GLOBE"?VERSION_OPTS[2]:VERSION_OPTS[1]), el("div","Scrim7"));
+  card.append(Img.make(isExtra()?"fx-after":"today", null,
+    isExtra()?VERSION_OPTS[2]:VERSION_OPTS[1]), el("div","Scrim7"));
   const t=el("div","ShareCard__text stack gap2");
   t.append(assign(el("div","t-counter-meta c-on-image"),
-             "DAY "+DEMO.dayIndex+(S.todayPreset==="SNOW GLOBE"?" · SNOW GLOBE":"")+" · "+fmtMDup(DEMO.today)),
+             "DAY "+DEMO.dayIndex+(isExtra()?" · "+effectUpper():"")+" · "+fmtMDup(DEMO.today)),
            assign(el("div","t-h2 c-on-image"),
-             S.todayPreset==="SNOW GLOBE"
+             isExtra()
                ? "Everyone gets one upgrade a day — this one went further."
                : "Everyone gets one upgrade a day."));
   card.append(t);
-  if(!S.subscriber) card.append(watermark());
+  if(!S.subscriber) card.append(watermarkEl());
   w.append(card);
 
   const row=el("button","TapRow mt5");
@@ -1951,9 +2236,8 @@ Screens["09"]=s=>{
   w.append(row);
 
   const a=el("div","stack gap3 mt4");
-  a.append(UI.Button({label:"Share…",onTap:()=>{
-    Analytics.track("result_shared",{artifact:"day",destination:"system_sheet",watermark:!S.subscriber});
-    banner("Shared with the system share sheet"); }}));
+  /* решение 17 — вместо баннера открывается шит шеринга; событие уходит с адресатом */
+  a.append(UI.Button({label:"Share…",onTap:()=>Sheets.share("day")}));
   a.append(UI.Button({label:"Save image",variant:"secondary",onTap:()=>{
     Analytics.track("result_shared",{artifact:"day",destination:"photos",watermark:!S.subscriber});
     if(S.subscriber) Analytics.track("quality_render",{trigger:"export",count_this_month:1});
@@ -1984,10 +2268,8 @@ Screens["10"]=s=>{
       Sheets.strongPaywall(600);
     }else{
       const a=el("div","stack gap3 mt5");
-      a.append(UI.Button({label:"Share this week",onTap:()=>{
-        Analytics.track("recap_shared",{period:"week",watermark:false});
-        Analytics.track("quality_render",{trigger:"recap",count_this_month:4});
-        banner("Week 6 shared"); }}));
+      /* решение 17 — тот же шит, что на 09; события уходят из него с адресатом */
+      a.append(UI.Button({label:"Share this week",onTap:()=>Sheets.share("week", fx)}));
       a.append(UI.Button({label:"Compose again",variant:"secondary",onTap:()=>{
         S._recapFixture="recap/composing"; Router.swapTop("10"); }}));
       w.append(a);
@@ -2053,7 +2335,7 @@ Screens["11"]=s=>{
   [["Anime world",3,"fx-anime"],["Your street in 1995",4,"fx-1995"],
    ["Change the weather",2,"fx-weather"],["Snow globe",4,"fx-snow"]].forEach(([n,p,a])=>{
     const state = !S.todayKept ? "not-enough" : (S.coins<p ? "not-enough":"default");
-    Analytics.track("effect_price_seen",{preset_id:n.toLowerCase().replace(/[^a-z]+/g,"_"),price:p});
+    Analytics.track("effect_price_seen",{preset_id:presetId(n),price:p});
     grid.append(UI.EffectTile({name:n,price:p,asset:a,state,onTap:()=>{
       if(!S.todayKept){ banner("Keep today’s frame first"); return; }
       if(S.coins<p){ Analytics.track("limit_reached",{limit_type:"coins"}); Sheets.coinPacks(); return; }
@@ -2071,31 +2353,27 @@ Screens["11"]=s=>{
 Screens["14"]=s=>{
   const w=scrollBox(s,null,true);
   const top=el("div"); top.append(navBack("Effects")); w.append(top);
-  const sg=segment(["Original","Upgraded","Snow globe"],2,(i)=>{
-    const f=w.querySelector(".Hero");
-    const nf=Img.make(["fx-before","today","fx-after"][i], null, VERSION_OPTS[i]);
-    f.replaceChild(nf, f.firstChild);
-  });
+  const sg=versionSegment(["Original","Upgraded",effectTitle()],2,()=>w.querySelector(".Hero"));
   sg.classList.add("mt2"); w.append(sg);
   const hero=el("div","Hero Hero--day flush mt4"); hero.style.marginTop="var(--space-4)";
-  hero.append(Img.make("fx-after",null,VERSION_OPTS[2]), el("div","CornerScrim"), watermark());
+  hero.append(Img.make("fx-after",null,VERSION_OPTS[2]), el("div","CornerScrim"), watermarkEl());
   w.append(hero);
-  w.append(metaLine("AI · SNOW GLOBE · ◎ "+S.effectSpent+" SPENT · "+S.coins+" LEFT","t-counter-meta c-accent mt4"));
+  w.append(metaLine("AI · "+effectUpper()+" · ◎ "+S.effectSpent+" SPENT · "+S.coins+" LEFT","t-counter-meta c-accent mt4"));
   const a=el("div","stack gap3 mt4");
   a.append(UI.Button({label:"Keep as today",onTap:()=>{
-    S.todayPreset="SNOW GLOBE"; S.todayKept=true; saveState();
-    Analytics.track("effect_kept",{preset_id:"snow_globe"});
+    S.todayPreset="EXTRA"; S.todayKept=true; saveState();
+    Analytics.track("effect_kept",{preset_id:presetId(effectTitle())});
     Router.resetTo("03","06a");
   }}));
   a.append(UI.Button({label:"Share",variant:"secondary",onTap:()=>Router.go("09")}));
   const r=el("div","row"); r.style.justifyContent="space-between";
   const d=UI.Button({label:"Discard",variant:"text",onTap:()=>actionSheet([
     {label:"Discard this render",role:"destructive",onTap:()=>{
-      Analytics.track("effect_discarded",{preset_id:"snow_globe"}); Router.tab("effects"); }},
+      Analytics.track("effect_discarded",{preset_id:presetId(effectTitle())}); Router.tab("effects"); }},
     {label:"Cancel",role:"cancel"}])});
   d.style.width="auto"; d.style.color="var(--color-text-secondary)";
-  const g=UI.Button({label:"Render again · ◎ 4",variant:"text",
-    onTap:()=>Sheets.confirmCoins({name:"Snow globe",price:4})});
+  const g=UI.Button({label:"Render again · ◎ "+effectPrice(),variant:"text",
+    onTap:()=>Sheets.confirmCoins({name:effectTitle(),price:effectPrice()})});
   g.style.width="auto";
   r.append(d,g); a.append(r); w.append(a);
 };
@@ -2183,13 +2461,16 @@ Sheets.picker = (source)=>{
     const rec=assign(el("div","t-h2"),"Recents");
     rec.style.padding="0 var(--size-gutter)"; b.append(rec);
     const grid=el("div","PickGrid");
-    for(let i=1;i<=12;i++){
+    /* решение 17.10 — первой в Recents стоит настоящая пара «до / после» */
+    const recents=["today-original"];
+    for(let i=1;i<=11;i++) recents.push("day-"+String(i).padStart(2,"0"));
+    recents.forEach(a=>{
       const c=el("button"); c.style.cssText="padding:0;border:0;background:none";
-      const f=Img.make("day-"+String(i).padStart(2,"0")); f.style.height="var(--size-pick-cell)";
+      const f=Img.make(a); f.style.height="var(--size-pick-cell)";
       c.append(f);
-      c.addEventListener("click",()=>pick("day-"+String(i).padStart(2,"0"),null));
+      c.addEventListener("click",()=>pick(a,null));
       grid.append(c);
-    }
+    });
     b.append(grid);
 
     function pick(asset, rank){
@@ -2228,6 +2509,46 @@ Sheets.photoAccess = ()=>{
   }});
 };
 
+/* Шит после шеринга (решение 17) — имитация системного листа iOS в токенах проекта.
+   Один и тот же шит на 09 «Share…» и на 10 «Share this week».
+   Открытие и закрытие — по реестру №5–7, одна шторка за раз — по №29.
+   Свайп вниз и тап по фону закрывают без события: это не пейвол. */
+Sheets.share = (kind, fx)=>{
+  const day = kind!=="week";
+  const wm  = day ? !S.subscriber : false;
+  UI.Sheet({detent:"medium", build(b, api){
+    b.style.paddingLeft="0"; b.style.paddingRight="0";
+    let thumb;
+    if(day){
+      thumb=Img.make(isExtra()?"fx-after":"today", null,
+        isExtra()?VERSION_OPTS[2]:VERSION_OPTS[1]);
+    }else{
+      thumb=el("div","RecapComp");
+      ["TL","TR","BL","BR"].forEach(q=>{
+        const it=((fx&&fx.quadrants)||[]).find(x=>x.q===q);
+        thumb.append(it ? Img.make(it.asset) : el("div","Frame"));
+      });
+    }
+    /* адресат и действие ведут себя одинаково: событие → закрытие → баннер */
+    const fire=(id)=>{
+      if(day) Analytics.track("result_shared",{artifact:"day",destination:id,watermark:wm});
+      else{
+        Analytics.track("recap_shared",{period:"week",destination:id,watermark:wm});
+        Analytics.track("quality_render",{trigger:"recap",count_this_month:4});
+      }
+      api.close();
+      setTimeout(()=>banner(SHARE_BANNER[id]||"Shared"), MS("--motion-sheet-out")+20);
+    };
+    b.append(UI.ShareSheet({
+      kind: day?"day":"week", watermark:wm, thumb,
+      title: day ? "Meantime · Day "+DEMO.dayIndex+" of "+DEMO.periodLength
+                 : "Week "+((fx&&fx.week)||6)+" · Meantime",
+      sub:   wm ? "Image · watermark on" : "Image · full quality",
+      onPick: fire
+    }));
+  }});
+};
+
 /* Мягкий пейвол — Save in full quality (решения 6.1, 7.5) */
 Sheets.softPaywall = (trigger)=>{
   Analytics.track("paywall_shown",{type:"soft",trigger});
@@ -2235,7 +2556,7 @@ Sheets.softPaywall = (trigger)=>{
     b.append(assign(el("div","t-h1"),"Save in full quality"));
     const ul=el("ul","Bullets");
     ["Full resolution, no watermark","Recaps every week, every month — and at day 100",
-     "Every past day — bring in the photos you already took","Replace your photo, any day",
+     "Every past upgrade — bring in the photos you already took","Replace your photo, any day",
      "20 coins every month, for special days","Your 100 days, composed when they end"]
       .forEach(t=>{ const li=el("li"); li.append(assign(el("span","t-caption"),t)); ul.append(li); });
     b.append(ul);
@@ -2256,7 +2577,7 @@ Sheets.strongPaywall = (delay)=>{
                "This week, every Sunday after — and your 100 days, when they end."));
     const ul=el("ul","Bullets");
     ["Recaps every week, every month — and at day 100",
-     "Every past day — bring in the 2 photos you took",
+     "Every past upgrade — bring in the 2 photos you took",
      "Full resolution, no watermark",
      "20 coins every month, for special days"]
       .forEach(t=>{ const li=el("li"); li.append(assign(el("span","t-caption"),t)); ul.append(li); });
@@ -2377,7 +2698,7 @@ Sheets.whyCoins = ()=>{
   UI.Sheet({detent:"medium", build(b, api){
     b.append(assign(el("div","t-h1"),"Why effects cost coins"),
       assign(el("div","t-body c-secondary"),
-        "One upgrade a day is on us — the same for everyone. Every render beyond that one is an extra "+
+        "One upgrade a day is on us — the same one for everyone. Every render beyond that one is an extra "+
         "trip to the servers, and coins pay for it. A plan includes 20 coins a month."));
     const sp=el("div"); sp.style.flex="1"; b.append(sp);
     b.append(UI.Button({label:"Got it",variant:"text",onTap:api.close}));
@@ -2402,9 +2723,13 @@ Sheets.confirmCoins = ({name, price, extra})=>{
     const sp=el("div"); sp.style.flex="1"; b.append(sp);
     if(enough){
       b.append(UI.Button({label:"Render · "+price+" coins",onTap:()=>{
-        Analytics.track("effect_confirmed",{preset_id:name.toLowerCase().replace(/[^a-z]+/g,"_"),
+        Analytics.track("effect_confirmed",{preset_id:presetId(name),
           price, balance_after:S.coins-price});
-        S.coins-=price; S.effectSpent=price; saveState(); api.close();
+        S.coins-=price; S.effectSpent=price;
+        /* находка QA №2 — имя пресета едет из плитки каталога, а не из фикстуры.
+           «Upgrade again» (extra) — не эффект каталога, имя не перебиваем */
+        if(!extra){ S.effectName=name; S.effectPrice=price; }
+        saveState(); api.close();
         S._fixture = S._fixtureOverride && S._fixtureOverride.indexOf("effect/")===0
           ? S._fixtureOverride : "effect/success";
         setTimeout(()=>Router.go("05"),120);
@@ -2429,7 +2754,11 @@ const EventLogView = {
 (function boot(){
   const qs=new URLSearchParams(location.search);
   if(qs.get("reset")!==null) { try{ localStorage.clear(); }catch(e){} }
-  loadState();
+  /* решение 17.4 — состояние не переживает перезагрузку: каждая загрузка начинается
+     с заставки и пустого Today. Внутри сессии saveState() работает как раньше.
+     Буфер событий meantime.events не трогаем — он нужен для отчёта по метрикам. */
+  try{ localStorage.removeItem("meantime.state"); }catch(e){}
+  S.onboarded=true;   /* 01 и 02 выпали из пути по умолчанию, живут в дев-панели */
   EventLogView.node=document.getElementById("eventLog");
 
   /* дев-панель: сценарии фикстур, чтобы состояния AI были достижимы вручную */
@@ -2449,11 +2778,20 @@ const EventLogView = {
   document.getElementById("devReset").addEventListener("click",()=>{
     try{ localStorage.clear(); }catch(e){} location.href=location.pathname; });
 
-  Analytics.track("session_started",{returning:S.onboarded,day_index:DEMO.dayIndex,period:S.period});
+  /* решение 17.4 — онбординг и выбор периода выпали из пути по умолчанию,
+     но нужны для кейса: держим их достижимыми отсюда */
+  const devBtn=(label,fn)=>{ const b=document.createElement("button");
+    b.textContent=label; b.addEventListener("click",fn); bar.append(b); };
+  devBtn("01 Onboarding",()=>{ S.todayKept=false; S.todayPreset=null; S.attempts=0;
+    saveState(); Router.reset("01"); });
+  devBtn("02 Period",()=>Sheets.period(false));
+
+  Analytics.track("session_started",{returning:false,day_index:DEMO.dayIndex,period:S.period});
 
   const hash=(location.hash||"").replace("#/","");
-  const start = hash && Screens[hash] ? hash : (S.onboarded ? "03" : "01");
+  const start = hash && Screens[hash] ? hash : "03";
   Router.reset(start);
+  splash();
 })();
 
 /* ============================================================================
@@ -2605,7 +2943,8 @@ const Demo = {
     b.addEventListener("click",()=>Demo.start());
     bar.append(b);
   }
-  if(qs.get("demo")!==null) setTimeout(()=>Demo.start(), 600);
+  /* автодемо стартует после заставки (решение 17.4), а не поверх неё */
+  if(qs.get("demo")!==null) setTimeout(()=>Demo.start(), SPLASH_MS()+MS("--motion-alert"));
 })();
 </script>
 </body>

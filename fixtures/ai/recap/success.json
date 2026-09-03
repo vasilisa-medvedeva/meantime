@@ -15,29 +15,29 @@
     {
       "q": "TL",
       "day": 39,
-      "asset": "recap-2",
-      "luma": 0.44,
+      "asset": "recap-1",
+      "luma": 0.58,
       "locked": true
     },
     {
       "q": "TR",
       "day": 40,
-      "asset": "recap-3",
-      "luma": 0.52,
+      "asset": "recap-2",
+      "luma": 0.6,
       "locked": true
     },
     {
       "q": "BL",
-      "day": 34,
-      "asset": "recap-1",
-      "luma": 0.17,
+      "day": 37,
+      "asset": "recap-4",
+      "luma": 0.21,
       "locked": false
     },
     {
       "q": "BR",
-      "day": 37,
-      "asset": "recap-4",
-      "luma": 0.38,
+      "day": 34,
+      "asset": "recap-3",
+      "luma": 0.63,
       "locked": false
     }
   ],
