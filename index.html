@@ -2445,6 +2445,7 @@ Screens["05"]=s=>{
            автопоказ дельты стартует уже на спокойном экране */
         const ease=getComputedStyle(document.documentElement).getPropertyValue("--ease-standard");
         const DM=MS("--motion-menu"), DI=MS("--motion-sheet-in");
+        const h0=panel.offsetHeight;                       /* решение 17.44 — высота до смены содержимого */
         rs.finish();
         rs.style.transition="opacity "+DM+"ms "+ease; rs.style.opacity="0";
         setTimeout(()=>rs.remove(), DM+20);
@@ -2484,6 +2485,17 @@ Screens["05"]=s=>{
         if(f.notice) actions.append(assign(el("div","t-body c-thinking"), f.notice));
         if(isEffect) Screens._effectDone(actions, f);
         else Screens._dailyDone(actions, f);
+        /* решение 17.44 — прозрачность была сглажена, а высота нет: панель со стадиями исчезала,
+           и всё под ней подпрыгивало; потом вставлялись переключатель и кнопки, и содержимое
+           сдвигалось вниз. Стадии уводим из потока и гасим, а высоту панели ведём одной
+           плавной кривой от старой к новой */
+        panel.style.position="relative";
+        rs.style.position="absolute"; rs.style.left="var(--size-gutter)"; rs.style.right="var(--size-gutter)";
+        rs.style.top="var(--space-5)"; rs.style.pointerEvents="none";
+        const h1=panel.offsetHeight;
+        panel.style.height=h0+"px"; panel.style.overflow="hidden"; void panel.offsetWidth;
+        panel.style.transition="height "+DI+"ms "+ease; panel.style.height=h1+"px";
+        setTimeout(()=>{ panel.style.transition=""; panel.style.height=""; panel.style.overflow=""; }, DI+40);
       },
       onFail(f){
         rs.remove();
