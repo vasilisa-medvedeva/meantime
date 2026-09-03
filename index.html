@@ -2394,6 +2394,7 @@ Screens["05"]=s=>{
   w.append(hero);
 
   const panel=el("div","stack gap4"); panel.style.padding="var(--space-5) var(--size-gutter) 0";
+  panel.style.background="var(--color-bg-primary)";   /* решение 17.46 — панель непрозрачна: ничего под ней не просвечивает ни в один момент проявления */
   w.append(panel);
 
   AI.load(path).then(raw=>{
