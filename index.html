@@ -2336,8 +2336,7 @@ Screens["03"]=s=>{
     const a=el("div","stack gap3 mt4");
     a.append(UI.Button({label:"Share today",onTap:()=>goShare(DEMO.dayIndex)}));
     /* решение 17.8 — `Open diary` здесь дубль: под ней таб-бар с вкладкой DIARY.
-       На 06 кнопка остаётся, там таб-бара нет */
-    a.append(UI.Button({label:"Replace photo",variant:"text",onTap:()=>Sheets.softPaywall("replace_photo")}));
+       Решение 17.69 — «Replace photo» снята и здесь: это то же состояние дня, что и 06 */
     w.append(a);
   }
   centerBox(w);
@@ -2506,7 +2505,7 @@ Screens["05"]=s=>{
         setTimeout(()=>{ actions.style.transition=""; }, DM+DI+20);
         if(f.notice) actions.append(assign(el("div","t-body c-thinking"), f.notice));
         if(isEffect) Screens._effectDone(actions, f);
-        else Screens._dailyDone(actions, f);
+        else Screens._dailyDone(actions, f, panel.querySelector(".Segment"));
         /* решение 17.44 — прозрачность была сглажена, а высота нет: панель со стадиями исчезала,
            и всё под ней подпрыгивало; потом вставлялись переключатель и кнопки, и содержимое
            сдвигалось вниз. Стадии уводим из потока и гасим, а высоту панели ведём одной
@@ -2534,22 +2533,21 @@ Screens["05"]=s=>{
     });
   });
 };
-Screens._dailyDone=(box, f)=>{
+Screens._dailyDone=(box, f, seg)=>{
   S.attempts++;
+  /* решение 17.68 — отдельной кнопки «Keep without the upgrade» нет: выбор уже сделан
+     переключателем. Стоит Original — сохраняем исходный кадр и дневную порцию,
+     стоит Developed — проявленный. Кнопка сохраняет ровно то, что видно на экране. */
   box.append(UI.Button({label:"Keep in diary",onTap:()=>{
-    S.todayKept=true; S.todayPreset=f.result.preset; saveState();
-    Analytics.track("day_kept",{with_filter:true,restored:false});
-    Analytics.track("limit_reached",{limit_type:"daily_renders"});
+    const original = seg && seg.index === 0;
+    S.todayKept=true; S.todayPreset = original ? "none" : f.result.preset; saveState();
+    Analytics.track("day_kept",{with_filter:!original,restored:false});
+    if(!original) Analytics.track("limit_reached",{limit_type:"daily_renders"});
     Router.resetTo("03","06");
   }}));
   box.append(UI.Button({label: S.attempts>=3 ? "Another photo · ◎ 2" : "Pick another photo",variant:"secondary",onTap:()=>{
     if(S.attempts>=3){ Sheets.confirmCoins({name:"Develop again",price:2,extra:true}); return; }
     Router.back(); Sheets.gallery("library");
-  }}));
-  box.append(UI.Button({label:"Keep without the upgrade",variant:"text",onTap:()=>{
-    S.todayKept=true; S.todayPreset="none"; saveState();
-    Analytics.track("day_kept",{with_filter:false,restored:false});
-    Router.resetTo("03","06");
   }}));
   if(f.result.confidence==="low")
     box.append(UI.Button({label:"Develop again — on us",variant:"text",onTap:()=>{
@@ -2622,9 +2620,10 @@ function keptScreen(s, extra){
       onTap:()=>Sheets.confirmCoins({name:effectTitle(),price:effectPrice()})});
     g.style.width="auto";
     r.append(d,g); a.append(r);
-  }else{
-    a.append(UI.Button({label:"Replace photo",variant:"text",onTap:()=>Sheets.softPaywall("replace_photo")}));
   }
+  /* решение 17.69 — «Replace photo» на сохранённом дне снята: выбор уже сделан
+     переключателем и кнопкой «Keep in diary». Замена кадра остаётся там, где она
+     действительно нужна и платная, — на прошлом дне (08) */
   w.append(a);
 }
 Screens["06"] = s=>keptScreen(s,false);
@@ -2640,6 +2639,7 @@ function segment(items, sel, onChange){
     b.addEventListener("click",()=>{ g.select(i); onChange && onChange(i,t); });
     g.append(b);
   });
+  g.index = sel;
   function place(i){
     const items2=g.querySelectorAll(".Segment__item");
     const r=items2[i].getBoundingClientRect(), gr=g.getBoundingClientRect();
@@ -2649,6 +2649,7 @@ function segment(items, sel, onChange){
      с кадром и теми же длительностями. Иначе контрол врёт: кадр показывает одно,
      подпись другое — и заодно теряется подсказка, что переключатель вообще есть. */
   g.select=(i, ms)=>{
+    g.index = i;
     [...g.querySelectorAll(".Segment__item")].forEach((x,j)=>x.setAttribute("aria-selected",String(j===i)));
     if(ms){ ind.style.transitionDuration=ms+"ms";
             setTimeout(()=>{ ind.style.transitionDuration=""; }, ms+40); }
