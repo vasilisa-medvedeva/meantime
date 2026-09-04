@@ -106,13 +106,13 @@
      ======================================================================= */
   --size-frame-w:390px;          /* решение 5.1 — кадр iOS */
   --size-frame-h:844px;          /* решение 5.1 */
-  --size-gutter:var(--space-6);  /* поле 24…366, ux-brief «Общее для всех экранов» */
+  --size-gutter:var(--space-4);  /* решение 17.104 — поле 16…374 вместо 24…366 */
   --size-hero-h:560px;           /* ui-spec §05 — кадр 390×560 */
   --size-hero-day-h:520px;       /* ux-brief §08 — кадр 390×520 */
-  --size-frame-square:342px;     /* ui-spec §06 — кадр 342×342 */
+  --size-frame-square:358px;     /* ui-spec §06 — кадр во всю колонку, при поле 16 это 358 */
   /* решение 17.96 — сохранённый день показывается в пропорциях снимка, а не квадратом:
      342 × 1152 / 928 = 425. Кадр не режется, и день выглядит так же, как в дневнике */
-  --size-frame-portrait:425px;
+  --size-frame-portrait:444px;   /* 358 × 1152 / 928 — пропорции снимка */
   --size-frame-square-sm:300px;  /* ui-spec §06a — кадр ужат до 342×300 */
   --size-frame-today:300px;      /* решение 17.8 — кадр на вкладке Today, состояние «сохранено» */
   --size-filter-img-h:330px;     /* решение 17.90 — образец занял место описания */
@@ -166,6 +166,7 @@
   /* решение 17.101 — спуск: сначала гаснет хром камеры, потом кадр переходит
      в проявление. Дольше обычного перехода: это смена задачи, а не шаг назад-вперёд */
   --motion-capture-chrome:180ms;
+  --motion-capture-flash:220ms;  /* решение 17.103 — вспышка спуска, как в системной камере */
   --motion-capture:560ms;  /* решение 17.2 — оригинал стоит чётким до кросс-фейда */
   --motion-viewfinder:20000ms; /* решение 17.19 — 1.0 → 1.04 в видоискателе, туда и обратно */
   /* однократный показ дельты после проявления (решение 17.32) */
@@ -828,7 +829,10 @@ h1,h2,h3,p,ul,ol{margin:0;padding:0}
   background:var(--color-glass-fill);backdrop-filter:var(--effect-glass);
   -webkit-backdrop-filter:var(--effect-glass);
   border:var(--size-hairline) solid var(--color-glass-hairline)}
-.FilterCard__foot{padding:var(--space-4);display:flex;flex-direction:column;gap:var(--space-3)}
+/* решение 17.104 — внутреннее поле карточки равно полю экрана: текст под кадром
+   стоит на той же вертикали, что заголовки выше и кнопки ниже */
+.FilterCard__foot{padding:var(--space-4) var(--size-gutter) var(--space-5);
+  display:flex;flex-direction:column;gap:var(--space-3)}
 
 /* --- 05 проявление --- */
 .Hero{position:relative;height:var(--size-hero-h);width:100%}
@@ -869,7 +873,9 @@ h1,h2,h3,p,ul,ol{margin:0;padding:0}
 .Segment__item[aria-selected="true"]{color:var(--color-accent-default)}
 
 /* --- блок TOMORROW (идея 21) --- */
-.Tomorrow{display:flex;align-items:baseline;gap:var(--space-3);
+/* решение 17.102 — счётчик стоит на одной строке с названием обработки, а не с ярлыком
+   «TOMORROW»: выравниваем по низу, тогда оба текста читаются как одна строка */
+.Tomorrow{display:flex;align-items:flex-end;gap:var(--space-3);
   min-height:var(--size-tomorrow-h);padding:0 var(--space-4);
   background:var(--color-surface-raised);border-radius:var(--radius-md)}
 
@@ -893,9 +899,13 @@ h1,h2,h3,p,ul,ol{margin:0;padding:0}
 .Camera{position:absolute;inset:0;background:var(--color-bg-primary);overflow:hidden;
   display:flex;flex-direction:column}
 /* поля сверху и снизу — на них живут элементы; раньше они лежали поверх изображения */
-.Camera__top{flex:0 0 var(--size-camera-top);display:flex;align-items:center;
+/* решение 17.104 — видоискатель стоит там же, где кадр на экране проявления:
+   от верхнего края и высотой в героя. Тогда при спуске фотография не переезжает,
+   а хром камеры лежит поверх неё, как в системной камере */
+.Camera__top{position:absolute;top:0;left:0;right:0;z-index:4;
+  height:var(--size-camera-top);display:flex;align-items:center;
   padding:var(--size-safe-top) var(--space-4) 0}
-.Camera__view{position:relative;flex:0 0 var(--size-camera-preview-h);overflow:hidden}
+.Camera__view{position:absolute;top:0;left:0;right:0;height:var(--size-hero-h);overflow:hidden}
 .Camera__view .Frame{border-radius:0}
 /* очень медленный масштаб: изображение читается живым, а не фотографией.
    alternate вместо простого повтора — иначе на 20-й секунде кадр скачком возвращается в 1.0 */
@@ -914,11 +924,18 @@ h1,h2,h3,p,ul,ol{margin:0;padding:0}
 .Camera__close::before{content:"";position:absolute;inset:0;border-radius:inherit;
   background:var(--color-glass-floor);z-index:-1}
 .Camera__close:active{transform:scale(.97);opacity:.8}
+/* Вспышка спуска: белое поле поверх кадра на четверть секунды. Даёт физический отклик —
+   «снято» — и прикрывает смену интерфейса под ней (решение 17.103) */
+.CameraFlash{position:absolute;inset:0;z-index:6;pointer-events:none;
+  background:var(--color-text-on-image);opacity:0;
+  animation:capture-flash var(--motion-capture-flash) var(--ease-standard) forwards}
+@keyframes capture-flash{0%{opacity:0} 18%{opacity:.92} 100%{opacity:0}}
 /* решение 17.101 — на спуске интерфейс камеры уходит первым, кадр остаётся */
 .Camera__top,.Camera__bar{transition:opacity var(--motion-capture-chrome) var(--ease-accel)}
 .Camera.is-shooting .Camera__top,.Camera.is-shooting .Camera__bar{opacity:0;pointer-events:none}
 .Camera__bar{
-  flex:1;z-index:3;padding:0 var(--size-gutter) var(--size-safe-bottom);
+  position:absolute;left:0;right:0;top:var(--size-hero-h);bottom:0;z-index:3;
+  padding:0 var(--size-gutter) var(--size-safe-bottom);
   display:grid;grid-template-columns:1fr auto 1fr;align-items:center}
 .Camera__thumb{
   justify-self:start;width:var(--size-tap-min);height:var(--size-tap-min);
@@ -1201,7 +1218,9 @@ const DEMO = {
      слова «developed», пока не увидит, что оно делает с кадром. Имя техническое,
      как у плёнки, а не рекламное: оно называет рецепт, а не обещает результат. */
   todayLook:"Film 35 #1 + Wes #3",
-  upgradeTomorrow:"ANOTHER UPGRADE",
+  /* решение 17.102 — завтрашняя обработка названа: человек знает, ради чего вернётся.
+     Имя из того же словаря, что и сегодняшнее — рецепт, а не обещание */
+  upgradeTomorrow:"Portra 400 #2 + Sofia #1",
   countdownStart:14*3600 + 32*60 + 6, // FREE UPGRADE RENEWS IN 14:32:06
   coinsStart:8,
   periodEnd:new Date(2026,10,12),   // Nov 12
@@ -2478,6 +2497,10 @@ function shoot(source){
   const cam=document.querySelector(".Camera");
   const go=()=>Router.go("05",{dissolve:true, ms:MS("--motion-capture")});
   if(cam && source==="camera"){
+    if(!matchMedia("(prefers-reduced-motion: reduce)").matches){
+      const flash=el("div","CameraFlash"); cam.append(flash);
+      setTimeout(()=>flash.remove(), MS("--motion-capture-flash")+40);
+    }
     cam.classList.add("is-shooting");
     setTimeout(go, MS("--motion-capture-chrome"));
   } else go();
