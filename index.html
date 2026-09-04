@@ -112,7 +112,7 @@
   --size-frame-square:342px;     /* ui-spec §06 — кадр 342×342 */
   --size-frame-square-sm:300px;  /* ui-spec §06a — кадр ужат до 342×300 */
   --size-frame-today:300px;      /* решение 17.8 — кадр на вкладке Today, состояние «сохранено» */
-  --size-filter-img-h:240px;     /* ui-spec §03 — образец кадра 342×240 */
+  --size-filter-img-h:330px;     /* решение 17.90 — образец занял место описания */
   --size-recap-comp-h:250px;     /* ui-spec §10 — композиция 342×250 */
   --size-sheet-medium:440px;     /* компонент Sheet 95:14 */
   --size-sheet-large:720px;      /* компонент Sheet 95:14 */
@@ -2363,9 +2363,9 @@ Screens["03"]=s=>{
     card.append(img);
     const foot=el("div","FilterCard__foot");
     /* решение 17.14 — карточка спрашивает, а не объявляет функцию */
-    foot.append(assign(el("div","t-h1"), "What does today look like?"),
-      assign(el("div","t-body c-secondary"),
-        "Today\u2019s look, on someone else\u2019s frame. Shoot one to see yours."));
+    /* решение 17.90 — описания нет: образец с шторкой показывает то же самое
+       и убедительнее любой строки. Место отдано кадру */
+    foot.append(assign(el("div","t-h1"), "What does today look like?"));
     const r=el("div","row gap2");
     r.append(metaLine("FREE UPGRADE RENEWS IN","t-counter-meta c-tertiary"), counterEl());
     foot.append(r);
