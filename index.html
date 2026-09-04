@@ -317,7 +317,10 @@ h1,h2,h3,p,ul,ol{margin:0;padding:0}
     /* масштаб не меняет место в потоке — подтягиваем то, что под устройством */
     margin-bottom:calc((var(--size-frame-h) + 2 * var(--size-stage-bezel)) * (var(--stage-scale,1) - 1));
   }
-  body .DevBar{display:flex!important}
+  /* решение 17.138 — дев-панель убрана с витрины: проверяющему она не нужна и мешает
+     читать мокап. Достаётся по ?dev, состояния AI по-прежнему доступны через ?fixture=,
+     экраны — через ?screen=. Кнопка запуска круга живёт в панели витрины, не здесь. */
+  body.is-dev .DevBar{display:flex!important}
   /* Панель управления витрины (решение 17.31): человек приходит по прямой ссылке
      из кейса, круг он уже видел и хочет потрогать — поэтому автостарта тут нет,
      экран открывается обычным и всё кликабельно. Кнопка запускает тот же Demo.start(). */
@@ -1182,18 +1185,6 @@ h1,h2,h3,p,ul,ol{margin:0;padding:0}
   35%{opacity:1;transform:scale(1)}
   100%{opacity:0;transform:scale(1.25)}
 }
-.DemoBadge{
-  position:absolute;z-index:52;left:50%;transform:translateX(-50%);
-  bottom:calc(var(--size-safe-bottom) + var(--size-tabbar-h) + var(--space-5));
-  padding:var(--space-2) var(--space-4);border-radius:var(--radius-full);
-  background:var(--color-glass-fill);border:var(--size-hairline) solid var(--color-glass-hairline);
-  backdrop-filter:var(--effect-glass);-webkit-backdrop-filter:var(--effect-glass);
-  isolation:isolate;color:var(--color-text-tertiary);
-  opacity:0;transition:opacity var(--motion-menu) var(--ease-standard);pointer-events:auto;
-}
-.DemoBadge::before{content:"";position:absolute;inset:0;border-radius:inherit;
-  background:var(--color-glass-floor);z-index:-1}
-.DemoBadge.is-on{opacity:1}
 @media (prefers-reduced-motion:reduce){ .DemoTap.is-on{animation-duration:var(--motion-menu)} }
 
 /* --- решение 28 реестра: prefers-reduced-motion --- */
@@ -3541,6 +3532,7 @@ const EventLogView = {
 (function boot(){
   const qs=new URLSearchParams(location.search);
   if(qs.get("reset")!==null) { try{ localStorage.clear(); }catch(e){} }
+  if(qs.get("dev")!==null) document.body.classList.add("is-dev");   /* решение 17.138 */
   /* решение 17.4 — состояние не переживает перезагрузку: каждая загрузка начинается
      с заставки и пустого Today. Внутри сессии saveState() работает как раньше.
      Буфер событий meantime.events не трогаем — он нужен для отчёта по метрикам. */
@@ -3609,7 +3601,7 @@ const EventLogView = {
    Выключается целиком: не вызывать Demo.start() — остального кода не касается.
    ========================================================================= */
 const Demo = {
-  on:false, timers:[], badge:null, waiter:null,
+  on:false, timers:[], waiter:null,
 
   /* Телеметрия для страницы кейса: прототип встраивается как живой мокап с ?demo,
      рядом идёт полоса прогресса. Полоса должна идти по настоящему кругу, а не по
@@ -3636,19 +3628,14 @@ const Demo = {
   /* смена шага сообщается сразу, не дожидаясь следующей секунды */
   at(name){ this.step=name; this.tick(); },
 
-  ui(){
-    if(this.badge) return;
-    const dev=document.getElementById("device");
-    this.badge=el("div","DemoBadge t-caption");
-    this.badge.textContent="Demo paused · tap to resume";
-    this.badge.addEventListener("click",e=>{ e.stopPropagation(); this.start(); });
-    dev.append(this.badge);
-  },
+  /* решение 17.139 — плашки «Demo paused» внутри устройства нет: как только зритель
+     коснулся экрана, он проходит прототип руками, и подсказка только мешает. Перезапуск
+     живёт снаружи: кнопка панели витрины по прямой ссылке и кнопка повтора на странице кейса. */
 
   /* перехват — на фазе захвата, чтобы сработать раньше любого обработчика экрана */
   arm(){
     if(this._armed) return; this._armed=true;
-    const stop=(e)=>{ if(this.on && !(this.badge && this.badge.contains(e.target))) this.stop(); };
+    const stop=(e)=>{ if(this.on) this.stop(); };
     const dev=document.getElementById("device");
     ["pointerdown","touchstart","mousedown","keydown","wheel"].forEach(t=>
       dev.addEventListener(t, stop, {capture:true, passive:true}));
@@ -3656,8 +3643,8 @@ const Demo = {
   },
 
   start(){
-    this.ui(); this.arm();
-    this.on=true; this.badge.classList.remove("is-on");
+    this.arm();
+    this.on=true;
     Object.keys(DEMO_MOTION).forEach(k=>document.documentElement.style.setProperty(k,DEMO_MOTION[k]));
     document.querySelectorAll(".DemoTap").forEach(n=>n.remove());
     if(!this.beat) this.beat=setInterval(()=>this.tick(), 1000);
@@ -3671,7 +3658,6 @@ const Demo = {
     this.timers.forEach(clearTimeout); this.timers=[];
     if(this.waiter){ this.waiter.reject && this.waiter.reject("stopped"); this.waiter=null; }
     document.querySelectorAll(".DemoTap").forEach(n=>n.remove());
-    this.badge.classList.add("is-on");
     /* зритель перехватил управление — дальше он проходит прототип руками,
        и тайминги обязаны вернуться к значениям 17.27 */
     Object.keys(DEMO_MOTION).forEach(k=>document.documentElement.style.removeProperty(k));
