@@ -426,7 +426,7 @@ h1,h2,h3,p,ul,ol{margin:0;padding:0}
 
 /* --- DayCell · 89:16 · State (6) ---------------------------------------- */
 .DayCell{
-  position:relative;width:var(--size-day-cell);height:var(--size-day-cell);
+  position:relative;width:100%;aspect-ratio:1;
   border-radius:var(--radius-sm);overflow:visible;
   background:var(--color-surface-day-empty);
   display:flex;align-items:center;justify-content:center;
@@ -739,6 +739,9 @@ h1,h2,h3,p,ul,ol{margin:0;padding:0}
 .gap1{gap:var(--space-1)}.gap2{gap:var(--space-2)}.gap3{gap:var(--space-3)}
 .gap4{gap:var(--space-4)}.gap5{gap:var(--space-5)}.gap6{gap:var(--space-6)}
 .row{display:flex;align-items:center}
+/* решение 17.99 — ярлык и счётчик стоят на одной базовой линии: 11 pt капслок рядом
+   с 17 pt цифрами при выравнивании по центру висел выше, чем читается как ошибка */
+.row--baseline{align-items:baseline}
 .mt2{margin-top:var(--space-2)}.mt3{margin-top:var(--space-3)}.mt4{margin-top:var(--space-4)}
 .mt5{margin-top:var(--space-5)}.mt6{margin-top:var(--space-6)}.mt8{margin-top:var(--space-8)}
 .center{text-align:center}
@@ -862,7 +865,7 @@ h1,h2,h3,p,ul,ol{margin:0;padding:0}
 .Segment__item[aria-selected="true"]{color:var(--color-accent-default)}
 
 /* --- блок TOMORROW (идея 21) --- */
-.Tomorrow{display:flex;align-items:center;gap:var(--space-3);
+.Tomorrow{display:flex;align-items:baseline;gap:var(--space-3);
   min-height:var(--size-tomorrow-h);padding:0 var(--space-4);
   background:var(--color-surface-raised);border-radius:var(--radius-md)}
 
@@ -871,8 +874,12 @@ h1,h2,h3,p,ul,ol{margin:0;padding:0}
   padding:0 var(--size-gutter);scrollbar-width:none}
 .Shelf::-webkit-scrollbar{display:none}
 .Shelf > *{scroll-snap-align:start}
-.WeekHead,.DayField{display:grid;grid-template-columns:repeat(7,var(--size-day-cell));
-  gap:calc(var(--size-day-step) - var(--size-day-cell));justify-content:center}
+/* решение 17.100 — поле дней держит те же поля, что заголовки: 24 слева и справа.
+   Прежде сетка была центрирована при фиксированной ячейке 40 и вставала на 31 —
+   семь пикселей расхождения с текстом читались как съехавший отступ.
+   Ячейка тянется, промежуток фиксирован: 7 × 42 + 6 × 8 = 342 ровно. */
+.WeekHead,.DayField{display:grid;grid-template-columns:repeat(7,1fr);
+  gap:calc(var(--size-day-step) - var(--size-day-cell));justify-content:stretch}
 .WeekHead > span{text-align:center;color:var(--color-text-tertiary)}
 
 /* --- 04a камера (решение 17.19) ----------------------------------------
@@ -934,7 +941,9 @@ h1,h2,h3,p,ul,ol{margin:0;padding:0}
    Градиент съедал нижнюю треть снимка и читался как часть обработки; плашка занимает
    ровно место текста и оставляет фотографию целой. */
 .ShareCard__text{position:absolute;left:0;right:0;bottom:0;z-index:2;
-  padding:var(--space-4) var(--space-4) var(--space-5);
+  /* решение 17.99 — подпись прижата к нижнему краю карточки: у вордмарка
+     интерлиньяж 1.08, снизу и так остаётся оптический запас */
+  padding:var(--space-4) var(--space-4) var(--space-3);
   background:var(--color-glass-fill);backdrop-filter:var(--effect-glass-dense);
   -webkit-backdrop-filter:var(--effect-glass-dense);
   border-top:var(--size-hairline) solid var(--color-glass-hairline)}
@@ -2398,7 +2407,7 @@ Screens["03"]=s=>{
     /* решение 17.90 — описания нет: образец с шторкой показывает то же самое
        и убедительнее любой строки. Место отдано кадру */
     foot.append(assign(el("div","t-h1"), "What does today look like?"));
-    const r=el("div","row gap2");
+    const r=el("div","row row--baseline gap2");
     r.append(metaLine("FREE UPGRADE RENEWS IN","t-counter-meta c-tertiary"), counterEl());
     foot.append(r);
     card.append(foot); w.append(card);
