@@ -162,7 +162,11 @@
   --motion-sheet-in:400ms;
   --motion-render-fast:4000ms; --motion-render-quality:6000ms;
   --motion-stream-char:22ms;
-  --motion-reveal-hold:1000ms;  /* решение 17.2 — оригинал стоит чётким до кросс-фейда */
+  --motion-reveal-hold:1000ms;
+  /* решение 17.101 — спуск: сначала гаснет хром камеры, потом кадр переходит
+     в проявление. Дольше обычного перехода: это смена задачи, а не шаг назад-вперёд */
+  --motion-capture-chrome:180ms;
+  --motion-capture:560ms;  /* решение 17.2 — оригинал стоит чётким до кросс-фейда */
   --motion-viewfinder:20000ms; /* решение 17.19 — 1.0 → 1.04 в видоискателе, туда и обратно */
   /* однократный показ дельты после проявления (решение 17.32) */
   /* решение 17.85 — выдержки показа дельты сняты вместе с ним: разницу теперь
@@ -910,6 +914,9 @@ h1,h2,h3,p,ul,ol{margin:0;padding:0}
 .Camera__close::before{content:"";position:absolute;inset:0;border-radius:inherit;
   background:var(--color-glass-floor);z-index:-1}
 .Camera__close:active{transform:scale(.97);opacity:.8}
+/* решение 17.101 — на спуске интерфейс камеры уходит первым, кадр остаётся */
+.Camera__top,.Camera__bar{transition:opacity var(--motion-capture-chrome) var(--ease-accel)}
+.Camera.is-shooting .Camera__top,.Camera.is-shooting .Camera__bar{opacity:0;pointer-events:none}
 .Camera__bar{
   flex:1;z-index:3;padding:0 var(--size-gutter) var(--size-safe-bottom);
   display:grid;grid-template-columns:1fr auto 1fr;align-items:center}
@@ -2063,14 +2070,18 @@ const Router = {
       setTimeout(done, DZ+20);
     }else if(mode==="dissolve"){
       /* решение 17.34 — спуск → проявление: в видоискателе и в проявлении одна и та же
-         фотография, она остаётся на месте, меняется только интерфейс вокруг */
+         фотография, она остаётся на месте, меняется только интерфейс вокруг.
+         Решение 17.101 — длительность своя, дольше обычного перехода, и экран под ним
+         гаснет одновременно: иначе сквозь полупрозрачную панель просвечивал спуск */
+      const DD = opts.ms || D;
       s.style.opacity="0";
       this.el().append(s); void s.offsetWidth;
       requestAnimationFrame(()=>{
-        s.style.transition="opacity "+D+"ms "+ease;
+        s.style.transition="opacity "+DD+"ms "+ease;
         s.style.opacity="1";
+        if(below){ below.el.style.transition="opacity "+DD+"ms "+ease; below.el.style.opacity="0"; }
       });
-      setTimeout(()=>{ if(below) below.el.style.visibility="hidden"; done(); }, D+20);
+      setTimeout(()=>{ if(below){ below.el.style.visibility="hidden"; below.el.style.opacity=""; } done(); }, DD+20);
     }else if(mode==="zoom"){
       const dev=document.getElementById("device").getBoundingClientRect();
       const r=opts.from.getBoundingClientRect();
@@ -2456,7 +2467,15 @@ function shoot(source){
   S.pickedFrame="today-original";
   Analytics.track("photo_selected",{source, attempt:S.attempts+1});
   S._fixture = S._fixtureOverride || "daily-frame/success";
-  Router.go("05",{dissolve:true});   /* решение 17.34 */
+  /* решение 17.101 — сначала уходит интерфейс камеры, кадр остаётся на месте,
+     и только потом приходит проявление. Так переход читается как «снял», а не
+     как «один экран растворился в другом» */
+  const cam=document.querySelector(".Camera");
+  const go=()=>Router.go("05",{dissolve:true, ms:MS("--motion-capture")});
+  if(cam && source==="camera"){
+    cam.classList.add("is-shooting");
+    setTimeout(go, MS("--motion-capture-chrome"));
+  } else go();
 }
 
 /* --- 04a · Камера (решение 17.19) --------------------------------------
