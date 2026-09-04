@@ -760,18 +760,42 @@ h1,h2,h3,p,ul,ol{margin:0;padding:0}
    как будет проявлен твой. Врезка слева — тот же кадр до обработки, чтобы разница
    читалась без объяснений. */
 .FilterCard__sample{position:absolute;inset:0;overflow:hidden}
-/* Оригинал лежит поверх проявленного и проступает по кругу: 2.6 с проявленный,
-   0.7 с переход, 1.4 с оригинал, 0.7 с обратно. Подпись состояния идёт тем же тактом. */
-.FilterCard__orig{position:absolute;inset:0;opacity:0;
-  animation:sample-swap var(--motion-sample-cycle) var(--ease-standard) infinite}
+/* Решение 17.87 — обработка въезжает шторкой справа, стоит и уходит влево,
+   открывая оригинал. Граница видна полосой: так разница читается точнее, чем
+   при растворении, — видно, что именно меняется в кадре. Такт: 0.8 с вход,
+   2.6 с проявленный, 0.8 с уход, 1.2 с оригинал. */
+.FilterCard__dev{position:absolute;inset:0;
+  clip-path:inset(0 0 0 100%);
+  animation:sample-wipe var(--motion-sample-cycle) var(--ease-standard) infinite}
+.FilterCard__edge{
+  position:absolute;top:0;bottom:0;left:100%;width:var(--size-hairline);z-index:2;
+  background:var(--color-text-on-image);opacity:0;
+  box-shadow:var(--effect-glow-accent-sm);
+  animation:sample-edge var(--motion-sample-cycle) var(--ease-standard) infinite}
 .FilterCard__state{position:absolute;left:var(--space-4);top:var(--space-4);z-index:3;
   width:var(--size-sample-cap-w);height:var(--size-sample-cap-h)}
 .FilterCard__state span{position:absolute;left:0;top:0;white-space:nowrap}
-.FilterCard__state .is-after{animation:sample-cap var(--motion-sample-cycle) var(--ease-standard) infinite}
-.FilterCard__state .is-before{opacity:0;
-  animation:sample-swap var(--motion-sample-cycle) var(--ease-standard) infinite}
-@keyframes sample-swap{0%,48%{opacity:0} 61%,87%{opacity:1} 100%{opacity:0}}
-@keyframes sample-cap{0%,48%{opacity:1} 61%,87%{opacity:0} 100%{opacity:1}}
+.FilterCard__state .is-after{opacity:0;
+  animation:sample-cap-after var(--motion-sample-cycle) var(--ease-standard) infinite}
+.FilterCard__state .is-before{
+  animation:sample-cap-before var(--motion-sample-cycle) var(--ease-standard) infinite}
+@keyframes sample-wipe{
+  0%{clip-path:inset(0 0 0 100%)}
+  15%{clip-path:inset(0 0 0 0)}
+  63%{clip-path:inset(0 0 0 0)}
+  78%,100%{clip-path:inset(0 100% 0 0)}}
+@keyframes sample-edge{
+  0%{left:100%;opacity:0}
+  2%{opacity:1}
+  15%{left:0;opacity:1}
+  17%,62%{left:0;opacity:0}
+  63%{left:100%;opacity:1}
+  78%{left:0;opacity:1}
+  80%,100%{left:0;opacity:0}}
+@keyframes sample-cap-after{
+  0%,10%{opacity:0} 16%,63%{opacity:1} 72%,100%{opacity:0}}
+@keyframes sample-cap-before{
+  0%,10%{opacity:1} 16%,63%{opacity:0} 72%,100%{opacity:1}}
 .FilterCard__tag{
   position:absolute;right:var(--space-4);top:var(--space-4);z-index:2;
   padding:var(--space-1) var(--space-3);border-radius:var(--radius-full);
@@ -1091,7 +1115,7 @@ h1,h2,h3,p,ul,ol{margin:0;padding:0}
      Настройка защищает от движения, а здесь ничего не движется: это растворение,
      которое HIG сам предлагает как замену движению. Выключать его — значит отнять
      у человека единственное место, где видно, что делает обработка. */
-  .FilterCard__orig,.FilterCard__state span{animation-duration:calc(var(--motion-sample-cycle) * 1.6)}
+  .FilterCard__dev,.FilterCard__edge,.FilterCard__state span{animation-duration:calc(var(--motion-sample-cycle) * 1.6)}
 }
 </style>
 
@@ -2325,10 +2349,10 @@ Screens["03"]=s=>{
     /* решение 17.83 — на кадре нет текста: он показывает обработку сам,
        а вопрос и объяснение стоят под ним, где их удобно читать */
     const sample=el("div","FilterCard__sample");
-    sample.append(Img.make("sample-after"));
-    const orig=el("div","FilterCard__orig");
-    orig.append(Img.make("sample-before"));
-    sample.append(orig);
+    sample.append(Img.make("sample-before"));            /* оригинал лежит снизу */
+    const dev=el("div","FilterCard__dev");               /* обработка въезжает поверх */
+    dev.append(Img.make("sample-after"));
+    sample.append(dev, el("div","FilterCard__edge"));
     const st=el("div","FilterCard__state");
     st.append(assign(el("span","t-counter-meta c-on-image is-after"),"AFTER"),
               assign(el("span","t-counter-meta c-on-image is-before"),"BEFORE"));
