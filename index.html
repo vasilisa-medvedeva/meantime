@@ -127,6 +127,8 @@
   --size-pick-cell:94px;         /* ux-brief §04 — ячейка сетки 94 */
   --size-tomorrow-h:56px;        /* ui-spec §06 — блок TOMORROW сжат до 56 */
   --size-lens-mark:64px;
+  --size-coin:15px;              /* решение 17.93 — монета рисуется, а не набирается символом */
+  --size-coin-core:5px;
   /* решение 17.83 — образец дня сам показывает разницу: проявленный стоит,
      уходит в оригинал и возвращается. Такт тот же, что у показа дельты после проявки */
   --motion-sample-cycle:5400ms;
@@ -759,6 +761,16 @@ h1,h2,h3,p,ul,ol{margin:0;padding:0}
 /* Образец сегодняшней обработки (решение 17.81): чужой кадр, проявленный так же,
    как будет проявлен твой. Врезка слева — тот же кадр до обработки, чтобы разница
    читалась без объяснений. */
+/* Монета: кольцо с ядром, как в компоненте BalanceChip. Символ ◎ в разных
+   шрифтах рисуется по-разному и в кнопке сидел выше базовой линии (решение 17.93) */
+.Coin{display:inline-block;position:relative;flex:0 0 auto;
+  width:var(--size-coin);height:var(--size-coin);border-radius:var(--radius-full);
+  border:var(--size-hairline) solid currentColor;vertical-align:-2px}
+.Coin::after{content:"";position:absolute;left:50%;top:50%;
+  width:var(--size-coin-core);height:var(--size-coin-core);
+  margin:calc(var(--size-coin-core) / -2) 0 0 calc(var(--size-coin-core) / -2);
+  border-radius:var(--radius-full);background:currentColor}
+.Button__label .Coin{margin:0 var(--space-1) 0 var(--space-2)}
 .FilterCard__sample{position:absolute;inset:0;overflow:hidden}
 /* Решение 17.87 — обработка въезжает шторкой справа, стоит и уходит влево,
    открывая оригинал. Граница видна полосой: так разница читается точнее, чем
@@ -1578,7 +1590,11 @@ const UI = {
   Button({label, variant="primary", state="default", onTap, icon}){
     const b=el("button","Button");
     b.dataset.variant=variant; b.dataset.state=state;
-    const s=el("span","Button__label"); s.textContent=label;
+    const s=el("span","Button__label");
+    /* подпись может быть строкой или набором узлов — так в неё встаёт нарисованная монета */
+    if(Array.isArray(label)) label.forEach(x=>s.append(x));
+    else if(label instanceof Node) s.append(label);
+    else s.textContent=label;
     if(icon){ const i=el("span",null,icon); b.append(i); }
     b.append(s);
     if(onTap) b.addEventListener("click", e=>{ if(b.dataset.state==="disabled") return; onTap(e); });
@@ -2299,10 +2315,14 @@ function effectFixture(fx){
 /* Переключатель версий кадра (реестр №33, решения 15.6, 15.14, 17.1).
    hostFn возвращает контейнер, первый ребёнок которого — текущий кадр.
    Подмена кросс-фейдом в том же размере: «свет изменился», а не прыжок вёрстки. */
-function versionSegment(labels, sel, hostFn, override){
+/* решение 17.94 — оригинал из переключателей убран: после того как день сохранён,
+   исходный кадр человеку больше не нужен, разницу он видел на карточке дня.
+   Поэтому позиции задаются явным списком версий, а не индексом в FRAME_VERSIONS. */
+function versionSegment(labels, sel, hostFn, override, versions){
+  const table = versions || FRAME_VERSIONS;
   const swap = (i, ms)=>{
     const host = hostFn(); if(!host) return;
-    const v = FRAME_VERSIONS[i]; if(!v) return;
+    const v = table[i]; if(!v) return;
     const old = host.firstChild;
     const nf = Img.make(v.src, null, (override && override[i]) || v.opts);
     nf.classList.add("Frame--fade");
@@ -2385,8 +2405,10 @@ Screens["03"]=s=>{
     /* решение 17.5 — день сохранён: та же раскладка, что на 06 (110:91), внутри вкладки.
        Вордмарк, строка дня, ряд про монеты и таб-бар остаются: это Today, а не push-экран. */
     const kb=keptBlock(w,{extra:isExtra(), height:"var(--size-frame-today)"});   /* 300, решение 17.8 */
-    kb.seg.classList.add("mt4"); kb.box.classList.add("mt3"); kb.meta.classList.add("mt3");
-    w.append(kb.seg, kb.box, kb.meta);
+    if(kb.seg) kb.seg.classList.add("mt4");
+    kb.box.classList.add(kb.seg ? "mt3" : "mt4"); kb.meta.classList.add("mt3");
+    if(kb.seg) w.append(kb.seg);
+    w.append(kb.box, kb.meta);
 
     const q=el("button","row gap2 mt3"); q.style.justifyContent="space-between"; q.style.width="100%";
     q.append(assign(el("span","t-body c-secondary"),"Today’s free upgrade is used · more with coins"),
@@ -2609,7 +2631,8 @@ Screens._dailyDone=(box, f)=>{
     Analytics.track("limit_reached",{limit_type:"daily_renders"});
     Router.resetTo("03","06");
   }}));
-  box.append(UI.Button({label: S.attempts>=3 ? "Another photo · ◎ 2" : "Pick another photo",variant:"secondary",onTap:()=>{
+  const priceLabel=(text, price)=>[document.createTextNode(text+" · "), el("span","Coin"), document.createTextNode(" "+price)];
+  box.append(UI.Button({label: S.attempts>=3 ? priceLabel("Another photo", 2) : "Pick another photo",variant:"secondary",onTap:()=>{
     if(S.attempts>=3){ Sheets.confirmCoins({name:"Develop again",price:2,extra:true}); return; }
     Router.back(); Sheets.gallery("library");
   }}));
@@ -2640,9 +2663,12 @@ Screens._failAction=(id, f)=>{
    Один и тот же на 06 / 06a (push) и на 03 в состоянии todayKept (вкладка) — решение 17.5.
    Высота кадра — параметр: на вкладке над ним ещё вордмарк, строка дня и таб-бар. */
 function keptBlock(w, {extra=false, height="var(--size-frame-square-sm)"}={}){
-  const seg=versionSegment(extra ? ["Original","Developed",effectTitle()] : ["Original","Developed"],
-                           extra ? 2 : 1, ()=>w.querySelector(".KeptFrame"));
   const box=el("div","KeptFrame");
+  /* решение 17.94 — без эффекта переключать нечего: экран показывает проявленный день.
+     С купленным эффектом остаются два состояния: дневная обработка и эффект. */
+  const seg = extra
+    ? versionSegment(["Developed", effectTitle()], 1, ()=>box, null, FRAME_VERSIONS.slice(1))
+    : null;
   box.style.position="relative"; box.style.borderRadius="var(--radius-lg)"; box.style.overflow="hidden";
   box.style.height=height;
   box.append(Img.make(extra?"fx-after":"today", null, extra?VERSION_OPTS[2]:VERSION_OPTS[1]),
@@ -2659,9 +2685,11 @@ function keptScreen(s, extra){
   w.append(navBack("Today"));
   w.append(assign(el("h1","t-display"),"Kept · "+fmtMD(DEMO.today)));
   const kb=keptBlock(w,{extra});
-  kb.seg.classList.add("mt4"); kb.box.classList.add("mt3"); kb.meta.classList.add("mt3");
+  if(kb.seg) kb.seg.classList.add("mt4");
+  kb.box.classList.add(kb.seg ? "mt3" : "mt4"); kb.meta.classList.add("mt3");
   if(extra) kb.meta.append(metaLine("◎ "+S.effectSpent+" SPENT · "+S.coins+" LEFT","t-counter-meta c-accent"));
-  w.append(kb.seg, kb.box, kb.meta);
+  if(kb.seg) w.append(kb.seg);
+  w.append(kb.box, kb.meta);
 
   const tm=el("div","Tomorrow mt3");
   const tl=el("div","stack"); tl.style.flex="1";
@@ -2780,7 +2808,7 @@ Screens["08"]=s=>{
   const top=el("div"); top.append(navBack("Diary"), assign(el("h1","t-display"),fmtMD(d)));
   w.append(top);
   /* переключатель был декоративным — тапы ничего не меняли; тот же versionSegment, что на 06a */
-  if(extra){ const sg=versionSegment(["Original","Developed",effectTitle()],2,()=>w.querySelector(".Hero"));
+  if(extra){ const sg=versionSegment(["Developed",effectTitle()],1,()=>w.querySelector(".Hero"),null,FRAME_VERSIONS.slice(1));
              sg.classList.add("mt3"); w.append(sg); }
   const hero=el("div","Hero Hero--day flush mt4"); hero.style.marginTop="var(--space-4)";
   hero.append(Img.make(frameOf(i), null, i===DEMO.dayIndex?VERSION_OPTS[1]:null),
@@ -2971,7 +2999,7 @@ Screens["11"]=s=>{
 Screens["14"]=s=>{
   const w=scrollBox(s,null,true);
   const top=el("div"); top.append(navBack("Effects")); w.append(top);
-  const sg=versionSegment(["Original","Developed",effectTitle()],2,()=>w.querySelector(".Hero"));
+  const sg=versionSegment(["Developed",effectTitle()],1,()=>w.querySelector(".Hero"),null,FRAME_VERSIONS.slice(1));
   sg.classList.add("mt2"); w.append(sg);
   const hero=el("div","Hero Hero--day flush mt4"); hero.style.marginTop="var(--space-4)";
   hero.append(Img.make("fx-after",null,VERSION_OPTS[2]), el("div","CornerScrim"), watermarkEl());
