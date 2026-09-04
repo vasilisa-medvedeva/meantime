@@ -160,9 +160,8 @@
   --motion-reveal-hold:1000ms;  /* решение 17.2 — оригинал стоит чётким до кросс-фейда */
   --motion-viewfinder:20000ms; /* решение 17.19 — 1.0 → 1.04 в видоискателе, туда и обратно */
   /* однократный показ дельты после проявления (решение 17.32) */
-  --motion-delta-hold-result:900ms;    /* результат стоит, прежде чем показать оригинал */
-  --motion-delta-fade:800ms;           /* кросс-фейд туда и обратно (17.50: было 600) */
-  --motion-delta-hold-original:1200ms; /* оригинал стоит */
+  /* решение 17.85 — выдержки показа дельты сняты вместе с ним: разницу теперь
+     показывает образец на карточке дня, у него свой такт --motion-sample-cycle */
   --ease-standard:cubic-bezier(.32,.72,0,1);
   --ease-crossfade:cubic-bezier(.45,0,.55,1); /* решение 17.50 — симметричная кривая для смены кадра: без рывка на старте */
   --ease-sheet:cubic-bezier(.34,1.2,.64,1);
@@ -2291,32 +2290,6 @@ function versionSegment(labels, sel, hostFn, override){
   return g;
 }
 
-/* Однократный показ дельты (решение 17.32). Проявление кончилось — кадр сам один раз
-   показывает оригинал и возвращается к результату. Разницу иначе видит только тот,
-   кто сам нашёл переключатель, а дельта — главный аргумент продукта (решение 15.6).
-   Отмена любым касанием: слушатель на фазе захвата, как у перехвата автодемо,
-   поэтому срабатывает раньше обработчиков экрана, а само касание идёт дальше.
-   При prefers-reduced-motion показ не запускается вовсе: мигание кадром — ровно то,
-   от чего эта настройка защищает; мгновенная подмена была бы тем же миганием. */
-function deltaPeek(seg){
-  if(matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-  const dev=document.getElementById("device");
-  const F=MS("--motion-delta-fade"),
-        H1=MS("--motion-delta-hold-result"),
-        H2=MS("--motion-delta-hold-original");
-  let live=true; const timers=[];
-  const stop=()=>{ if(!live) return; live=false;
-    timers.forEach(clearTimeout);
-    ["pointerdown","touchstart","mousedown"].forEach(t=>dev.removeEventListener(t,stop,true)); };
-  ["pointerdown","touchstart","mousedown"].forEach(t=>
-    dev.addEventListener(t,stop,{capture:true,passive:true}));
-  /* экран мог смениться раньше, чем показ отыграл — тогда просто гасим таймеры */
-  const alive=()=>live && document.contains(seg);
-  timers.push(setTimeout(()=>{ if(alive()) seg.swapTo(0,F); else stop(); }, H1));
-  timers.push(setTimeout(()=>{ if(alive()) seg.swapTo(1,F); else stop(); }, H1+F+H2));
-  timers.push(setTimeout(stop, H1+F+H2+F+80));
-}
-
 const Screens = {};
 
 /* --- 01 · Вход --------------------------------------------------------- */
@@ -2553,19 +2526,10 @@ Screens["05"]=s=>{
           kick.textContent = f.result.confidence==="low" ? "LOW CONFIDENCE" : "READY";
           [title,kick].forEach(n=>{ n.style.opacity="1"; });
         }, DM);
-        /* решения 15.6, 17.1 — пара «до / после» доступна и на бесплатном пути.
-           На 05 переключатель стоит ПОД кадром, а не над ним, как на 03/06/08/14:
-           кадр здесь во всю ширину и прижат к верхнему краю, над ним только
-           Dynamic Island. Место названо в отчёте как расхождение с заданием. */
-        if(!isEffect && !panel.querySelector(".Segment")){
-          const seg=versionSegment(["Original","Developed"], 1, ()=>reveal,
-            small ? {1:{seed:"today-original",variant:"small-delta"}} : null);
-          seg.style.marginBottom="var(--space-4)";
-          seg.style.opacity="0"; seg.style.transition="opacity "+DI+"ms "+ease;
-          panel.insertBefore(seg, panel.firstChild); void seg.offsetWidth;
-          setTimeout(()=>{ seg.style.opacity="1"; }, DM);
-          setTimeout(()=>{ seg.style.transition=""; deltaPeek(seg); }, DM+DI);   /* решение 17.32 — после того как панель успокоилась */
-        }
+        /* решение 17.85 — на экране проявления переключателя нет: он показывает
+           результат, а разницу человек уже видел на карточке дня, где образец
+           сам ходит между оригиналом и проявленным. Пара «до / после» осталась
+           на сохранённом дне (06) и на эффектах (14), где кадр уже свой */
         /* решение 17.72 — прозрачность выставляем БЕЗ перехода и до того, как внутрь
            лягут кнопки: иначе контейнер начинал гаснуть с непрозрачности, а кнопки,
            вставленные следом, успевали проявиться, погаснуть вместе с ним и всплыть заново */
@@ -2578,7 +2542,7 @@ Screens["05"]=s=>{
         setTimeout(()=>{ actions.style.transition=""; }, DM+DI+20);
         if(f.notice) actions.append(assign(el("div","t-body c-thinking"), f.notice));
         if(isEffect) Screens._effectDone(actions, f);
-        else Screens._dailyDone(actions, f, panel.querySelector(".Segment"));
+        else Screens._dailyDone(actions, f);
         /* решение 17.44 — прозрачность была сглажена, а высота нет: панель со стадиями исчезала,
            и всё под ней подпрыгивало; потом вставлялись переключатель и кнопки, и содержимое
            сдвигалось вниз. Стадии уводим из потока и гасим, а высоту панели ведём одной
@@ -2606,16 +2570,13 @@ Screens["05"]=s=>{
     });
   });
 };
-Screens._dailyDone=(box, f, seg)=>{
+Screens._dailyDone=(box, f)=>{
   S.attempts++;
-  /* решение 17.68 — отдельной кнопки «Keep without the upgrade» нет: выбор уже сделан
-     переключателем. Стоит Original — сохраняем исходный кадр и дневную порцию,
-     стоит Developed — проявленный. Кнопка сохраняет ровно то, что видно на экране. */
+  /* решение 17.85 — экран показывает один кадр, кнопка сохраняет ровно его */
   box.append(UI.Button({label:"Keep in diary",onTap:()=>{
-    const original = seg && seg.index === 0;
-    S.todayKept=true; S.todayPreset = original ? "none" : f.result.preset; saveState();
-    Analytics.track("day_kept",{with_filter:!original,restored:false});
-    if(!original) Analytics.track("limit_reached",{limit_type:"daily_renders"});
+    S.todayKept=true; S.todayPreset=f.result.preset; saveState();
+    Analytics.track("day_kept",{with_filter:true,restored:false});
+    Analytics.track("limit_reached",{limit_type:"daily_renders"});
     Router.resetTo("03","06");
   }}));
   box.append(UI.Button({label: S.attempts>=3 ? "Another photo · ◎ 2" : "Pick another photo",variant:"secondary",onTap:()=>{
@@ -3598,8 +3559,7 @@ const Demo = {
     /* Ждём, пока отыграет показ дельты (17.32), и только потом уходим: при короткой
        выдержке демо покидало 05 раньше, чем показ успевал начаться, и зритель его не видел.
        Считаем от токенов, а не числом, чтобы не разъехалось при следующей правке темпа. */
-    await this.sleep(MS("--motion-delta-hold-result")+MS("--motion-delta-fade")*2
-                     +MS("--motion-delta-hold-original")+1000);   /* 17.43: результат стоит 1 с после показа */
+    await this.sleep(2200);   /* 17.85: результат стоит сам по себе, показывать нечего */
     await this.tap(this.btn("Keep in diary"));
 
     /* 06 — день сохранён: подпись кадра, счётчик, блок TOMORROW */
