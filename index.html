@@ -762,7 +762,9 @@ h1,h2,h3,p,ul,ol{margin:0;padding:0}
 .FilterCard__sample{position:absolute;inset:0;overflow:hidden}
 /* Решение 17.87 — обработка въезжает шторкой справа, стоит и уходит влево,
    открывая оригинал. Граница видна полосой: так разница читается точнее, чем
-   при растворении, — видно, что именно меняется в кадре. Такт: 0.8 с вход,
+   при растворении, — видно, что именно меняется в кадре. Решение 17.89 —
+   уходит туда же, откуда пришёл: справа налево и обратно направо, движение
+   читается как одно, а не как две разные анимации. Такт: 0.8 с вход,
    2.6 с проявленный, 0.8 с уход, 1.2 с оригинал. */
 .FilterCard__dev{position:absolute;inset:0;
   clip-path:inset(0 0 0 100%);
@@ -782,16 +784,15 @@ h1,h2,h3,p,ul,ol{margin:0;padding:0}
 @keyframes sample-wipe{
   0%{clip-path:inset(0 0 0 100%)}
   15%,63%{clip-path:inset(0 0 0 0)}
-  78%,100%{clip-path:inset(0 100% 0 0)}}
+  78%,100%{clip-path:inset(0 0 0 100%)}}
 @keyframes sample-edge{
   0%{left:100%;opacity:0}
   2%{opacity:1}
   15%{left:0;opacity:1}
-  17%{left:0;opacity:0}
-  62%{left:100%;opacity:0}
-  64%{left:100%;opacity:1}
-  78%{left:0;opacity:1}
-  80%,100%{left:0;opacity:0}}
+  17%,63%{left:0;opacity:0}
+  64%{left:0;opacity:1}
+  78%{left:100%;opacity:1}
+  80%,100%{left:100%;opacity:0}}
 @keyframes sample-cap-after{
   0%,10%{opacity:0} 16%,63%{opacity:1} 72%,100%{opacity:0}}
 @keyframes sample-cap-before{
