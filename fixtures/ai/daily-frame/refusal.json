@@ -4,7 +4,7 @@
   "error_type": "refusal",
   "fail_after_ms": 2200,
   "quota_spent": false,
-  "title": "This one can’t be developed.",
+  "title": "We can’t develop this one",
   "body": "Keep it as it is, or pick another.",
   "actions": [
     {
@@ -14,7 +14,7 @@
     },
     {
       "id": "another",
-      "label": "Choose another photo",
+      "label": "Pick another photo",
       "variant": "secondary"
     }
   ]

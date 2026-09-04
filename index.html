@@ -1264,28 +1264,28 @@ const FIXTURES = {
   stages:[{id:"reading",label:"Reading your frame",ms:900},
           {id:"rendering",label:"Developing",ms:2100},
           {id:"developing",label:"Finishing",ms:1000}],
-  result:{preset:"UPGRADED",asset:"today",confidence:"ok"}},
+  result:{preset:"DEVELOPED",asset:"today",confidence:"ok"}},
 "daily-frame/slow":{scenario:"daily_frame",fixture:"slow",tier:"fast",latency_ms:15000,
   slow_threshold_ms:12000,cancelable_until:"developing",
   stages:[{id:"reading",label:"Reading your frame",ms:1200},
           {id:"rendering",label:"Developing",ms:11000},
           {id:"developing",label:"Finishing",ms:2800}],
-  slow_notice:"Taking longer than usual. Your daily frame isn’t used until it’s done.",
-  result:{preset:"UPGRADED",asset:"today",confidence:"ok"}},
+  slow_notice:"Taking longer than usual. Your free upgrade isn’t used until it’s done.",
+  result:{preset:"DEVELOPED",asset:"today",confidence:"ok"}},
 "daily-frame/error":{scenario:"daily_frame",fixture:"error",error_type:"network",fail_after_ms:2600,
-  quota_spent:false,title:"Couldn’t develop this one.",body:"Your daily frame is still yours.",
+  quota_spent:false,title:"Couldn’t develop this one",body:"Your free upgrade is still yours.",
   actions:[{id:"retry",label:"Try again",variant:"primary"},
            {id:"nofilter",label:"Keep without the upgrade",variant:"secondary"}]},
 "daily-frame/refusal":{scenario:"daily_frame",fixture:"refusal",error_type:"refusal",fail_after_ms:2200,
-  quota_spent:false,title:"This one can’t be developed.",body:"Keep it as it is, or pick another.",
+  quota_spent:false,title:"We can’t develop this one",body:"Keep it as it is, or pick another.",
   actions:[{id:"nofilter",label:"Keep without the upgrade",variant:"primary"},
-           {id:"another",label:"Choose another photo",variant:"secondary"}]},
+           {id:"another",label:"Pick another photo",variant:"secondary"}]},
 "daily-frame/low-confidence":{scenario:"daily_frame",fixture:"low-confidence",tier:"fast",latency_ms:3600,
   slow_threshold_ms:12000,cancelable_until:"developing",
   stages:[{id:"reading",label:"Reading your frame",ms:900},
           {id:"rendering",label:"Developing",ms:1900},
           {id:"developing",label:"Finishing",ms:800}],
-  result:{preset:"UPGRADED",asset:"today",confidence:"low"},
+  result:{preset:"DEVELOPED",asset:"today",confidence:"low"},
   notice:"Not our best. Develop again — on us."},
 "daily-frame/small-delta":{scenario:"daily_frame",fixture:"small-delta",tier:"fast",latency_ms:3400,
   slow_threshold_ms:12000,cancelable_until:"developing",
@@ -1293,22 +1293,22 @@ const FIXTURES = {
           {id:"rendering",label:"Developing",ms:1800},
           {id:"developing",label:"Finishing",ms:800}],
   /* штатное состояние, не ошибка: кадр снят удачно, честнее показать маленькую разницу */
-  result:{preset:"UPGRADED",asset:"today",confidence:"ok",delta:"small"},
+  result:{preset:"DEVELOPED",asset:"today",confidence:"ok",delta:"small"},
   notice:"Already well-lit — added depth and grain."},
 "daily-frame/empty":{scenario:"daily_frame",fixture:"empty",error_type:"empty",fail_after_ms:3000,
-  quota_spent:false,title:"Nothing changed on this one.",body:"Your daily frame is still yours.",
+  quota_spent:false,title:"Nothing changed on this one",body:"Your free upgrade is still yours.",
   actions:[{id:"retry",label:"Try again",variant:"primary"},
            {id:"nofilter",label:"Keep without the upgrade",variant:"secondary"}]},
 "daily-frame/filter-missing":{scenario:"daily_frame",fixture:"filter-missing",missing:true,
   title:"Today’s upgrade hasn’t arrived yet",
-  actions:[{id:"nofilter",label:"Keep today without the upgrade",variant:"primary"}]},
+  actions:[{id:"nofilter",label:"Keep without the upgrade",variant:"primary"}]},
 
 "gallery-pick/success":{scenario:"gallery_pick",fixture:"success",on_device:true,latency_ms:700,
   /* решение 17.19 — на телефоне сегодня один кадр. Подпись числа не обещает (17.20) */
   count_today:1,confidence:"ok",label:"MEANTIME PICKED · TODAY",
   picks:[{rank:1,asset:"today-original"}]},
 "gallery-pick/none":{scenario:"gallery_pick",fixture:"none",on_device:true,count_today:0,confidence:"none",
-  fallback_line:"Allow photo dates to get suggestions"},
+  fallback_line:"Allow access to photos and dates for suggestions"},
 "gallery-pick/low-confidence":{scenario:"gallery_pick",fixture:"low-confidence",on_device:true,
   count_today:4,confidence:"low",label:"NOTHING STOOD OUT TODAY — PICK YOURSELF"},
 
@@ -1339,7 +1339,7 @@ const FIXTURES = {
           {id:"laying",label:"Laying out",ms:2600},
           {id:"caption",label:"Writing the caption",ms:2800}],
   caption:"Mostly outdoors. One rainy Tuesday.",
-  slow_notice:"Still composing — it’ll be on the shelf when it’s ready"},
+  slow_notice:"Still composing — it’ll be under Recaps when it’s ready"},
 "recap/error":{scenario:"recap",fixture:"error",error_type:"network",
   title:"Couldn’t compose yet",actions:[{id:"retry",label:"Try again",variant:"primary"}]},
 "recap/single":{scenario:"recap",fixture:"single",period:"week",week:6,frames_in:1,of:7,
@@ -1360,12 +1360,12 @@ const FIXTURES = {
   slow_notice:"Taking longer than usual. Your coins aren’t spent until it’s done.",
   result:{preset:"SNOW GLOBE",asset:"fx-after",confidence:"ok"}},
 "effect/error":{scenario:"effect",fixture:"error",error_type:"network",fail_after_ms:3000,charged:false,
-  preset:"Snow globe",title:"Couldn’t develop this one.",body:"Nothing was charged.",
+  preset:"Snow globe",title:"Couldn’t develop this one",body:"No coins spent.",
   actions:[{id:"retry",label:"Try again",variant:"primary"},
            {id:"back",label:"Back to today",variant:"secondary"}]},
 "effect/refusal":{scenario:"effect",fixture:"refusal",error_type:"refusal",fail_after_ms:2600,charged:false,
-  preset:"Snow globe",title:"Snow globe needs a scene, not a close-up.",
-  body:"Pick another effect — nothing was charged.",
+  preset:"Snow globe",title:"Snow globe needs a scene, not a close-up",
+  body:"Pick another effect — no coins spent.",
   actions:[{id:"back",label:"Back to effects",variant:"primary"}]},
 "effect/low-confidence":{scenario:"effect",fixture:"low-confidence",tier:"quality",latency_ms:5200,
   slow_threshold_ms:12000,cancelable_until:"developing",preset_id:"snow_globe",preset:"Snow globe",
@@ -1375,7 +1375,7 @@ const FIXTURES = {
   result:{preset:"SNOW GLOBE",asset:"fx-after",confidence:"low"},
   notice:"Not our best. Develop again — on us."},
 "effect/empty":{scenario:"effect",fixture:"empty",error_type:"empty",fail_after_ms:3400,charged:false,
-  preset:"Snow globe",title:"Nothing changed on this one.",body:"Nothing was charged.",
+  preset:"Snow globe",title:"Nothing changed on this one",body:"No coins spent.",
   actions:[{id:"back",label:"Back to effects",variant:"primary"}]}
 };
 
@@ -2276,8 +2276,8 @@ Screens["01"]=s=>{
   f.style.borderRadius="var(--radius-lg)"; f.style.marginTop="var(--space-6)";
   w.append(f);
   const t=el("div","stack gap3 mt6");
-  t.append(assign(el("div","t-h1"),"One frame a day, developed for free."),
-           assign(el("div","t-body c-secondary"),"Shoot it or pick it. Your days compose themselves."));
+  t.append(assign(el("div","t-h1"),"One frame a day, developed free"),
+           assign(el("div","t-body c-secondary"),"Every Sunday your week becomes one picture — and after 100 days, a diary."));
   w.append(t);
   const a=el("div","stack gap3 mt8");
   a.append(UI.Button({label:"Start today",onTap:()=>Sheets.period(true)}));
@@ -2313,7 +2313,7 @@ Screens["03"]=s=>{
     /* решение 17.20 — числа в подписи нет: в галерее один кадр, и «1 photo today»
        читалось бы извинением. Подпись объясняет механику, а не считает файлы */
     a.append(assign(el("div","t-caption c-tertiary center"),"Meantime picks the best one"));
-    a.append(UI.Button({label:"Choose from library",variant:"text",onTap:()=>Sheets.gallery("library")}));
+    a.append(UI.Button({label:"Pick from library",variant:"text",onTap:()=>Sheets.gallery("library")}));
     w.append(a);
   }else{
     /* решение 17.5 — день сохранён: та же раскладка, что на 06 (110:91), внутри вкладки.
@@ -2423,7 +2423,7 @@ Screens["05"]=s=>{
     const rs=UI.RenderStages(stages);
     panel.append(rs);
     const actions=el("div","stack gap2"); panel.append(actions);
-    const cancel=UI.Button({label: isEffect? "Cancel — no charge" : "Cancel — nothing is used yet",
+    const cancel=UI.Button({label: isEffect? "Cancel — no coins spent" : "Cancel — free upgrade not used",
       variant:"text", onTap:()=>{
         ctl.cancel();
         Analytics.track("ai_response_stopped",{scenario:fx.scenario,stage:ctl.stage,quota_spent:false});
@@ -2484,7 +2484,7 @@ Screens["05"]=s=>{
           if(ph) ph.setAttribute("style", Img.phVars("today-original","small-delta"));
         }
         setTimeout(()=>{
-          title.textContent = fmtMD(DEMO.today)+(isEffect?" · "+effectTitle():" · Upgraded");
+          title.textContent = fmtMD(DEMO.today)+(isEffect?" · "+effectTitle():" · Developed");
           kick.textContent = f.result.confidence==="low" ? "LOW CONFIDENCE" : "READY";
           [title,kick].forEach(n=>{ n.style.opacity="1"; });
         }, DM);
@@ -2493,7 +2493,7 @@ Screens["05"]=s=>{
            кадр здесь во всю ширину и прижат к верхнему краю, над ним только
            Dynamic Island. Место названо в отчёте как расхождение с заданием. */
         if(!isEffect && !panel.querySelector(".Segment")){
-          const seg=versionSegment(["Original","Upgraded"], 1, ()=>reveal,
+          const seg=versionSegment(["Original","Developed"], 1, ()=>reveal,
             small ? {1:{seed:"today-original",variant:"small-delta"}} : null);
           seg.style.marginBottom="var(--space-4)";
           seg.style.opacity="0"; seg.style.transition="opacity "+DI+"ms "+ease;
@@ -2543,8 +2543,8 @@ Screens._dailyDone=(box, f)=>{
     Analytics.track("limit_reached",{limit_type:"daily_renders"});
     Router.resetTo("03","06");
   }}));
-  box.append(UI.Button({label:"Choose another photo",variant:"secondary",onTap:()=>{
-    if(S.attempts>=3){ Sheets.confirmCoins({name:"Upgrade again",price:2,extra:true}); return; }
+  box.append(UI.Button({label: S.attempts>=3 ? "Another photo · ◎ 2" : "Pick another photo",variant:"secondary",onTap:()=>{
+    if(S.attempts>=3){ Sheets.confirmCoins({name:"Develop again",price:2,extra:true}); return; }
     Router.back(); Sheets.gallery("library");
   }}));
   box.append(UI.Button({label:"Keep without the upgrade",variant:"text",onTap:()=>{
@@ -2559,7 +2559,7 @@ Screens._dailyDone=(box, f)=>{
     }}));
   else if(S.attempts>=3)
     box.append(UI.Button({label:"Develop again · ◎ 2",variant:"text",
-      onTap:()=>Sheets.confirmCoins({name:"Upgrade again",price:2,extra:true})}));
+      onTap:()=>Sheets.confirmCoins({name:"Develop again",price:2,extra:true})}));
 };
 Screens._effectDone=(box, f)=>{
   /* находка QA №1 — цена записана при покупке в confirmCoins, здесь её не трогаем */
@@ -2579,7 +2579,7 @@ Screens._failAction=(id, f)=>{
    Один и тот же на 06 / 06a (push) и на 03 в состоянии todayKept (вкладка) — решение 17.5.
    Высота кадра — параметр: на вкладке над ним ещё вордмарк, строка дня и таб-бар. */
 function keptBlock(w, {extra=false, height="var(--size-frame-square-sm)"}={}){
-  const seg=versionSegment(extra ? ["Original","Upgraded",effectTitle()] : ["Original","Upgraded"],
+  const seg=versionSegment(extra ? ["Original","Developed",effectTitle()] : ["Original","Developed"],
                            extra ? 2 : 1, ()=>w.querySelector(".KeptFrame"));
   const box=el("div","KeptFrame");
   box.style.position="relative"; box.style.borderRadius="var(--radius-lg)"; box.style.overflow="hidden";
@@ -2716,7 +2716,7 @@ Screens["08"]=s=>{
   const top=el("div"); top.append(navBack("Diary"), assign(el("h1","t-display"),fmtMD(d)));
   w.append(top);
   /* переключатель был декоративным — тапы ничего не меняли; тот же versionSegment, что на 06a */
-  if(extra){ const sg=versionSegment(["Original","Upgraded",effectTitle()],2,()=>w.querySelector(".Hero"));
+  if(extra){ const sg=versionSegment(["Original","Developed",effectTitle()],2,()=>w.querySelector(".Hero"));
              sg.classList.add("mt3"); w.append(sg); }
   const hero=el("div","Hero Hero--day flush mt4"); hero.style.marginTop="var(--space-4)";
   hero.append(Img.make(frameOf(i), null, i===DEMO.dayIndex?VERSION_OPTS[1]:null),
@@ -2884,8 +2884,8 @@ Screens["11"]=s=>{
   w.append(UI.BalanceChip({coins:S.coins,sub:S.subscriber,onGet:()=>Sheets.coinPacks()}));
   w.querySelector(".BalanceChip").classList.add("mt4");
   w.append(assign(el("div","t-body c-secondary mt4"),
-    S.todayKept ? "More than one a day. Develop today’s frame again — another world, another look."
-                : "Keep today’s frame first — effects develop your day."));
+    S.todayKept ? "Develop today’s frame again with an effect — another world, another look."
+                : "Effects develop today’s kept frame again. Keep one first."));
   const grid=el("div"); grid.style.cssText="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3)";
   grid.classList.add("mt4");
   [["Anime world",3,"fx-anime"],["Your street in 1995",4,"fx-1995"],
@@ -2902,14 +2902,14 @@ Screens["11"]=s=>{
   w.append(UI.Button({label:"Why effects cost coins",variant:"text",onTap:()=>Sheets.whyCoins()}));
   if(!S.todayKept)
     w.append(assign(el("div","t-caption c-tertiary center"),
-      "Your photo leaves your phone only for an effect, only after you confirm"));
+      "Your photo leaves your phone only after you confirm"));
 };
 
 /* --- 14 · Результат AI-эффекта ----------------------------------------- */
 Screens["14"]=s=>{
   const w=scrollBox(s,null,true);
   const top=el("div"); top.append(navBack("Effects")); w.append(top);
-  const sg=versionSegment(["Original","Upgraded",effectTitle()],2,()=>w.querySelector(".Hero"));
+  const sg=versionSegment(["Original","Developed",effectTitle()],2,()=>w.querySelector(".Hero"));
   sg.classList.add("mt2"); w.append(sg);
   const hero=el("div","Hero Hero--day flush mt4"); hero.style.marginTop="var(--space-4)";
   hero.append(Img.make("fx-after",null,VERSION_OPTS[2]), el("div","CornerScrim"), watermarkEl());
@@ -2957,7 +2957,7 @@ Sheets.period = (isStart)=>{
     fill();
     b.append(assign(el("div","t-caption c-tertiary"),"Progress counts the days you keep. It never goes down."));
     const sp=el("div"); sp.style.flex="1"; b.append(sp);
-    b.append(UI.Button({label:isStart?"Begin":"Save",onTap:()=>{
+    b.append(UI.Button({label:isStart?"Start":"Save",onTap:()=>{
       S.period=opts[sel][0];
       Analytics.track("period_selected",{length:opts[sel][0],changed_from_default:sel!==1});
       api.close();
@@ -3083,11 +3083,11 @@ Sheets.share = (kind, fx)=>{
 Sheets.softPaywall = (trigger)=>{
   Analytics.track("paywall_shown",{type:"soft",trigger});
   UI.Sheet({detent:"medium", build(b, api){
-    b.append(assign(el("div","t-h1"),"Save in full quality"));
+    b.append(assign(el("div","t-h1"),"Everything in a plan"));
     const ul=el("ul","Bullets");
-    ["Full resolution, no watermark","Recaps every week, every month — and at day 100",
-     "Past days too — bring in the photos you already took","Replace your photo, any day",
-     "20 coins every month, for special days","Your 100 days, composed when they end"]
+    ["Full quality, no watermark","Recaps every week, every month — and at day 100",
+     "Past days too — bring in the photos already on your phone","Replace your photo, any day",
+     "20 coins a month for extra develops"]
       .forEach(t=>{ const li=el("li"); li.append(assign(el("span","t-caption"),t)); ul.append(li); });
     b.append(ul);
     b.append(plansRow());
@@ -3102,14 +3102,14 @@ Sheets.softPaywall = (trigger)=>{
 /* Сильный пейвол на 10 — задержка 600 мс (решение 13.3) */
 Sheets.strongPaywall = (delay)=>{
   UI.Sheet({detent:"medium", delay:delay||0, build(b, api){
-    b.append(assign(el("div","t-h1"),"Keep every week, composed"),
+    b.append(assign(el("div","t-h1"),"Keep this week — and every week after"),
              assign(el("div","t-caption c-secondary"),
-               "This week, every Sunday after — and your 100 days, when they end."));
+               "One picture every Sunday, and your whole 100 days at the end."));
     const ul=el("ul","Bullets");
     ["Recaps every week, every month — and at day 100",
-     "Past days too — bring in the 2 photos you took",
-     "Full resolution, no watermark",
-     "20 coins every month, for special days"]
+     "Past days too — bring in the photos already on your phone",
+     "Full quality, no watermark",
+     "20 coins a month for extra develops"]
       .forEach(t=>{ const li=el("li"); li.append(assign(el("span","t-caption"),t)); ul.append(li); });
     b.append(ul, plansRow());
     b.append(UI.Button({label:"Continue with a plan",onTap:()=>{
@@ -3198,7 +3198,7 @@ Sheets.missedDay = (i)=>{
     b.append(plansRow());
     const sp=el("div"); sp.style.flex="1"; b.append(sp);
     b.append(UI.Button({label:S.subscriber?"Bring it in":"Continue with a plan",onTap:()=>{
-      if(S.subscriber){ api.close(); banner("Restored "+fmtMD(d)+" · upgrade of that day"); return; }
+      if(S.subscriber){ api.close(); banner(fmtMD(d)+" kept · with that day’s upgrade"); return; }
       Analytics.track("upgrade_clicked",{placement:"missed_day"}); api.close(); setTimeout(Sheets.plan,AFTER_SHEET());
     }}));
     b.append(UI.Button({label:"Not now",variant:"text",onTap:()=>{
@@ -3250,7 +3250,7 @@ Sheets.confirmCoins = ({name, price, extra})=>{
     const enough=S.coins>=price;
     b.append(assign(el("div","t-counter"+(enough?"":" c-error")),
       enough ? "◎ "+price+" coins → "+(S.coins-price)+" left after" : "◎ "+price+" coins · you have "+S.coins));
-    b.append(assign(el("div","t-caption c-tertiary"),"This photo leaves your phone to be developed."),
+    b.append(assign(el("div","t-caption c-tertiary"),"This photo leaves your phone to be developed and is deleted within 24 hours."),
              assign(el("div","t-caption c-tertiary"),"Effects change what’s in the frame. Your original stays."));
     const sp=el("div"); sp.style.flex="1"; b.append(sp);
     if(enough){

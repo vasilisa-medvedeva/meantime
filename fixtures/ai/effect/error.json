@@ -5,8 +5,8 @@
   "fail_after_ms": 3000,
   "charged": false,
   "preset": "Snow globe",
-  "title": "Couldn’t develop this one.",
-  "body": "Nothing was charged.",
+  "title": "Couldn’t develop this one",
+  "body": "No coins spent.",
   "actions": [
     {
       "id": "retry",

@@ -4,5 +4,5 @@
   "on_device": true,
   "count_today": 0,
   "confidence": "none",
-  "fallback_line": "Allow photo dates to get suggestions"
+  "fallback_line": "Allow access to photos and dates for suggestions"
 }

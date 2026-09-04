@@ -6,7 +6,7 @@
   "actions": [
     {
       "id": "nofilter",
-      "label": "Keep today without the upgrade",
+      "label": "Keep without the upgrade",
       "variant": "primary"
     }
   ]

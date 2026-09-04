@@ -22,9 +22,9 @@
       "ms": 2800
     }
   ],
-  "slow_notice": "Taking longer than usual. Your daily frame isn’t used until it’s done.",
+  "slow_notice": "Taking longer than usual. Your free upgrade isn’t used until it’s done.",
   "result": {
-    "preset": "UPGRADED",
+    "preset": "DEVELOPED",
     "asset": "today",
     "confidence": "ok"
   }

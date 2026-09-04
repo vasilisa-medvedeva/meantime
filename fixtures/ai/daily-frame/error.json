@@ -4,8 +4,8 @@
   "error_type": "network",
   "fail_after_ms": 2600,
   "quota_spent": false,
-  "title": "Couldn’t develop this one.",
-  "body": "Your daily frame is still yours.",
+  "title": "Couldn’t develop this one",
+  "body": "Your free upgrade is still yours.",
   "actions": [
     {
       "id": "retry",
