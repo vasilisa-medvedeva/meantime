@@ -2503,9 +2503,15 @@ Screens["05"]=s=>{
           setTimeout(()=>{ seg.style.opacity="1"; }, DM);
           setTimeout(()=>{ seg.style.transition=""; deltaPeek(seg); }, DM+DI);   /* решение 17.32 — после того как панель успокоилась */
         }
+        /* решение 17.72 — прозрачность выставляем БЕЗ перехода и до того, как внутрь
+           лягут кнопки: иначе контейнер начинал гаснуть с непрозрачности, а кнопки,
+           вставленные следом, успевали проявиться, погаснуть вместе с ним и всплыть заново */
         actions.innerHTML="";
-        actions.style.opacity="0"; actions.style.transition="opacity "+DI+"ms "+ease;
-        setTimeout(()=>{ actions.style.opacity="1"; }, DM);
+        actions.style.transition="none"; actions.style.opacity="0"; void actions.offsetWidth;
+        setTimeout(()=>{
+          actions.style.transition="opacity "+DI+"ms "+ease; void actions.offsetWidth;
+          actions.style.opacity="1";
+        }, DM);
         setTimeout(()=>{ actions.style.transition=""; }, DM+DI+20);
         if(f.notice) actions.append(assign(el("div","t-body c-thinking"), f.notice));
         if(isEffect) Screens._effectDone(actions, f);
