@@ -1260,9 +1260,8 @@ const Img = {
     f.append(ph);
     /* отделение объекта от фона — виньетка поверх, только у обработанных вариантов */
     if(opts.variant){
-      const v=document.createElement("div"); v.className="Frame__vig";
-      v.style.opacity = opts.variant==="upgraded" ? ".55" : ".72";
-      f.append(v);
+      /* решение 17.84 — виньетки нет: у проявленного кадра своя тональность,
+         и второе затемнение читалось как часть обработки, а не как интерфейс */
     }
     const im=document.createElement("div"); im.className="Frame__img";
     f.append(im);
@@ -2468,12 +2467,16 @@ Screens["05"]=s=>{
                          : Img.make("today",   null,VERSION_OPTS[1]);
   after.classList.add("Reveal__after");
   reveal.append(before, after);
-  hero.append(reveal, el("div","Hero__glow"), el("div","Scrim7"));
-  const ht=el("div","Hero__text stack gap2");
-  const kick=assign(el("div","t-meta c-on-image"), fmtMDup(DEMO.today)+(isEffect?" · "+effectUpper():""));
-  const title=assign(el("div","t-h1 c-on-image"),"Developing…");
-  ht.append(kick,title); hero.append(ht);
+  hero.append(reveal);
   w.append(hero);
+  /* решение 17.84 — подпись стоит под кадром, а не поверх него: тогда фотографии
+     не нужен тёмный низ, и человек видит проявку такой, какая она есть */
+  const ht=el("div","stack gap1");
+  ht.style.padding="var(--space-4) var(--size-gutter) 0";
+  const kick=assign(el("div","t-meta c-tertiary"), fmtMDup(DEMO.today)+(isEffect?" · "+effectUpper():""));
+  const title=assign(el("div","t-h1"),"Developing…");
+  ht.append(kick,title);
+  w.append(ht);
 
   const panel=el("div","stack gap4"); panel.style.padding="var(--space-5) var(--size-gutter) 0";
   panel.style.background="var(--color-bg-primary)";   /* решение 17.46 — панель непрозрачна: ничего под ней не просвечивает ни в один момент проявления */
@@ -2542,7 +2545,6 @@ Screens["05"]=s=>{
         if(before.parentNode) before.remove();
         const small = !!(f.result && f.result.delta==="small");
         if(small){
-          const v=after.querySelector(".Frame__vig"); if(v) v.style.opacity=".22";
           const ph=after.querySelector(".Frame__ph");
           if(ph) ph.setAttribute("style", Img.phVars("today-original","small-delta"));
         }
