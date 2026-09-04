@@ -2736,7 +2736,9 @@ Screens._dailyDone=(box, f)=>{
   box.append(UI.Button({label:"Keep in diary",onTap:()=>{
     S.todayKept=true; S.todayPreset=f.result.preset; saveState();
     Analytics.track("day_kept",{with_filter:true,restored:false});
-    Analytics.track("limit_reached",{limit_type:"daily_renders"});
+    /* решение 17.111 — событие лимита уходит только когда лимит действительно исчерпан:
+       по каталогу метрик это третья попытка за день, а не любое сохранение */
+    if(S.attempts>=3) Analytics.track("limit_reached",{limit_type:"daily_renders"});
     Router.resetTo("03","06");
   }}));
   /* решение 17.95 — цена стоит на кнопке всегда, а не появляется с третьей попытки:
@@ -2862,7 +2864,9 @@ Screens["07"]=s=>{
   const w=scrollBox(s,"diary",true);
   w.append(assign(el("h1","t-display"),"Diary"));
   const hd=el("button","row gap2"); hd.style.marginTop="var(--space-3)";
-  hd.append(metaLine(DEMO.kept+" DAYS KEPT · 100 DAYS ▾","t-counter-meta c-accent"));
+  hd.style.minHeight="var(--size-tap-min)";   /* решение 17.111 — тап-зона по токену, а не по высоте строки */
+  /* решение 17.111 — то же написание, что на сохранённом дне: словарь требует «100-day diary» */
+  hd.append(metaLine(DEMO.kept+" DAYS KEPT · "+DEMO.periodLength+"-DAY DIARY ▾","t-counter-meta c-accent"));
   hd.addEventListener("click",()=>Sheets.period(false));
   w.append(hd);
 
@@ -2980,6 +2984,7 @@ Screens["09"]=s=>{
   const w=scrollBox(s);
   const n=el("div","NavBar");
   const x=el("button","NavBar__back"); x.textContent="✕"; x.style.fontSize="20px";
+  x.style.minWidth="var(--size-tap-min)"; x.style.justifyContent="flex-start";   /* решение 17.111 */
   x.addEventListener("click",()=>Router.back());
   n.append(x, assign(el("div","NavBar__title t-h2"),"Share"));
   w.append(n);
