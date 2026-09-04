@@ -2792,12 +2792,10 @@ Screens["09"]=s=>{
   const a=el("div","stack gap3 mt4");
   /* решение 17 — вместо баннера открывается шит шеринга; событие уходит с адресатом */
   a.append(UI.Button({label:"Share…",onTap:()=>Sheets.share("day")}));
-  a.append(UI.Button({label:"Save image",variant:"secondary",onTap:()=>{
-    Analytics.track("result_shared",{artifact:"day",destination:"photos",watermark:!S.subscriber});
-    if(S.subscriber) Analytics.track("quality_render",{trigger:"export",count_this_month:1});
-    /* решение 17.35 — сохранил кадр → сразу в дневник, где он уже стоит среди накопленного */
-    banner("Saved to Photos");
-    setTimeout(()=>Router.switchTo("diary"), MS("--motion-alert")+120); }}));
+  /* решение 17.66 — день уже сохранён на 05, «Save image» обещало то, что случилось.
+     Вторая кнопка ведёт туда, где кадр лежит среди накопленного */
+  a.append(UI.Button({label:"Open diary",variant:"secondary",
+    onTap:()=>Router.switchTo("diary")}));
   w.append(a);
 };
 
