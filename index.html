@@ -2782,6 +2782,19 @@ Screens._failAction=(id, f)=>{
 /* Блок «сохранённый день»: переключатель версий · кадр с вотермарком · две мета-строки.
    Один и тот же на 06 / 06a (push) и на 03 в состоянии todayKept (вкладка) — решение 17.5.
    Высота кадра — параметр: на вкладке над ним ещё вордмарк, строка дня и таб-бар. */
+/* решение 17.117 — кадр подгоняется под экран: если содержимому не хватает места,
+   фотография отдаёт ровно столько высоты, сколько нужно, но не ниже пола.
+   Так на большом экране кадр остаётся в пропорциях снимка, а на маленьком
+   последняя кнопка не оказывается срезанной нижним краем. */
+function fitFrame(scroll, box, floor){
+  requestAnimationFrame(()=>{
+    const over = scroll.scrollHeight - scroll.clientHeight;
+    if(over <= 0) return;
+    const h = box.getBoundingClientRect().height;
+    box.style.height = Math.max(floor || 300, Math.round(h - over)) + "px";
+  });
+}
+
 function keptBlock(w, {extra=false, height="var(--size-frame-portrait)"}={}){
   const box=el("div","KeptFrame");
   /* решение 17.94 — без эффекта переключать нечего: экран показывает проявленный день.
@@ -2820,6 +2833,7 @@ function keptScreen(s, extra){
   if(extra) kb.meta.append(metaLine("◎ "+S.effectSpent+" SPENT · "+S.coins+" LEFT","t-counter-meta c-accent"));
   if(kb.seg) w.append(kb.seg);
   w.append(kb.box, kb.meta);
+  fitFrame(w, kb.box, 330);
 
   const tm=el("div","Tomorrow mt3");
   const tl=el("div","stack"); tl.style.flex="1";
@@ -2952,6 +2966,7 @@ Screens["08"]=s=>{
   a.append(UI.Button({label:"Share this day",onTap:()=>goShare(i)}));
   a.append(UI.Button({label:"Replace photo",variant:"text",onTap:()=>Sheets.softPaywall("replace_photo")}));
   w.append(a);
+  fitFrame(w, hero, 360);   /* решение 17.117 */
 };
 
 /* Карточка шеринга: одна разметка на экран 09 и на превью в шите (решение 17.12).
@@ -3128,7 +3143,14 @@ Screens["11"]=s=>{
 /* --- 14 · Результат AI-эффекта ----------------------------------------- */
 Screens["14"]=s=>{
   const w=scrollBox(s,null,true);
-  const top=el("div"); top.append(navBack("Effects")); w.append(top);
+  /* решение 17.117 — редкие действия в меню, как на дне с эффектом (17.105) */
+  const top=el("div"); top.append(navBack("Effects", [
+    {label:"Develop again · "+effectPrice()+" coins",
+     onTap:()=>Sheets.confirmCoins({name:effectTitle(),price:effectPrice()})},
+    {label:"Discard this one", role:"destructive", onTap:()=>{
+      Analytics.track("effect_discarded",{preset_id:presetId(effectTitle())}); Router.tab("effects"); }},
+    {label:"Cancel", role:"cancel"}
+  ])); w.append(top);
   const sg=versionSegment(["Developed",effectTitle()],1,()=>w.querySelector(".Hero"),null,FRAME_VERSIONS.slice(1));
   sg.classList.add("mt2"); w.append(sg);
   const hero=el("div","Hero Hero--day flush mt4"); hero.style.marginTop="var(--space-4)";
@@ -3142,16 +3164,8 @@ Screens["14"]=s=>{
     Router.resetTo("03","06a");
   }}));
   a.append(UI.Button({label:"Share",variant:"secondary",onTap:()=>goShare(DEMO.dayIndex,true)}));
-  const r=el("div","row"); r.style.justifyContent="space-between";
-  const d=UI.Button({label:"Discard",variant:"text",onTap:()=>actionSheet([
-    {label:"Discard this one",role:"destructive",onTap:()=>{
-      Analytics.track("effect_discarded",{preset_id:presetId(effectTitle())}); Router.tab("effects"); }},
-    {label:"Cancel",role:"cancel"}])});
-  d.style.width="auto"; d.style.color="var(--color-text-secondary)";
-  const g=UI.Button({label:"Develop again · ◎ "+effectPrice(),variant:"text",
-    onTap:()=>Sheets.confirmCoins({name:effectTitle(),price:effectPrice()})});
-  g.style.width="auto";
-  r.append(d,g); a.append(r); w.append(a);
+  w.append(a);
+  fitFrame(w, hero, 360);
 };
 
 /* ============================================================================
