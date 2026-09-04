@@ -2310,10 +2310,9 @@ Screens["03"]=s=>{
     const a=el("div","stack gap3 mt5");
     a.append(UI.Button({label:"Take a photo",onTap:()=>Router.go("04a",{cover:true})}));
     a.append(UI.Button({label:"Pick from today’s photos",variant:"secondary",onTap:()=>Sheets.gallery("suggested")}));
-    /* решение 17.20 — числа в подписи нет: в галерее один кадр, и «1 photo today»
-       читалось бы извинением. Подпись объясняет механику, а не считает файлы */
-    a.append(assign(el("div","t-caption c-tertiary center"),"Meantime picks the best one"));
-    a.append(UI.Button({label:"Pick from library",variant:"text",onTap:()=>Sheets.gallery("library")}));
+    /* Решение 17.67 — под кнопками ничего нет: отдельный вход в плёнку был дублем
+       (та же шторка показывает и предложенные кадры, и «Recents»), а подпись
+       «Meantime picks the best one» объясняла то, что человек увидит через секунду сам */
     w.append(a);
   }else{
     /* решение 17.5 — день сохранён: та же раскладка, что на 06 (110:91), внутри вкладки.
