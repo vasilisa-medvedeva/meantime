@@ -1738,7 +1738,22 @@ const UI = {
     return api;
   }
 };
-function assign(n, txt){ n.textContent=txt; return n; }
+/* Неразрывные пробелы в длинных строках: короткое слово не остаётся висеть
+   в конце строки. Ярлыки, счётчики и подписи кнопок не трогаем — они однострочные,
+   а демо ищет кнопки по точному тексту. */
+const TIE_WORDS = "a|an|the|and|or|but|so|to|of|in|on|at|by|for|from|with|it|its|we|our|you|your|is|are|be|no|not|one|this|that|as|if|up";
+const TIE_RE = new RegExp("(^|[\\s(\u00AB\"])(" + TIE_WORDS + ") ", "gi");
+function tie(txt){
+  if (typeof txt !== "string" || txt.length < 28) return txt;
+  return txt.replace(TIE_RE, (m, pre, w) => pre + w + "\u00A0")
+            .replace(/ (\u2014|\u2013) /g, "\u00A0$1 ");   /* тире не начинает строку */
+}
+function assign(n, txt){
+  const long = /t-h1|t-h2|t-body|t-caption|t-display/.test(n.className || "") &&
+               !/Button__label|t-logo|t-counter/.test(n.className || "");
+  n.textContent = long ? tie(txt) : txt;
+  return n;
+}
 
 /* реестр №7 — шторка тянется за пальцем, порог 25 % высоты или скорость > .5 px/ms */
 function dragToDismiss(sheet, close){
@@ -3444,7 +3459,7 @@ const Demo = {
 
   btn(label){
     const n=[...document.querySelectorAll(".Button__label")]
-      .find(x=>x.textContent.trim()===label);
+      .find(x=>x.textContent.replace(/\u00A0/g," ").trim()===label);
     return n ? n.closest(".Button") : null;
   },
   /* ждём появления элемента, но не бесконечно — демо не должно зависать */
