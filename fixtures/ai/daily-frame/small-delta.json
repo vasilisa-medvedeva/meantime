@@ -13,12 +13,12 @@
     },
     {
       "id": "rendering",
-      "label": "Developing…",
+      "label": "Developing",
       "ms": 1800
     },
     {
       "id": "developing",
-      "label": "Developing",
+      "label": "Finishing",
       "ms": 800
     }
   ],

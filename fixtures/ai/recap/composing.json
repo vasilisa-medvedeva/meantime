@@ -8,17 +8,17 @@
   "stages": [
     {
       "id": "choosing",
-      "label": "Choosing frames…",
+      "label": "Choosing frames",
       "ms": 2600
     },
     {
       "id": "laying",
-      "label": "Laying out…",
+      "label": "Laying out",
       "ms": 2600
     },
     {
       "id": "caption",
-      "label": "Writing the caption…",
+      "label": "Writing the caption",
       "ms": 2800
     }
   ],
