@@ -585,6 +585,9 @@ h1,h2,h3,p,ul,ol{margin:0;padding:0}
 }
 .Sheet[data-detent="medium"]{height:var(--size-sheet-medium)}
 .Sheet[data-detent="large"]{height:var(--size-sheet-large)}
+/* решение 17.70 — шторка не режет содержимое: если оно выше среднего роста,
+   шторка тянется до него, но не выше большого. Два токена остаются границами */
+.Sheet[data-detent="fit"]{height:auto;min-height:var(--size-sheet-medium);max-height:var(--size-sheet-large)}
 .Sheet.is-in{transform:translateY(0)}
 .Sheet.is-out{transition:transform var(--motion-sheet-out) var(--ease-accel)}
 .Sheet__grab{
@@ -592,7 +595,8 @@ h1,h2,h3,p,ul,ol{margin:0;padding:0}
   opacity:.6;margin:var(--space-2) auto var(--space-1);flex:0 0 auto;
 }
 .Sheet__body{
-  flex:1;overflow-y:auto;padding:var(--space-4) var(--size-gutter) var(--size-safe-bottom);
+  flex:1;overflow-y:auto;
+  padding:var(--space-4) var(--size-gutter) calc(var(--size-safe-bottom) + var(--space-2));
   display:flex;flex-direction:column;gap:var(--space-2);
 }
 
@@ -3099,7 +3103,9 @@ Sheets.softPaywall = (trigger)=>{
 
 /* Сильный пейвол на 10 — задержка 600 мс (решение 13.3) */
 Sheets.strongPaywall = (delay)=>{
-  UI.Sheet({detent:"medium", delay:delay||0, build(b, api){
+  /* решение 17.70 — пейвол выше среднего роста шторки: тянем под содержимое,
+     иначе «Not now» и юридическая строка оказывались под полоской жеста */
+  UI.Sheet({detent:"fit", delay:delay||0, build(b, api){
     b.append(assign(el("div","t-h1"),"Keep this week — and every week after"),
              assign(el("div","t-caption c-secondary"),
                "One picture every Sunday, and your whole 100 days at the end."));
