@@ -63,10 +63,10 @@ a:focus-visible{outline:2px solid var(--blue);outline-offset:3px;border-radius:4
 .mock__vp img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:none}
 .mock.is-static .mock__vp iframe{display:none}
 .mock.is-static .mock__vp img{display:block}
-.bar{width:261px;display:flex;flex-direction:column;gap:7px}
-.bar__track{height:3px;border-radius:99px;background:rgba(43,53,80,.18);overflow:hidden}
+.bar{width:261px;display:flex;align-items:center;gap:10px}
+.bar__track{flex:1;height:3px;border-radius:99px;background:rgba(43,53,80,.18);overflow:hidden}
 .bar__fill{height:100%;width:0;border-radius:99px;background:var(--night);transition:width .95s linear}
-.bar__meta{display:flex;justify-content:center;font-size:12px;color:var(--night);opacity:.55}
+.bar__meta{flex:0 0 auto;font-size:12px;color:var(--night);opacity:.55;min-width:34px;text-align:right}
 .bar__meta b{font-weight:600;font-variant-numeric:tabular-nums}
 .mock.is-off .bar__fill{background:rgba(43,53,80,.3)}
 .block--chat{background:var(--tone-chat);padding:40px 32px 46px}
@@ -218,7 +218,7 @@ ul.l b{color:var(--ink-strong);font-weight:600}
       </div>
       <div class="bar" id="bar">
         <div class="bar__track"><div class="bar__fill" id="fill"></div></div>
-        <div class="bar__meta"><b id="clock">0:00 / 0:28</b></div>
+        <div class="bar__meta"><b id="clock">28 с</b></div>
       </div>
       </div>
     </div>
@@ -331,10 +331,10 @@ addEventListener("load",function(){ setTimeout(function(){ if(!location.hash) wi
     heard=false; on=true; t0=Date.now();
   });
   var TOTAL=27800, heard=false, t0=Date.now(), on=true;   /* = Demo.totalMs в прототипе; уточняется первым сообщением */
-  function fmt(ms){var s=Math.max(0,Math.round(ms/1000));return Math.floor(s/60)+":"+String(s%60).padStart(2,"0")}
+  /* сбоку от полосы — только сколько осталось: одно число читается быстрее пары */
   function draw(el,total){
     fill.style.width=Math.min(100,(el/total)*100)+"%";
-    clock.textContent=fmt(el)+" / "+fmt(total);
+    clock.textContent=Math.max(0,Math.ceil((total-el)/1000))+"\u00A0с";
   }
   window.addEventListener("message",function(e){
     var d=e.data; if(!d||d.source!=="meantime-demo") return;

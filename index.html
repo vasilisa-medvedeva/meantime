@@ -110,6 +110,9 @@
   --size-hero-h:560px;           /* ui-spec §05 — кадр 390×560 */
   --size-hero-day-h:520px;       /* ux-brief §08 — кадр 390×520 */
   --size-frame-square:342px;     /* ui-spec §06 — кадр 342×342 */
+  /* решение 17.96 — сохранённый день показывается в пропорциях снимка, а не квадратом:
+     342 × 1152 / 928 = 425. Кадр не режется, и день выглядит так же, как в дневнике */
+  --size-frame-portrait:425px;
   --size-frame-square-sm:300px;  /* ui-spec §06a — кадр ужат до 342×300 */
   --size-frame-today:300px;      /* решение 17.8 — кадр на вкладке Today, состояние «сохранено» */
   --size-filter-img-h:330px;     /* решение 17.90 — образец занял место описания */
@@ -927,12 +930,18 @@ h1,h2,h3,p,ul,ol{margin:0;padding:0}
 /* --- 09 карточка шеринга --- */
 .ShareCard{position:relative;width:var(--size-share-card-w);height:var(--size-share-card-h);
   border-radius:var(--radius-lg);overflow:hidden;margin:0 auto}
-.ShareCard__text{position:absolute;left:var(--space-4);right:var(--space-4);bottom:var(--space-5);z-index:2}
+/* решение 17.97 — под подписью стеклянная плашка, а не затемнение во всю карточку.
+   Градиент съедал нижнюю треть снимка и читался как часть обработки; плашка занимает
+   ровно место текста и оставляет фотографию целой. */
+.ShareCard__text{position:absolute;left:0;right:0;bottom:0;z-index:2;
+  padding:var(--space-4) var(--space-4) var(--space-5);
+  background:var(--color-glass-fill);backdrop-filter:var(--effect-glass-dense);
+  -webkit-backdrop-filter:var(--effect-glass-dense);
+  border-top:var(--size-hairline) solid var(--color-glass-hairline)}
 /* решение 17.12 — вотермарк стал вордмарком: тот же начерк, что t-display на 01 и 03,
    размер под карточку. У неподписчика он же служит меткой, у подписчика снимается. */
 .ShareCard__mark{
   font-size:var(--size-sharecard-mark);line-height:1.08;white-space:nowrap;
-  text-shadow:0 1px 10px var(--color-scrim-image-strong);
 }
 .TapRow{display:flex;align-items:center;justify-content:space-between;width:100%;
   min-height:var(--size-tap-min);padding:0 var(--space-4);border-radius:var(--radius-md);
@@ -2663,7 +2672,7 @@ Screens._failAction=(id, f)=>{
 /* Блок «сохранённый день»: переключатель версий · кадр с вотермарком · две мета-строки.
    Один и тот же на 06 / 06a (push) и на 03 в состоянии todayKept (вкладка) — решение 17.5.
    Высота кадра — параметр: на вкладке над ним ещё вордмарк, строка дня и таб-бар. */
-function keptBlock(w, {extra=false, height="var(--size-frame-square-sm)"}={}){
+function keptBlock(w, {extra=false, height="var(--size-frame-portrait)"}={}){
   const box=el("div","KeptFrame");
   /* решение 17.94 — без эффекта переключать нечего: экран показывает проявленный день.
      С купленным эффектом остаются два состояния: дневная обработка и эффект. */
@@ -2830,7 +2839,7 @@ Screens["08"]=s=>{
    Метка неподписчика — сам вордмарк; у подписчика карточка уходит чистой. */
 function shareCard(ctx, mini){
   const c=el("div","ShareCard"+(mini?" ShareCard--mini":" mt4"));
-  c.append(Img.make(ctx.asset, null, ctx.opts), el("div","Scrim7"));
+  c.append(Img.make(ctx.asset, null, ctx.opts));
   const t=el("div","ShareCard__text stack gap2");
   t.append(assign(el("div","t-counter-meta c-on-image"),
     "DAY "+ctx.index+(ctx.extra?" · "+effectUpper():"")+" · "+fmtMDup(ctx.date)));
