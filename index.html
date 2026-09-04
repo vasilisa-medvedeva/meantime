@@ -144,6 +144,7 @@
      Числа из hig-numbers.md: safe 59/34, тулбар 44, тап-зона 44. */
   --size-camera-preview-h:520px;
   --size-camera-top:104px;
+  --size-camera-bar-min:140px;   /* решение 17.110 — минимум под панель спуска */
   --size-shutter-ring:3px;       /* толщина кольца спуска */
   /* шит шеринга (решение 17) — имитация системного листа iOS в токенах проекта */
   --size-share-thumb-h:96px;       /* высота миниатюры карточки в строке превью */
@@ -430,6 +431,9 @@ h1,h2,h3,p,ul,ol{margin:0;padding:0}
 @keyframes spin{to{transform:rotate(360deg)}}
 
 /* --- DayCell · 89:16 · State (6) ---------------------------------------- */
+/* решение 17.106 — область нажатия ячейки доведена до 44 по HIG, не трогая вид:
+   сама ячейка 42, невидимый слой добавляет по пикселю с каждой стороны */
+.DayCell::after{content:"";position:absolute;inset:-1px;border-radius:inherit}
 .DayCell{
   position:relative;width:100%;aspect-ratio:1;
   border-radius:var(--radius-sm);overflow:visible;
@@ -519,6 +523,10 @@ h1,h2,h3,p,ul,ol{margin:0;padding:0}
 .TabBar__item:active .TabBar__icon{transform:scale(.9)}
 
 /* --- RecapCard · 91:21 · State (2) -------------------------------------- */
+/* Полка не собралась: та же ширина и высота, внутри причина и кнопка повтора */
+.RecapCard--error{width:var(--size-recap-card-w);height:var(--size-recap-h);
+  padding:var(--space-4);justify-content:center;background:var(--color-surface-raised);
+  border:var(--size-hairline) solid var(--color-border-default)}
 .RecapCard{
   position:relative;flex:0 0 auto;
   width:var(--size-recap-card-w);height:var(--size-recap-h);
@@ -736,6 +744,9 @@ h1,h2,h3,p,ul,ol{margin:0;padding:0}
 
 /* --- навбар --- */
 .NavBar{display:flex;align-items:center;min-height:var(--size-tap-min);margin-left:calc(var(--space-1) * -1)}
+.NavBar__more{margin-left:auto;min-width:var(--size-tap-min);min-height:var(--size-tap-min);
+  display:flex;align-items:center;justify-content:center;letter-spacing:.08em;
+  color:var(--color-accent-default);background:none;border:0}
 .NavBar__back{display:flex;align-items:center;gap:2px;color:var(--color-accent-default);
   height:var(--size-tap-min);padding-right:var(--space-3);font-size:17px;font-weight:400}
 .NavBar__title{flex:1;text-align:center;padding-right:var(--space-10)}
@@ -905,7 +916,10 @@ h1,h2,h3,p,ul,ol{margin:0;padding:0}
 .Camera__top{position:absolute;top:0;left:0;right:0;z-index:4;
   height:var(--size-camera-top);display:flex;align-items:center;
   padding:var(--size-safe-top) var(--space-4) 0}
-.Camera__view{position:absolute;top:0;left:0;right:0;height:var(--size-hero-h);overflow:hidden}
+/* решение 17.110 — на коротком экране видоискатель ужимается, чтобы спуску осталось место:
+   72 на кнопку, 34 на безопасную зону и воздух вокруг */
+.Camera__view{position:absolute;top:0;left:0;right:0;overflow:hidden;
+  height:min(var(--size-hero-h), calc(100% - var(--size-camera-bar-min)))}
 .Camera__view .Frame{border-radius:0}
 /* очень медленный масштаб: изображение читается живым, а не фотографией.
    alternate вместо простого повтора — иначе на 20-й секунде кадр скачком возвращается в 1.0 */
@@ -934,7 +948,8 @@ h1,h2,h3,p,ul,ol{margin:0;padding:0}
 .Camera__top,.Camera__bar{transition:opacity var(--motion-capture-chrome) var(--ease-accel)}
 .Camera.is-shooting .Camera__top,.Camera.is-shooting .Camera__bar{opacity:0;pointer-events:none}
 .Camera__bar{
-  position:absolute;left:0;right:0;top:var(--size-hero-h);bottom:0;z-index:3;
+  position:absolute;left:0;right:0;bottom:0;z-index:3;
+  top:min(var(--size-hero-h), calc(100% - var(--size-camera-bar-min)));
   padding:0 var(--size-gutter) var(--size-safe-bottom);
   display:grid;grid-template-columns:1fr auto 1fr;align-items:center}
 .Camera__thumb{
@@ -1375,7 +1390,9 @@ const Analytics = {
     const e = Object.assign({
       event:name,
       session_id:this.sid,
-      screen:(window.Router && Router.current) || "-",
+      /* решение 17.107 — Router объявлен через const и на window не попадает,
+         поэтому поле экрана во всех событиях было «-». Читаем напрямую */
+      screen:(typeof Router !== "undefined" && Router.current) || "-",
       timestamp:new Date().toISOString(),
       day_index:DEMO.dayIndex
     }, params||{});
@@ -2269,13 +2286,23 @@ function scrollBox(s, tabId, flush){
   if(tabId){ s.append(el("div","ScrimBottom")); s.append(UI.TabBar(tabId)); }
   return w;
 }
-function navBack(label){
+function navBack(label, trailing){
   const n=el("div","NavBar");
   const b=el("button","NavBar__back");
   const c=el("span"); c.style.fontSize="24px"; c.style.lineHeight="1"; c.textContent="‹";
   b.append(c, assign(el("span"),label));
   b.addEventListener("click",()=>Router.back());
-  n.append(b); return n;
+  n.append(b);
+  /* решение 17.105 — редкие действия уезжают в меню справа, как в системных экранах iOS:
+     на первом плане остаются два, ради которых человек сюда пришёл */
+  if(trailing){
+    const more=el("button","NavBar__more");
+    more.setAttribute("aria-label","More actions");
+    more.textContent="•••";
+    more.addEventListener("click",()=>actionSheet(trailing));
+    n.append(more);
+  }
+  return n;
 }
 function counterEl(cls){ const n=el("span",cls||"t-counter c-accent");
   n.dataset.countdown="1"; n.textContent=Countdown.fmt(); return n; }
@@ -2633,6 +2660,9 @@ Screens["05"]=s=>{
         after.style.opacity="1"; setTimeout(()=>{ after.style.transition=""; }, DM);
         after.classList.remove("Reveal__after");
         if(before.parentNode) before.remove();
+        /* решение 17.108 — у сценария «обработка не пришла» результата нет вовсе:
+           дальше по коду читались f.result.confidence и f.result.preset и роняли экран */
+        if(!f.result){ Screens._dailyMissing(actions, f, title, kick); return; }
         const small = !!(f.result && f.result.delta==="small");
         if(small){
           const ph=after.querySelector(".Frame__ph");
@@ -2687,6 +2717,19 @@ Screens["05"]=s=>{
     });
   });
 };
+/* Обработка не пришла: кадр остаётся как есть, дневная порция не тратится.
+   Заголовок и кнопки берём из фикстуры — это единственный экран без результата. */
+Screens._dailyMissing=(box, f, title, kick)=>{
+  title.textContent = f.title || "Today\u2019s upgrade hasn\u2019t arrived yet";
+  kick.textContent = "";
+  [title,kick].forEach(n=>{ n.style.opacity="1"; });
+  box.innerHTML="";
+  box.style.opacity="1";
+  (f.actions||[{id:"nofilter",label:"Keep without the upgrade",variant:"primary"}])
+    .forEach(a=>box.append(UI.Button({label:a.label, variant:a.variant,
+      onTap:()=>Screens._failAction(a.id, f)})));
+};
+
 Screens._dailyDone=(box, f)=>{
   S.attempts++;
   /* решение 17.85 — экран показывает один кадр, кнопка сохраняет ровно его */
@@ -2748,7 +2791,17 @@ function keptBlock(w, {extra=false, height="var(--size-frame-portrait)"}={}){
 /* --- 06 / 06a · День сохранён ------------------------------------------ */
 function keptScreen(s, extra){
   const w=scrollBox(s);
-  w.append(navBack("Today"));
+  /* решение 17.105 — на экране с эффектом два редких действия живут в меню справа:
+     на виду остаются «поделиться» и «открыть дневник», ради которых сюда и приходят */
+  const menu = extra ? [
+    {label:"Develop again · "+effectPrice()+" coins",
+     onTap:()=>Sheets.confirmCoins({name:effectTitle(),price:effectPrice()})},
+    {label:"Discard this one", role:"destructive", onTap:()=>{
+      Analytics.track("effect_discarded",{preset_id:presetId(effectTitle())});
+      S.todayPreset="upgraded"; saveState(); Router.resetTo("03","06"); }},
+    {label:"Cancel", role:"cancel"}
+  ] : null;
+  w.append(navBack("Today", menu));
   w.append(assign(el("h1","t-display"),"Kept · "+fmtMD(DEMO.today)));
   const kb=keptBlock(w,{extra});
   if(kb.seg) kb.seg.classList.add("mt4");
@@ -2766,19 +2819,6 @@ function keptScreen(s, extra){
   const a=el("div","stack gap2 mt4");
   a.append(UI.Button({label:"Share today",onTap:()=>goShare(DEMO.dayIndex)}));
   a.append(UI.Button({label:"Open diary",variant:"secondary",onTap:()=>Router.tab("diary")}));
-  if(extra){
-    const r=el("div","row"); r.style.justifyContent="space-between";
-    const d=UI.Button({label:"Discard",variant:"text",onTap:()=>actionSheet([
-      {label:"Discard this one",role:"destructive",onTap:()=>{
-        Analytics.track("effect_discarded",{preset_id:presetId(effectTitle())});
-        S.todayPreset="upgraded"; saveState(); Router.resetTo("03","06"); }},
-      {label:"Cancel",role:"cancel"}])});
-    d.style.width="auto"; d.style.color="var(--color-text-secondary)";
-    const g=UI.Button({label:"Develop again · ◎ "+effectPrice(),variant:"text",
-      onTap:()=>Sheets.confirmCoins({name:effectTitle(),price:effectPrice()})});
-    g.style.width="auto";
-    r.append(d,g); a.append(r);
-  }
   /* решение 17.69 — «Replace photo» на сохранённом дне снята: выбор уже сделан
      переключателем и кнопкой «Keep in diary». Замена кадра остаётся там, где она
      действительно нужна и платная, — на прошлом дне (08) */
@@ -2828,11 +2868,21 @@ Screens["07"]=s=>{
 
   w.append(assign(el("div","t-meta c-tertiary mt6"),"RECAPS"));
   const shelf=el("div","Shelf flush mt3");
-  AI.load("recap/success").then(fx=>{
+  AI.load(S._recapFixture || "recap/success").then(fx=>{
+    /* решение 17.109 — рекап мог не собраться: показываем причину и повтор,
+       иначе на полку вставала карточка с «Week undefined» */
+    if(fx.error_type){
+      const box=el("div","RecapCard RecapCard--error stack gap2");
+      box.append(assign(el("div","t-h2"), fx.title || "Couldn\u2019t compose yet"),
+                 UI.Button({label:(fx.actions&&fx.actions[0]&&fx.actions[0].label)||"Try again",
+                   variant:"secondary", onTap:()=>{ S._recapFixture="recap/success"; Router.tab("diary"); }}));
+      shelf.append(box);
+    } else {
     shelf.append(UI.RecapCard({fx,state:"current",onTap:(card)=>{
       Analytics.track("recap_opened",{period:"week",index:0});
       Router.go("10",{from:card});
     }}));
+    }
     /* кадр спайна — первый сохранённый день его недели по таблице `assets/FRAMES.md`:
        31 авг = day-26, 24 авг = day-19, 17 авг = day-12 (в макете стояли чужие недели, п. 5) */
     [["AUG 31 – SEP 6","day-26"],["AUG 24 – 30","day-19"],["AUG 17 – 23","day-12"]].forEach(([lb,a])=>{
@@ -3144,10 +3194,11 @@ Sheets.gallery = (source)=>{
     row.append(el("div","PickTile Skeleton"));
     b.append(label, row);
 
-    AI.load("gallery-pick/success").then(f=>{
+    AI.load(S._galleryFixture || "gallery-pick/success").then(f=>{
       setTimeout(()=>{
         row.innerHTML="";
-        label.textContent=f.label;
+        /* решение 17.109 — у сценария без подсказок метки нет, есть строка-объяснение */
+        label.textContent = f.label || f.fallback_line || "";
         Analytics.track("frame_suggested",{count_today:f.count_today,confidence:f.confidence});
         (f.picks||[]).forEach(p=>{
           const t=el("button","PickTile"); t.setAttribute("aria-selected","true");
@@ -3456,9 +3507,16 @@ const EventLogView = {
   const sel=document.createElement("select");   /* стиль в CSS, не инлайном: инлайн выиграл бы у витрины */
   Object.keys(FIXTURES).forEach(k=>{ const o=document.createElement("option"); o.value=k; o.textContent=k; sel.append(o); });
   sel.value="daily-frame/success";
-  sel.addEventListener("change",()=>{ S._fixtureOverride=sel.value; });
+  /* решение 17.109 — выбранная фикстура попадает в свой сценарий, а не только в дневной кадр:
+     раньше «пустая галерея» и ошибки рекапа лежали в файлах, но показать их было нечем */
+  const applyFixture = v => {
+    S._fixtureOverride = v;
+    if(v.indexOf("gallery-pick/")===0) S._galleryFixture = v;
+    if(v.indexOf("recap/")===0) S._recapFixture = v;
+  };
+  sel.addEventListener("change",()=>applyFixture(sel.value));
   bar.insertBefore(sel, bar.children[1]);
-  if(qs.get("fixture")) { S._fixtureOverride=qs.get("fixture"); sel.value=qs.get("fixture"); }
+  if(qs.get("fixture")) { applyFixture(qs.get("fixture")); sel.value=qs.get("fixture"); }
 
   document.getElementById("devLog").addEventListener("click",()=>{
     document.getElementById("eventLog").classList.toggle("is-on"); });
