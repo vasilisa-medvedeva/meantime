@@ -2081,7 +2081,12 @@ const Router = {
         s.style.opacity="1";
         if(below){ below.el.style.transition="opacity "+DD+"ms "+ease; below.el.style.opacity="0"; }
       });
-      setTimeout(()=>{ if(below){ below.el.style.visibility="hidden"; below.el.style.opacity=""; } done(); }, DD+20);
+      setTimeout(()=>{ if(below){
+        below.el.style.visibility="hidden";
+        below.el.style.transition="";      /* сначала снимаем переход, потом прозрачность:
+                                              иначе скрытый экран продолжал анимироваться обратно */
+        below.el.style.opacity="";
+      } done(); }, DD+20);
     }else if(mode==="zoom"){
       const dev=document.getElementById("device").getBoundingClientRect();
       const r=opts.from.getBoundingClientRect();
