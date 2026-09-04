@@ -167,7 +167,6 @@
   /* решение 17.101 — спуск: сначала гаснет хром камеры, потом кадр переходит
      в проявление. Дольше обычного перехода: это смена задачи, а не шаг назад-вперёд */
   --motion-capture-chrome:180ms;
-  --motion-capture-flash:220ms;  /* решение 17.103 — вспышка спуска, как в системной камере */
   --motion-capture:560ms;  /* решение 17.2 — оригинал стоит чётким до кросс-фейда */
   --motion-viewfinder:20000ms; /* решение 17.19 — 1.0 → 1.04 в видоискателе, туда и обратно */
   /* однократный показ дельты после проявления (решение 17.32) */
@@ -339,7 +338,10 @@ h1,h2,h3,p,ul,ol{margin:0;padding:0}
 .Screen__scroll--tab{padding-bottom:calc(var(--size-safe-bottom) + var(--size-tabbar-h) + var(--space-10))}
 .Screen__scroll--flush{padding-left:0;padding-right:0}
 .Screen__scroll--flush > *{padding-left:var(--size-gutter);padding-right:var(--size-gutter)}
-.Screen__scroll--flush > .flush{padding-left:0;padding-right:0}
+/* решение 17.113 — полоса «навылет» начинается с общего поля 16 и уходит за правый край:
+   так первая карточка стоит на одной вертикали с заголовками, а карусель всё равно
+   читается как продолжающаяся. Прежде она липла к левому краю, и поля на экране спорили */
+.Screen__scroll--flush > .flush{padding-left:var(--size-gutter);padding-right:var(--size-gutter)}
 /* На flush-экранах поле задаётся паддингом прямых детей. Для .Segment это ломает сетку:
    у него есть собственный фон и рамка, и визуальный бокс становится 390 вместо 342 —
    сегмент упирается в края и режется скруглением устройства. Поле ему нужно маргином. */
@@ -886,8 +888,12 @@ h1,h2,h3,p,ul,ol{margin:0;padding:0}
 /* --- блок TOMORROW (идея 21) --- */
 /* решение 17.102 — счётчик стоит на одной строке с названием обработки, а не с ярлыком
    «TOMORROW»: выравниваем по низу, тогда оба текста читаются как одна строка */
+.Tomorrow__right{display:flex;align-items:baseline;gap:var(--space-2);flex:0 0 auto}
+/* решение 17.116 — содержимое стоит по центру карточки: высота задана минимумом,
+   а поля сверху и снизу равны. Прежде блок был жёстко 56 при содержимом 35,
+   и весь запас в 21 пиксель уходил наверх — текст лип к нижнему краю */
 .Tomorrow{display:flex;align-items:flex-end;gap:var(--space-3);
-  min-height:var(--size-tomorrow-h);padding:0 var(--space-4);
+  min-height:var(--size-tomorrow-h);padding:var(--space-3) var(--space-4);
   background:var(--color-surface-raised);border-radius:var(--radius-md)}
 
 /* --- 07 полка и поле --- */
@@ -938,12 +944,8 @@ h1,h2,h3,p,ul,ol{margin:0;padding:0}
 .Camera__close::before{content:"";position:absolute;inset:0;border-radius:inherit;
   background:var(--color-glass-floor);z-index:-1}
 .Camera__close:active{transform:scale(.97);opacity:.8}
-/* Вспышка спуска: белое поле поверх кадра на четверть секунды. Даёт физический отклик —
-   «снято» — и прикрывает смену интерфейса под ней (решение 17.103) */
-.CameraFlash{position:absolute;inset:0;z-index:6;pointer-events:none;
-  background:var(--color-text-on-image);opacity:0;
-  animation:capture-flash var(--motion-capture-flash) var(--ease-standard) forwards}
-@keyframes capture-flash{0%{opacity:0} 18%{opacity:.92} 100%{opacity:0}}
+/* решение 17.114 — вспышки на спуске нет: белое поле во весь экран читалось как сбой,
+   а не как отклик. Отклик даёт сам переход — хром уходит, кадр остаётся */
 /* решение 17.101 — на спуске интерфейс камеры уходит первым, кадр остаётся */
 .Camera__top,.Camera__bar{transition:opacity var(--motion-capture-chrome) var(--ease-accel)}
 .Camera.is-shooting .Camera__top,.Camera.is-shooting .Camera__bar{opacity:0;pointer-events:none}
@@ -2115,7 +2117,10 @@ const Router = {
       requestAnimationFrame(()=>{
         s.style.transition="opacity "+DD+"ms "+ease;
         s.style.opacity="1";
-        if(below){ below.el.style.transition="opacity "+DD+"ms "+ease; below.el.style.opacity="0"; }
+        /* решение 17.112 — экран под растворением НЕ гасим: он непрозрачен и закрывает
+           всё, что лежит глубже в стеке. Когда гасили, сквозь полупрозрачное проявление
+           проступал корневой экран с вордмарком. Кадр в видоискателе и в проявлении
+           стоит в одном месте (17.104), поэтому просвечивание камеры незаметно */
       });
       setTimeout(()=>{ if(below){
         below.el.style.visibility="hidden";
@@ -2303,6 +2308,14 @@ function navBack(label, trailing){
     n.append(more);
   }
   return n;
+}
+/* решение 17.115 — «IN» и время стоят на одной базовой линии друг с другом,
+   а группа целиком — на линии названия обработки слева. Раньше ярлык 11 pt был
+   прижат низом к 17 pt цифрам и сидел на пару пикселей ниже их базовой линии. */
+function tomorrowCounter(){
+  const g=el("div","Tomorrow__right");
+  g.append(metaLine("IN","t-counter-meta c-tertiary"), counterEl());
+  return g;
 }
 function counterEl(cls){ const n=el("span",cls||"t-counter c-accent");
   n.dataset.countdown="1"; n.textContent=Countdown.fmt(); return n; }
@@ -2499,7 +2512,7 @@ Screens["03"]=s=>{
     const tm=el("div","Tomorrow mt3");
     const tl=el("div","stack"); tl.style.flex="1";
     tl.append(assign(el("div","t-meta c-tertiary"),"TOMORROW"), assign(el("div","t-h2"),DEMO.upgradeTomorrow));
-    tm.append(tl, metaLine("IN","t-counter-meta c-tertiary"), counterEl());
+    tm.append(tl, tomorrowCounter());
     w.append(tm);
 
     const a=el("div","stack gap3 mt4");
@@ -2524,10 +2537,6 @@ function shoot(source){
   const cam=document.querySelector(".Camera");
   const go=()=>Router.go("05",{dissolve:true, ms:MS("--motion-capture")});
   if(cam && source==="camera"){
-    if(!matchMedia("(prefers-reduced-motion: reduce)").matches){
-      const flash=el("div","CameraFlash"); cam.append(flash);
-      setTimeout(()=>flash.remove(), MS("--motion-capture-flash")+40);
-    }
     cam.classList.add("is-shooting");
     setTimeout(go, MS("--motion-capture-chrome"));
   } else go();
@@ -2815,7 +2824,7 @@ function keptScreen(s, extra){
   const tm=el("div","Tomorrow mt3");
   const tl=el("div","stack"); tl.style.flex="1";
   tl.append(assign(el("div","t-meta c-tertiary"),"TOMORROW"), assign(el("div","t-h2"),DEMO.upgradeTomorrow));
-  tm.append(tl, metaLine("IN","t-counter-meta c-tertiary"), counterEl());
+  tm.append(tl, tomorrowCounter());
   w.append(tm);
 
   const a=el("div","stack gap2 mt4");
