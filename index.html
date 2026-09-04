@@ -1087,9 +1087,11 @@ h1,h2,h3,p,ul,ol{margin:0;padding:0}
   .EffectTile[data-state="rendering"] .EffectTile__prev::after,
   .Camera__view .Frame__img{animation:none}
   :root{--motion-render-fast:1000ms;--motion-render-quality:1000ms;--motion-stream-char:0ms}
-  /* образец дня не мигает: ради этого настройку и включают */
-  .FilterCard__orig,.FilterCard__state span{animation:none!important}
-  .FilterCard__state .is-before{opacity:0}
+  /* решение 17.86 — образец дня продолжает ходить между «до» и «после», только медленнее.
+     Настройка защищает от движения, а здесь ничего не движется: это растворение,
+     которое HIG сам предлагает как замену движению. Выключать его — значит отнять
+     у человека единственное место, где видно, что делает обработка. */
+  .FilterCard__orig,.FilterCard__state span{animation-duration:calc(var(--motion-sample-cycle) * 1.6)}
 }
 </style>
 
