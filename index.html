@@ -127,8 +127,10 @@
   --size-pick-cell:94px;         /* ux-brief §04 — ячейка сетки 94 */
   --size-tomorrow-h:56px;        /* ui-spec §06 — блок TOMORROW сжат до 56 */
   --size-lens-mark:64px;
-  --size-sample-before-w:76px;   /* решение 17.81 — врезка «до» в карточке дня */
-  --size-sample-before-h:52px;         /* решение 17.13 — диафрагма в заглушке карточки дня */
+  /* решение 17.83 — образец дня сам показывает разницу: проявленный стоит,
+     уходит в оригинал и возвращается. Такт тот же, что у показа дельты после проявки */
+  --motion-sample-cycle:5400ms;
+  --size-sample-cap-w:60px; --size-sample-cap-h:13px;         /* решение 17.13 — диафрагма в заглушке карточки дня */
   --size-shutter:72px;           /* решение 17.19 — спуск, как в системной камере iOS */
   /* Решение 17.33 — видоискатель перестал быть полноэкранным.
      Превью 3:4 по ширине: 390 × 520. Верхнее поле = safe top 59 + тулбар 44 = 103 → 104
@@ -759,16 +761,18 @@ h1,h2,h3,p,ul,ol{margin:0;padding:0}
    как будет проявлен твой. Врезка слева — тот же кадр до обработки, чтобы разница
    читалась без объяснений. */
 .FilterCard__sample{position:absolute;inset:0;overflow:hidden}
-.FilterCard__before{
-  position:absolute;left:var(--space-4);top:var(--space-4);z-index:2;
-  width:var(--size-sample-before-w);height:var(--size-sample-before-h);
-  border-radius:var(--radius-sm);overflow:hidden;
-  border:var(--size-hairline) solid var(--color-glass-hairline);
-  box-shadow:var(--effect-chrome-shadow)}
-.FilterCard__before-cap{
-  position:absolute;left:var(--space-4);z-index:2;
-  top:calc(var(--space-4) + var(--size-sample-before-h) + var(--space-1));
-  opacity:.9}
+/* Оригинал лежит поверх проявленного и проступает по кругу: 2.6 с проявленный,
+   0.7 с переход, 1.4 с оригинал, 0.7 с обратно. Подпись состояния идёт тем же тактом. */
+.FilterCard__orig{position:absolute;inset:0;opacity:0;
+  animation:sample-swap var(--motion-sample-cycle) var(--ease-standard) infinite}
+.FilterCard__state{position:absolute;left:var(--space-4);top:var(--space-4);z-index:3;
+  width:var(--size-sample-cap-w);height:var(--size-sample-cap-h)}
+.FilterCard__state span{position:absolute;left:0;top:0;white-space:nowrap}
+.FilterCard__state .is-after{animation:sample-cap var(--motion-sample-cycle) var(--ease-standard) infinite}
+.FilterCard__state .is-before{opacity:0;
+  animation:sample-swap var(--motion-sample-cycle) var(--ease-standard) infinite}
+@keyframes sample-swap{0%,48%{opacity:0} 61%,87%{opacity:1} 100%{opacity:0}}
+@keyframes sample-cap{0%,48%{opacity:1} 61%,87%{opacity:0} 100%{opacity:1}}
 .FilterCard__tag{
   position:absolute;right:var(--space-4);top:var(--space-4);z-index:2;
   padding:var(--space-1) var(--space-3);border-radius:var(--radius-full);
@@ -1084,6 +1088,9 @@ h1,h2,h3,p,ul,ol{margin:0;padding:0}
   .EffectTile[data-state="rendering"] .EffectTile__prev::after,
   .Camera__view .Frame__img{animation:none}
   :root{--motion-render-fast:1000ms;--motion-render-quality:1000ms;--motion-stream-char:0ms}
+  /* образец дня не мигает: ради этого настройку и включают */
+  .FilterCard__orig,.FilterCard__state span{animation:none!important}
+  .FilterCard__state .is-before{opacity:0}
 }
 </style>
 
@@ -2341,24 +2348,25 @@ Screens["03"]=s=>{
     const card=el("div","FilterCard mt5");
     const img=el("div","FilterCard__img");
     /* образец дня: проявленный кадр во всю карточку, врезка «до» и имя рецепта */
+    /* решение 17.83 — на кадре нет текста: он показывает обработку сам,
+       а вопрос и объяснение стоят под ним, где их удобно читать */
     const sample=el("div","FilterCard__sample");
-    sample.append(Img.make("today", null, {seed:"today-original", variant:"upgraded"}));
-    img.append(sample, el("div","Scrim7"));
-    const before=el("div","FilterCard__before");
-    before.append(Img.make("today-original"));
-    img.append(before, assign(el("div","FilterCard__before-cap t-counter-meta c-on-image"),"BEFORE"));
+    sample.append(Img.make("sample-after"));
+    const orig=el("div","FilterCard__orig");
+    orig.append(Img.make("sample-before"));
+    sample.append(orig);
+    const st=el("div","FilterCard__state");
+    st.append(assign(el("span","t-counter-meta c-on-image is-after"),"AFTER"),
+              assign(el("span","t-counter-meta c-on-image is-before"),"BEFORE"));
     const tag=el("div","FilterCard__tag");
     tag.append(assign(el("span","t-counter-meta c-on-image"), DEMO.todayLook.toUpperCase()));
-    img.append(tag);
-    const it=el("div","FilterCard__text stack gap1");
-    /* решение 17.14 — карточка спрашивает, а не объявляет. Ответ на вопрос — снятый кадр:
-       поля ввода в продукте нет по решению 4. Ярлык `TODAY’S UPGRADE` снят совсем,
-       оба триггера решения 15.1 на месте: хроника строкой сверху, апгрейд с отсчётом в подвале. */
-    it.append(assign(el("div","t-h1"), "What does today look like?"));
-    img.append(it); card.append(img);
+    img.append(sample, st, tag);
+    card.append(img);
     const foot=el("div","FilterCard__foot");
-    foot.append(assign(el("div","t-body c-secondary"),
-      "Today\u2019s look on someone else\u2019s frame. Yours gets the same one, free."));
+    /* решение 17.14 — карточка спрашивает, а не объявляет функцию */
+    foot.append(assign(el("div","t-h1"), "What does today look like?"),
+      assign(el("div","t-body c-secondary"),
+        "Today\u2019s look, on someone else\u2019s frame. Shoot one to see yours."));
     const r=el("div","row gap2");
     r.append(metaLine("FREE UPGRADE RENEWS IN","t-counter-meta c-tertiary"), counterEl());
     foot.append(r);
