@@ -81,7 +81,7 @@
   --space-6:24px; --space-8:32px; --space-10:40px; --space-12:48px;
 
   /* --- radius · 5 --- */
-  --radius-sm:8px; --radius-md:12px; --radius-lg:16px; --radius-xl:26px; --radius-full:999px;
+  --radius-sm:8px; --radius-md:12px; --radius-lg:16px; --radius-xl:24px; --radius-full:999px;
 
   /* --- size · 12 --- */
   --size-tap-min:44px;      --size-button-h:50px;
@@ -110,6 +110,7 @@
   --size-hero-h:560px;           /* ui-spec §05 — кадр 390×560 */
   --size-hero-day-h:520px;       /* ux-brief §08 — кадр 390×520 */
   --size-frame-square:358px;     /* ui-spec §06 — кадр во всю колонку, при поле 16 это 358 */
+  --size-icon:24px;              /* решение 17.131 — иконки 24, как принято в системных таб-барах */
   /* решение 17.96 — сохранённый день показывается в пропорциях снимка, а не квадратом:
      342 × 1152 / 928 = 425. Кадр не режется, и день выглядит так же, как в дневнике */
   --size-frame-portrait:444px;   /* 358 × 1152 / 928 — пропорции снимка */
@@ -299,7 +300,11 @@ h1,h2,h3,p,ul,ol{margin:0;padding:0}
    На телефоне и внутри рамки кейса шириной 390 работает ветка выше, и здесь не меняется
    ничего. Меняется только оформление ВОКРУГ устройства: внутри те же тёмные токены,
    ни один экран приложения об этой правке не знает. */
-@media (min-width:621px) and (min-height:901px) and (hover:hover){
+/* решение 17.136 — витрина включается на любом компьютере, а не только на высоком окне.
+   Раньше условие требовало 901 px высоты, и на обычном ноутбуке прототип растягивался
+   на весь экран. Теперь устройство остаётся 390×844 и целиком ужимается масштабом,
+   если окно ниже: пропорции телефона и метрики макета сохраняются. */
+@media (min-width:621px) and (hover:hover) and (pointer:fine){
   body{background:var(--color-stage-bg)}
   .Stage{gap:var(--space-4)}
   .Device{
@@ -307,6 +312,10 @@ h1,h2,h3,p,ul,ol{margin:0;padding:0}
     width:var(--size-frame-w);height:var(--size-frame-h);
     border-radius:var(--size-device-radius);
     box-shadow:0 0 0 var(--size-stage-bezel) var(--color-stage-bezel), var(--effect-stage-shadow);
+    transform:scale(var(--stage-scale,1));
+    transform-origin:top center;
+    /* масштаб не меняет место в потоке — подтягиваем то, что под устройством */
+    margin-bottom:calc((var(--size-frame-h) + 2 * var(--size-stage-bezel)) * (var(--stage-scale,1) - 1));
   }
   body .DevBar{display:flex!important}
   /* Панель управления витрины (решение 17.31): человек приходит по прямой ссылке
@@ -323,6 +332,15 @@ h1,h2,h3,p,ul,ol{margin:0;padding:0}
     color:var(--color-stage-ink);
   }
 }
+
+/* Ступени масштаба витрины: 844·s + рамка и панели под ней должны поместиться в окно. */
+@media (min-width:621px) and (hover:hover) and (pointer:fine) and (max-height:997px){ :root{--stage-scale:.96} }
+@media (min-width:621px) and (hover:hover) and (pointer:fine) and (max-height:939px){ :root{--stage-scale:.92} }
+@media (min-width:621px) and (hover:hover) and (pointer:fine) and (max-height:879px){ :root{--stage-scale:.88} }
+@media (min-width:621px) and (hover:hover) and (pointer:fine) and (max-height:819px){ :root{--stage-scale:.84} }
+@media (min-width:621px) and (hover:hover) and (pointer:fine) and (max-height:759px){ :root{--stage-scale:.80} }
+@media (min-width:621px) and (hover:hover) and (pointer:fine) and (max-height:699px){ :root{--stage-scale:.74} }
+@media (min-width:621px) and (hover:hover) and (pointer:fine) and (max-height:639px){ :root{--stage-scale:.66} }
 
 .ScreenStack{position:absolute;inset:0}
 .Screen{
@@ -521,7 +539,7 @@ h1,h2,h3,p,ul,ol{margin:0;padding:0}
   z-index:1;
 }
 .TabBar__item[aria-selected="true"]{color:var(--color-accent-default)}
-.TabBar__icon{width:22px;height:22px;display:block;transition:transform var(--motion-icon) var(--ease-standard)}
+.TabBar__icon{width:var(--size-icon);height:var(--size-icon);display:block;transition:transform var(--motion-icon) var(--ease-standard)}
 .TabBar__item:active .TabBar__icon{transform:scale(.9)}
 
 /* --- RecapCard · 91:21 · State (2) -------------------------------------- */
@@ -2314,7 +2332,7 @@ function navBack(label, trailing){
    прижат низом к 17 pt цифрам и сидел на пару пикселей ниже их базовой линии. */
 function tomorrowCounter(){
   const g=el("div","Tomorrow__right");
-  g.append(metaLine("IN","t-counter-meta c-tertiary"), counterEl());
+  g.append(counterEl());   /* решение 17.130 — без ярлыка «IN»: строка уже подписана TOMORROW */
   return g;
 }
 function counterEl(cls){ const n=el("span",cls||"t-counter c-accent");
