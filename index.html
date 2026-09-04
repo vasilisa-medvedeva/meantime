@@ -2631,11 +2631,12 @@ Screens._dailyDone=(box, f)=>{
     Analytics.track("limit_reached",{limit_type:"daily_renders"});
     Router.resetTo("03","06");
   }}));
+  /* решение 17.95 — цена стоит на кнопке всегда, а не появляется с третьей попытки:
+     дневная порция уже потрачена на этот кадр, любая пересъёмка идёт за монеты.
+     Кнопка называет и действие, и цену — торга с самим собой не остаётся. */
   const priceLabel=(text, price)=>[document.createTextNode(text+" · "), el("span","Coin"), document.createTextNode(" "+price)];
-  box.append(UI.Button({label: S.attempts>=3 ? priceLabel("Another photo", 2) : "Pick another photo",variant:"secondary",onTap:()=>{
-    if(S.attempts>=3){ Sheets.confirmCoins({name:"Develop again",price:2,extra:true}); return; }
-    Router.back(); Sheets.gallery("library");
-  }}));
+  box.append(UI.Button({label: priceLabel("Another photo", 2), variant:"secondary",
+    onTap:()=>Sheets.confirmCoins({name:"Develop again",price:2,extra:true})}));
   if(f.result.confidence==="low")
     box.append(UI.Button({label:"Develop again — on us",variant:"text",onTap:()=>{
       Analytics.track("result_regenerated",{reason:"low_confidence"});
