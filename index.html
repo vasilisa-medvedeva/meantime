@@ -2265,8 +2265,7 @@ Screens["01"]=s=>{
            assign(el("div","t-body c-secondary"),"Shoot it or pick it. Your days compose themselves."));
   w.append(t);
   const a=el("div","stack gap3 mt8");
-  a.append(UI.Button({label:"Start today",onTap:()=>Sheets.period(true)}),
-           assign(el("div","t-caption c-tertiary center"),"No account. Photos stay on your phone."));
+  a.append(UI.Button({label:"Start today",onTap:()=>Sheets.period(true)}));
   w.append(a);
 };
 
@@ -2408,11 +2407,6 @@ Screens["05"]=s=>{
     const stages=fx.stages||[{id:"reading",label:"Reading your frame",ms:600}];
     const rs=UI.RenderStages(stages);
     panel.append(rs);
-    if(!isEffect && !S._serverNoteSeen){
-      panel.append(assign(el("div","t-caption c-tertiary"),
-        "Your frame goes to our servers to be developed and is deleted within 24 hours."));
-      S._serverNoteSeen=true;
-    }
     const actions=el("div","stack gap2"); panel.append(actions);
     const cancel=UI.Button({label: isEffect? "Cancel — no charge" : "Cancel — nothing is used yet",
       variant:"text", onTap:()=>{
