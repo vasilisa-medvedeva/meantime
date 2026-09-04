@@ -126,7 +126,9 @@
   --size-pick-tile:110px;        /* ux-brief §04 — плитки ряда 110×110 */
   --size-pick-cell:94px;         /* ux-brief §04 — ячейка сетки 94 */
   --size-tomorrow-h:56px;        /* ui-spec §06 — блок TOMORROW сжат до 56 */
-  --size-lens-mark:64px;         /* решение 17.13 — диафрагма в заглушке карточки дня */
+  --size-lens-mark:64px;
+  --size-sample-before-w:76px;   /* решение 17.81 — врезка «до» в карточке дня */
+  --size-sample-before-h:52px;         /* решение 17.13 — диафрагма в заглушке карточки дня */
   --size-shutter:72px;           /* решение 17.19 — спуск, как в системной камере iOS */
   /* Решение 17.33 — видоискатель перестал быть полноэкранным.
      Превью 3:4 по ширине: 390 × 520. Верхнее поле = safe top 59 + тулбар 44 = 103 → 104
@@ -753,6 +755,26 @@ h1,h2,h3,p,ul,ol{margin:0;padding:0}
 .FilterCard__blank svg{width:var(--size-lens-mark);height:var(--size-lens-mark);
   margin-bottom:var(--space-10)}
 .FilterCard__text{position:absolute;left:var(--space-4);right:var(--space-4);bottom:var(--space-4);z-index:2}
+/* Образец сегодняшней обработки (решение 17.81): чужой кадр, проявленный так же,
+   как будет проявлен твой. Врезка слева — тот же кадр до обработки, чтобы разница
+   читалась без объяснений. */
+.FilterCard__sample{position:absolute;inset:0;overflow:hidden}
+.FilterCard__before{
+  position:absolute;left:var(--space-4);top:var(--space-4);z-index:2;
+  width:var(--size-sample-before-w);height:var(--size-sample-before-h);
+  border-radius:var(--radius-sm);overflow:hidden;
+  border:var(--size-hairline) solid var(--color-glass-hairline);
+  box-shadow:var(--effect-chrome-shadow)}
+.FilterCard__before-cap{
+  position:absolute;left:var(--space-4);z-index:2;
+  top:calc(var(--space-4) + var(--size-sample-before-h) + var(--space-1));
+  opacity:.9}
+.FilterCard__tag{
+  position:absolute;right:var(--space-4);top:var(--space-4);z-index:2;
+  padding:var(--space-1) var(--space-3);border-radius:var(--radius-full);
+  background:var(--color-glass-fill);backdrop-filter:var(--effect-glass);
+  -webkit-backdrop-filter:var(--effect-glass);
+  border:var(--size-hairline) solid var(--color-glass-hairline)}
 .FilterCard__foot{padding:var(--space-4);display:flex;flex-direction:column;gap:var(--space-3)}
 
 /* --- 05 проявление --- */
@@ -1102,7 +1124,10 @@ const DEMO = {
   dayIndex:40,
   kept:37,                          // 40 прошедших − 3 пропущенных; на всех экранах постоянно
   skipped:{12:0, 36:3, 38:1},       // день → сколько кадров той даты лежит в библиотеке
-  /* upgradeToday снят решением 17.14: карточка задаёт вопрос, а не вешает ярлык функции */
+  /* Решение 17.81 — у дневной обработки снова есть имя и образец: новичок не понимает
+     слова «developed», пока не увидит, что оно делает с кадром. Имя техническое,
+     как у плёнки, а не рекламное: оно называет рецепт, а не обещает результат. */
+  todayLook:"Film 35 #1 + Wes #3",
   upgradeTomorrow:"ANOTHER UPGRADE",
   countdownStart:14*3600 + 32*60 + 6, // FREE UPGRADE RENEWS IN 14:32:06
   coinsStart:8,
@@ -2315,7 +2340,16 @@ Screens["03"]=s=>{
     /* день ещё не снят — плотная карточка дня с макета 104:47, без изменений */
     const card=el("div","FilterCard mt5");
     const img=el("div","FilterCard__img");
-    img.append(lensBlank());                       /* решение 17.13 */
+    /* образец дня: проявленный кадр во всю карточку, врезка «до» и имя рецепта */
+    const sample=el("div","FilterCard__sample");
+    sample.append(Img.make("today", null, {seed:"today-original", variant:"upgraded"}));
+    img.append(sample, el("div","Scrim7"));
+    const before=el("div","FilterCard__before");
+    before.append(Img.make("today-original"));
+    img.append(before, assign(el("div","FilterCard__before-cap t-counter-meta c-on-image"),"BEFORE"));
+    const tag=el("div","FilterCard__tag");
+    tag.append(assign(el("span","t-counter-meta c-on-image"), DEMO.todayLook.toUpperCase()));
+    img.append(tag);
     const it=el("div","FilterCard__text stack gap1");
     /* решение 17.14 — карточка спрашивает, а не объявляет. Ответ на вопрос — снятый кадр:
        поля ввода в продукте нет по решению 4. Ярлык `TODAY’S UPGRADE` снят совсем,
@@ -2323,7 +2357,8 @@ Screens["03"]=s=>{
     it.append(assign(el("div","t-h1"), "What does today look like?"));
     img.append(it); card.append(img);
     const foot=el("div","FilterCard__foot");
-    foot.append(assign(el("div","t-body c-secondary"),"One frame a day, developed free — the same for everyone."));
+    foot.append(assign(el("div","t-body c-secondary"),
+      "Today\u2019s look on someone else\u2019s frame. Yours gets the same one, free."));
     const r=el("div","row gap2");
     r.append(metaLine("FREE UPGRADE RENEWS IN","t-counter-meta c-tertiary"), counterEl());
     foot.append(r);
