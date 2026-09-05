@@ -253,7 +253,10 @@ h1,h2,h3,p,ul,ol{margin:0;padding:0}
    держится как логотип и буквы остаются раздельными. Место есть — 208 pt при 342,
    поэтому трекинг здесь работает на оптику, а не на то, чтобы влезть. */
 .t-logo{font-family:var(--font-logo);font-weight:700;letter-spacing:-.02em}
-.t-h1{font-size:22px;line-height:28px;font-weight:600;letter-spacing:0}
+/* решение 17.144 — заголовок не оставляет одинокое слово на второй строке: браузер
+   раскладывает строки поровну сам. Ручные переносы через &nbsp; ломались бы на каждом
+   изменении текста и на крупном шрифте Dynamic Type. */
+.t-h1{font-size:22px;line-height:28px;font-weight:600;letter-spacing:0;text-wrap:balance}
 .t-h2{font-size:17px;line-height:22px;font-weight:600;letter-spacing:0}
 .t-body{font-size:17px;line-height:22px;font-weight:400;letter-spacing:0}
 .t-caption{font-size:13px;line-height:18px;font-weight:400;letter-spacing:0}
