@@ -1285,7 +1285,7 @@ const S = {
   pickedFrame:null,
   effectPreset:null,
   effectSpent:0,
-  effectName:null,        // имя эффекта из плитки каталога (находка QA №2)
+  effectName:null,        // имя эффекта из плитки каталога, либо имя дневного вида для платной пересъёмки (находка QA №2, решение 17.149)
   effectPrice:0,
   entered:false,
   countdown:DEMO.countdownStart,
@@ -2377,12 +2377,19 @@ const FRAME_VERSIONS=[
 ];
 /* Имя эффекта берётся из плитки каталога, а не из фикстуры (находка QA №2):
    фикстура одна на каталог, кадр тоже один — fx-after, это осознанный срез.
-   todayPreset несёт маркер "EXTRA", имя живёт отдельно в effectName. */
+   todayPreset несёт маркер "EXTRA", имя живёт отдельно в effectName.
+   Решение 17.149 — платная пересъёмка (Sheets.confirmCoins с extra:true) записывает
+   в effectName имя дневного вида DEMO.todayLook, а не оставляет effectName пустым:
+   фолбэк "Snow globe" ниже иначе подставлялся везде, где эффект ещё не куплен ни разу,
+   и обычная пересъёмка подписывалась как купленный каталожный эффект. */
 const presetId    = n => String(n||"").toLowerCase().replace(/[^a-z]+/g,"_");
 const effectTitle = ()=> S.effectName || "Snow globe";
 const effectUpper = ()=> effectTitle().toUpperCase();
 const effectPrice = ()=> S.effectPrice || 4;
 const isExtra     = ()=> S.todayPreset==="EXTRA";
+/* решение 17.95/17.64, распространено 17.148 на 03 — ярлык кнопки с ценой в монетах.
+   Один helper на оба места (05 и 03), чтобы формат цены не разъезжался. */
+const priceLabel  = (text, price)=>[document.createTextNode(text+" · "), el("span","Coin"), document.createTextNode(" "+price)];
 /* подстановка имени поверх фикстуры эффекта: preset, preset_id и подписи стадий */
 /* Темп только для автодемо (?demo). Круг крутится на обложке кейса и должен укладываться
    в ~25 с, а человек, идущий прототипом руками, обязан получить прежние длительности:
@@ -2487,7 +2494,10 @@ Screens["01"]=s=>{
 Screens["03"]=s=>{
   const w=scrollBox(s,"today");
   w.append(assign(el("h1","t-display t-logo"),"Meantime"));
-  w.append(metaLine("SUN · DAY "+DEMO.dayIndex+" OF "+DEMO.periodLength,"t-counter-meta c-secondary mt3"));
+  /* решение 17.153 — переопределяет 15.4: дата вернулась в строку хроники (была снята
+     как дубль статус-бара/дневника), день недели ушёл — под кадром освободилось место
+     для неё же, теперь она стоит один раз, наверху */
+  w.append(metaLine(fmtMDup(DEMO.today)+" · DAY "+DEMO.dayIndex+" OF "+DEMO.periodLength,"t-counter-meta c-secondary mt3"));
   if(!S.todayKept){
     /* день ещё не снят — плотная карточка дня с макета 104:47, без изменений */
     const card=el("div","FilterCard mt5");
@@ -2526,18 +2536,19 @@ Screens["03"]=s=>{
     w.append(a);
   }else{
     /* решение 17.5 — день сохранён: та же раскладка, что на 06 (110:91), внутри вкладки.
-       Вордмарк, строка дня, ряд про монеты и таб-бар остаются: это Today, а не push-экран. */
-    const kb=keptBlock(w,{extra:isExtra(), height:"var(--size-frame-today)"});   /* 300, решение 17.8 */
+       Вордмарк, строка дня и таб-бар остаются: это Today, а не push-экран (ряд про монеты снят 17.148).
+       Уточнение 17.5 решением 17.151: раскладка 06 берётся без строки «kept» — сверху уже стоит
+       хроника `DAY N OF M` (15.1), а «DAY N» и число сохранённых на одном экране не встречаются (10.19).
+       Уточнение 17.153: date:false — дата уже стоит наверху (хроника), под кадром без
+       эффекта меты нет вовсе (kb.meta === null); Tomorrow ниже несёт свой mt3, ритм
+       от кадра не меняется, «пустого» узла не вставляем. */
+    const kb=keptBlock(w,{extra:isExtra(), height:"var(--size-frame-today)", kept:false, date:false});   /* 300, решение 17.8 */
     if(kb.seg) kb.seg.classList.add("mt4");
-    kb.box.classList.add(kb.seg ? "mt3" : "mt4"); kb.meta.classList.add("mt3");
+    kb.box.classList.add(kb.seg ? "mt3" : "mt4");
+    if(kb.meta) kb.meta.classList.add("mt3");
     if(kb.seg) w.append(kb.seg);
-    w.append(kb.box, kb.meta);
-
-    const q=el("button","row gap2 mt3"); q.style.justifyContent="space-between"; q.style.width="100%";
-    q.append(assign(el("span","t-body c-secondary"),"Today’s free upgrade is used · more with coins"),
-             assign(el("span","t-body c-accent"),"›"));
-    q.addEventListener("click",()=>Router.tab("effects"));
-    w.append(q);
+    w.append(kb.box);
+    if(kb.meta) w.append(kb.meta);
 
     const tm=el("div","Tomorrow mt3");
     const tl=el("div","stack"); tl.style.flex="1";
@@ -2547,8 +2558,17 @@ Screens["03"]=s=>{
 
     const a=el("div","stack gap3 mt4");
     a.append(UI.Button({label:"Share today",onTap:()=>goShare(DEMO.dayIndex)}));
-    /* решение 17.8 — `Open diary` здесь дубль: под ней таб-бар с вкладкой DIARY.
-       Решение 17.69 — «Replace photo» снята и здесь: это то же состояние дня, что и 06 */
+    /* решение 17.148 — строка-нудж «Today’s free upgrade is used · more with coins ›»
+       снята, вход в Effects остаётся через таб-бар. Вместо неё вторичная кнопка
+       «Another photo · ◎ 2» — та же, что на 05 (17.64, 17.95): тот же helper priceLabel,
+       тот же путь Sheets.confirmCoins({name:"Develop again",price:2,extra:true}) →
+       проявление → 14 → Keep as today. Нехватку монет отдельно не обрабатываем —
+       её ведёт confirmCoins (ветка "you have N" + "Get coins"), как на 05.
+       решение 17.8 — `Open diary` здесь дубль: под ней таб-бар с вкладкой DIARY.
+       решение 17.69 — частично отменено 17.148 для 03: «Replace photo» (подписочная
+       замена кадра) остаётся снятой, но платная пересъёмка (17.95) на 03 теперь есть. */
+    a.append(UI.Button({label: priceLabel("Another photo", 2), variant:"secondary",
+      onTap:()=>Sheets.confirmCoins({name:"Develop again",price:2,extra:true})}));
     w.append(a);
   }
   centerBox(w);
@@ -2781,8 +2801,8 @@ Screens._dailyDone=(box, f)=>{
   }}));
   /* решение 17.95 — цена стоит на кнопке всегда, а не появляется с третьей попытки:
      дневная порция уже потрачена на этот кадр, любая пересъёмка идёт за монеты.
-     Кнопка называет и действие, и цену — торга с самим собой не остаётся. */
-  const priceLabel=(text, price)=>[document.createTextNode(text+" · "), el("span","Coin"), document.createTextNode(" "+price)];
+     Кнопка называет и действие, и цену — торга с самим собой не остаётся.
+     helper priceLabel вынесен в общую область (17.148) — используется и на 03. */
   box.append(UI.Button({label: priceLabel("Another photo", 2), variant:"secondary",
     onTap:()=>Sheets.confirmCoins({name:"Develop again",price:2,extra:true})}));
   if(f.result.confidence==="low")
@@ -2824,7 +2844,7 @@ function fitFrame(scroll, box, floor){
   });
 }
 
-function keptBlock(w, {extra=false, height="var(--size-frame-portrait)"}={}){
+function keptBlock(w, {extra=false, height="var(--size-frame-portrait)", kept=true, date=true}={}){
   const box=el("div","KeptFrame");
   /* решение 17.94 — без эффекта переключать нечего: экран показывает проявленный день.
      С купленным эффектом остаются два состояния: дневная обработка и эффект. */
@@ -2836,9 +2856,19 @@ function keptBlock(w, {extra=false, height="var(--size-frame-portrait)"}={}){
   box.append(Img.make(extra?"fx-after":"today", null, extra?VERSION_OPTS[2]:VERSION_OPTS[1]),
              el("div","CornerScrim"), watermarkEl());
   const meta=el("div","stack gap1");
-  meta.append(metaLine((extra?effectUpper()+" · ":"")+fmtMDup(DEMO.today)),
-              metaLine(DEMO.kept+" DAYS KEPT · "+DEMO.periodLength+"-DAY DIARY","t-counter-meta c-tertiary"));
-  return {seg, box, meta};
+  /* решение 17.153 — дата под кадром уходит наверх на 03 (date:false): без купленного
+     эффекта мете под кадром нечего показывать. С эффектом маркер платного рендера
+     (17.149, 9.2) остаётся — имя дневного вида / эффекта, но без даты. На 06/06a
+     (date:true, по умолчанию) строка как раньше — дата, при эффекте с именем. */
+  if(date){
+    meta.append(metaLine((extra?effectUpper()+" · ":"")+fmtMDup(DEMO.today)));
+  }else if(extra){
+    meta.append(metaLine(effectUpper()));
+  }
+  /* решение 17.151 — «DAYS KEPT» рядом с `DAY N` нарушает правило двух чисел (10.19):
+     на экранах с хроникой `DAY N OF M` (15.1) эта строка не выводится, kept:false. */
+  if(kept) meta.append(metaLine(DEMO.kept+" DAYS KEPT · "+DEMO.periodLength+"-DAY DIARY","t-counter-meta c-tertiary"));
+  return {seg, box, meta: meta.childElementCount ? meta : null};
 }
 
 /* --- 06 / 06a · День сохранён ------------------------------------------ */
@@ -3503,13 +3533,20 @@ Sheets.whyCoins = ()=>{
 
 /* 12 · Подтверждение траты монет */
 Sheets.confirmCoins = ({name, price, extra})=>{
+  /* решение 17.149 — платная пересъёмка (extra:true, вызовы с 05 и 03: «Another photo · ◎ 2»)
+     подписывается именем дневного вида, а не ярлыком действия и не именем, которое
+     ещё не куплено: ярлык кнопки "Develop again"/"Another photo" не годится в заголовок
+     шторки и в preset_id аналитики — иначе effect_confirmed уйдёт с preset_id:"develop_again".
+     Каталожный эффект (extra не передан — плитка на 11 или повторный "Develop again" из меню
+     на 06a/14, который просто переигрывает текущее effectTitle()) держит своё имя как раньше. */
+  const label = extra ? DEMO.todayLook : name;
   UI.Sheet({detent:"medium", build(b, api){
     const head=el("div","row gap3");
     /* решение 17.22 — до запуска обработки показываем оригинал. Ветка эффекта на 05
        тоже стартует с today-original, так что превью и проявление сходятся. */
     const th=Img.make("today-original"); th.style.cssText="width:72px;height:72px;border-radius:var(--radius-md);flex:0 0 auto";
     const tx=el("div","stack gap1");
-    tx.append(assign(el("div","t-h2"),name),
+    tx.append(assign(el("div","t-h2"),label),
               assign(el("div","t-caption c-secondary"),"on today’s frame · "+fmtMDup(DEMO.today)),
               assign(el("div","t-meta c-tertiary"),"EXTRA DEVELOP · BEYOND TODAY’S FREE ONE"));
     head.append(th,tx); b.append(head);
@@ -3521,12 +3558,13 @@ Sheets.confirmCoins = ({name, price, extra})=>{
     const sp=el("div"); sp.style.flex="1"; b.append(sp);
     if(enough){
       b.append(UI.Button({label:"Develop · "+price+" coins",onTap:()=>{
-        Analytics.track("effect_confirmed",{preset_id:presetId(name),
+        Analytics.track("effect_confirmed",{preset_id:presetId(label),
           price, balance_after:S.coins-price});
         S.coins-=price; S.effectSpent=price;
-        /* находка QA №2 — имя пресета едет из плитки каталога, а не из фикстуры.
-           «Upgrade again» (extra) — не эффект каталога, имя не перебиваем */
-        if(!extra){ S.effectName=name; S.effectPrice=price; }
+        /* находка QA №2 + решение 17.149 — effectName переходит на label и для каталога,
+           и для пересъёмки: потребители effectTitle()/effectUpper()/effectPrice()
+           (05, 14, 03, 06a, effectFixture) получают правду одним присвоением */
+        S.effectName=label; S.effectPrice=price;
         saveState(); api.close();
         S._fixture = S._fixtureOverride && S._fixtureOverride.indexOf("effect/")===0
           ? S._fixtureOverride : "effect/success";
