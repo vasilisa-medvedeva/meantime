@@ -145,6 +145,7 @@
      Числа из hig-numbers.md: safe 59/34, тулбар 44, тап-зона 44. */
   --size-camera-preview-h:520px;
   --size-camera-top:104px;
+  --size-close-disc:32px;      /* решение 17.143 — видимый кружок меньше тап-зоны 44 */
   --size-camera-bar-min:140px;   /* решение 17.110 — минимум под панель спуска */
   --size-shutter-ring:3px;       /* толщина кольца спуска */
   /* шит шеринга (решение 17) — имитация системного листа iOS в токенах проекта */
@@ -965,16 +966,23 @@ h1,h2,h3,p,ul,ol{margin:0;padding:0}
   transform-origin:50% 50%;
 }
 @keyframes viewfinder{from{transform:scale(1)}to{transform:scale(1.04)}}
+/* решение 17.143 — тап-зона остаётся 44, но видимый кружок 32: раньше стекло занимало
+   всю полосу навигации целиком и упиралось в статус-бар сверху и в кадр снизу.
+   В iOS тап-зона всегда больше нарисованной кнопки, поэтому воздух вокруг есть. */
 .Camera__close{
-  position:relative;z-index:3;
-  width:var(--size-tap-min);height:var(--size-tap-min);border-radius:var(--radius-full);
+  position:relative;z-index:3;padding:0;background:none;
+  width:var(--size-tap-min);height:var(--size-tap-min);
+  display:flex;align-items:center;justify-content:center}
+.Camera__close-disc{
+  position:relative;width:var(--size-close-disc);height:var(--size-close-disc);
+  border-radius:var(--radius-full);
   display:flex;align-items:center;justify-content:center;color:var(--color-text-on-image);
   background:var(--color-glass-fill);backdrop-filter:var(--effect-glass);
   -webkit-backdrop-filter:var(--effect-glass);isolation:isolate;
   transition:transform var(--motion-micro) var(--ease-standard)}
-.Camera__close::before{content:"";position:absolute;inset:0;border-radius:inherit;
+.Camera__close-disc::before{content:"";position:absolute;inset:0;border-radius:inherit;
   background:var(--color-glass-floor);z-index:-1}
-.Camera__close:active{transform:scale(.97);opacity:.8}
+.Camera__close:active .Camera__close-disc{transform:scale(.97);opacity:.8}
 /* решение 17.114 — вспышки на спуске нет: белое поле во весь экран читалось как сбой,
    а не как отклик. Отклик даёт сам переход — хром уходит, кадр остаётся */
 /* решение 17.101 — на спуске интерфейс камеры уходит первым, кадр остаётся */
@@ -2571,8 +2579,8 @@ Screens["04a"]=s=>{
   const top=el("div","Camera__top");
   const x=el("button","Camera__close");
   x.setAttribute("aria-label","Close camera");
-  x.innerHTML='<svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" '+
-    'stroke-width="1.8" stroke-linecap="round"><path d="M5 5l10 10M15 5L5 15"/></svg>';
+  x.innerHTML='<span class="Camera__close-disc"><svg width="16" height="16" viewBox="0 0 20 20" fill="none" '+
+    'stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M5 5l10 10M15 5L5 15"/></svg></span>';
   x.addEventListener("click",()=>Router.back());
   top.append(x);
   w.append(top);
