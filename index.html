@@ -2669,7 +2669,12 @@ Screens["03"]=s=>{
   /* решение 17.153 — переопределяет 15.4: дата вернулась в строку хроники (была снята
      как дубль статус-бара/дневника), день недели ушёл — под кадром освободилось место
      для неё же, теперь она стоит один раз, наверху */
-  w.append(metaLine(fmtMDup(DEMO.today)+" · DAY "+DEMO.dayIndex+" OF "+DEMO.periodLength,"t-counter-meta c-secondary mt3"));
+  /* решение 17.217 — строка входа считает сохранённые дни, а не порядковый день
+     периода: `DAY 40 OF 100` → `37 OF 100`. Пропуск не считается прожитым днём,
+     число совпало с дневником (17.195), и пара 40/37, которую правило 10.19
+     запрещало сводить, больше не существует нигде. Отменяет хронику из 15.1
+     в части числа: день недели и дата остаются, порядковый номер дня уходит. */
+  w.append(metaLine(fmtMDup(DEMO.today)+" · "+DEMO.kept+" OF "+DEMO.periodLength,"t-counter-meta c-secondary mt3"));
   if(!S.todayKept){
     /* день ещё не снят — плотная карточка дня с макета 104:47, без изменений */
     const card=el("div","FilterCard mt5");
@@ -3005,8 +3010,11 @@ Screens["05"]=s=>{
           if(ph) ph.setAttribute("style", Img.phVars("today-original","small-delta"));
         }
         setTimeout(()=>{
-          title.textContent = fmtMD(DEMO.today)+(isEffect?" · "+effectTitle():" · Developed");
-          kick.textContent = f.result.confidence==="low" ? "LOW CONFIDENCE" : "READY";
+          /* решение 17.218 — заголовок только дата, имя стоит тегом на кадре.
+             Кикер остаётся лишь тогда, когда несёт предупреждение: «READY» ничего
+             не добавляет к готовому кадру, «LOW CONFIDENCE» добавляет. */
+          title.textContent = fmtMD(DEMO.today);
+          kick.textContent = f.result.confidence==="low" ? "LOW CONFIDENCE" : "";
           [title,kick].forEach(n=>{ n.style.opacity="1"; });
           /* решение 17.215 — на «готово» кадр получает тег с именем обработки в правом
              верхнем углу и переходит на шторку: тот же вид, что на результате эффекта
@@ -3736,8 +3744,10 @@ Screens["14"]=s=>{
 
   const ht=el("div","stack gap1");
   ht.style.padding="calc(var(--size-safe-top) + var(--space-3)) var(--size-gutter) var(--space-4)";
-  ht.append(assign(el("div","t-meta c-tertiary"),"READY"),
-            assign(el("div","t-h1"), fmtMD(DEMO.today)+" · "+effectTitle()));
+  /* решение 17.218 — в заголовке только дата: слово READY ничего не сообщает
+     (экран и так показывает готовый кадр), а имя эффекта стоит тегом на кадре
+     и дублировать его строкой выше незачем. */
+  ht.append(assign(el("div","t-h1"), fmtMD(DEMO.today)));
   w.append(ht);
 
   const hero=el("div","Hero flush");
@@ -4453,8 +4463,12 @@ const Demo = {
     /* 06 — день сохранён: подпись кадра, счётчик, блок TOMORROW. Выдержка короче
        прежней (было 2500): та же раскладка приходит второй раз на 06a в конце ветки
        эффекта, и держать её дважды по 2.5 с — платить временем за один и тот же кадр */
+    /* решение 17.216 — после сохранения открывается дневник (17.209), а не push-экран
+       дня: круг показывает, как день встал в накопленное, и сразу уходит в каталог.
+       Выдержка короткая — полный показ дневника будет во второй раз, в конце круга. */
     this.at("kept");
-    await this.sleep(1800);          /* сохранённый день со счётчиком (17.43) */
+    await this.until(()=>document.querySelector('#stack .Screen[data-route="07"]'), 6000);
+    await this.sleep(1200);
 
     /* ── Ветка платного эффекта (решение 17.170) ────────────────────────────────
        Заняла место прошлого дня. Рассказывает то, чего накопительная ветка не
@@ -4463,10 +4477,6 @@ const Demo = {
        с сохранённого дня назад на Today (таб-бара на 06 нет — 06 лежит поверх 03),
        оттуда вкладка Effects. Короткого пути в каталог с 06 в продукте нет, и демо
        его не выдумывает. */
-    await this.tap(await this.until(()=>
-      document.querySelector("#stack .Screen:last-child .NavBar__back")));
-    await this.until(()=>!Router.busy, 4000);
-
     /* 11 — каталог: баланс сверху, у каждой плитки цена. Выдержки хватает, чтобы
        прочитать чип баланса и пару цен; сетка длинная, скроллить её незачем */
     await this.tap(await this.until(()=>this.tabItem("effects")));
@@ -4497,11 +4507,16 @@ const Demo = {
     await this.sleep(1800);
     await this.tap(await this.until(()=>this.btn("Keep in diary", s14)));
 
-    /* 06a — тот же сохранённый день, но с эффектом и со строкой траты */
-    this.at("effectKept");
-    await this.until(()=>!Router.busy, 4000);
-    await this.sleep(1600);
-    await this.tap(await this.until(()=>this.btn("Open diary")));
+    /* решение 17.216 — шага «сохранённый день» в круге больше нет: после 17.209
+       кнопка `Keep in diary` ведёт прямо в дневник, экран 06a из потока ушёл, а
+       кнопки `Open diary` не осталось нигде (снята с 09 решением 17.212). Круг ждал
+       её появления и вставал на дневнике до конца — ровно то, что увидел владелец.
+       Теперь после тапа дожидаемся, что дневник встал, и идём его показывать. */
+    /* решение 17.216 — ждём дневник мягко: `until` бросает по таймауту, и любое
+       необработанное исключение обрывает круг молча. Здесь ждать нечего, кроме
+       появления экрана; занятость роутера проверять незачем — `tab()` её не ставит. */
+    try{ await this.until(()=>document.querySelector('#stack .Screen[data-route="07"]'), 6000); }catch(e){}
+    await this.sleep(300);
 
     /* 07 — полка итогов и поле периода. Сначала стоим при scrollTop = 0: полка,
        счётчик `37 OF 40 KEPT` (написание 17.176, распространено на 06 / 06a решением 17.184)
@@ -4509,14 +4524,25 @@ const Demo = {
        прокрутка на столько, чтобы из-под таб-бара вышел ряд БУДУЩИХ пустых дней:
        поле обязано показать не только прожитое, но и то, что впереди. Скорость
        считается, а не подбирается — реестр №41. */
+    /* решение 17.216 — на дневнике стоим не дольше трёх секунд: 600 + прокрутка 800
+       + 1200. Дневник в круге появляется дважды, и второй показ не должен быть длиннее
+       того, ради чего он открыт, — поля дней. */
     this.at("diary");
-    await this.sleep(900);
-    const sc=document.querySelector('#stack .Screen[data-route="07"] .Screen__scroll');
-    await this.scroll(sc, this.diaryTarget(sc), 800);
-    await this.sleep(1400);          /* поле дней — тезис продукта (17.43) */
+    await this.sleep(600);
+    const sc=document.querySelector('#stack .Screen[data-route="07"] .Screen__scroll')
+             || document.querySelector('#stack .Screen:last-child [class*="Screen__scroll"]');
+    /* решение 17.216 — прокрутка не обязана удаться: если контейнер или ряд будущих
+       дней не найдены, шаг пропускается, а круг идёт дальше. Раньше исключение здесь
+       обрывало `run()` молча, и демо вставало на дневнике до конца. */
+    if(sc){ try{ await this.scroll(sc, this.diaryTarget(sc), 800); }catch(e){} }
+    await this.sleep(1200);
 
     /* прокрутка карточку рекапа из кадра не уводит — она осталась выше поля */
-    await this.tap(await this.until(()=>document.querySelector(".RecapCard")));
+    /* решение 17.216 — `until` бросает по таймауту, и необработанное исключение
+       обрывало `run()` без следа: круг вставал на дневнике до конца. Перехватываем
+       и уходим на рекап напрямую — шаг важнее способа, которым в него попали. */
+    let rc=null; try{ rc = await this.until(()=>document.querySelector(".RecapCard"), 6000); }catch(e){}
+    if(rc) await this.tap(rc); else { Router.go("10"); await this.sleep(400); }
 
     /* 10 — рекап во весь экран, через 600 мс приходит пейвол (решение 13.3) */
     this.at("recap");
