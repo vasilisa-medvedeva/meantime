@@ -2824,11 +2824,12 @@ Screens["05"]=s=>{
         setTimeout(()=>{ panel.style.transition=""; panel.style.height=""; panel.style.overflow=""; }, DI+40);
         /* решение 17.140 — кадр стоит между двумя полями, и на коротком экране он отдаёт
            высоту так же, как на сохранённом дне (17.117): иначе нижняя кнопка срезалась.
-           Гейт 17.158 (второй скачок кадра на «готово» одним жестом с панелью) — открыт:
-           доводка кадра той же кривой, что и синхронно с панелью, на low-confidence (−84 px)
-           даёт пик скорости ~0.85 px/ms — выше проверочного порога ~0.5, читается рывком,
-           не доводкой. Не применено, см. project-state.md. */
-        setTimeout(()=>fitFrame(w, hero, 360), DI+60);
+           Решение 17.158 — кадр больше не прыгает на «готово»: высота доводится за DI,
+           подхватывая движение панели, а не отдельным скачком после него. Буквальный
+           вариант A (та же кривая --ease-standard) отвергнут замером: на low-confidence
+           (−84 px) её крутое начало давало пик ~0.85 px/мс против порога ~0.5. Кривая
+           симметричная, длительность та же, поэтому доводка кончается вместе с панелью. */
+        setTimeout(()=>fitFrameEased(w, hero, 360, DI), DI+60);
       },
       onFail(f){
         rs.remove();
@@ -2931,6 +2932,28 @@ function fitFrame(scroll, box, floor){
     if(over <= 0) return;
     const h = box.getBoundingClientRect().height;
     box.style.height = Math.max(floor || 300, Math.round(h - over)) + "px";
+  });
+}
+/* решение 17.158 — та же подгонка, но с доводкой вместо скачка. Нужна там, где кадр
+   ужимается на уже спокойном экране: мгновенная смена высоты читается рывком.
+   Кривая симметричная (--ease-crossfade), а не --ease-standard: у последней слишком
+   крутое начало, на low-confidence (−84 px) пик скорости выходил ~0.85 px/мс против
+   порога ~0.5 и читался рывком, а не доводкой. При prefers-reduced-motion — как раньше,
+   мгновенно: движение здесь служебное, сообщать им нечего. */
+function fitFrameEased(scroll, box, floor, ms){
+  requestAnimationFrame(()=>{
+    const over = scroll.scrollHeight - scroll.clientHeight;
+    if(over <= 0) return;
+    const h = box.getBoundingClientRect().height;
+    const target = Math.max(floor || 300, Math.round(h - over));
+    const d = Math.abs(target - h);
+    if(d < 3 || matchMedia("(prefers-reduced-motion:reduce)").matches){
+      box.style.height = target + "px"; return;
+    }
+    box.style.height = h + "px"; void box.offsetWidth;
+    box.style.transition = "height " + ms + "ms var(--ease-crossfade)";
+    box.style.height = target + "px";
+    setTimeout(()=>{ box.style.transition = ""; }, ms + 40);
   });
 }
 
