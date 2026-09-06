@@ -3714,8 +3714,12 @@ Screens["14"]=s=>{
      разный размер кадра читался сменой масштаба, хотя фотография та же. Раскладка
      остальных частей (заголовок, одна мета-строка, кнопки) остаётся от 17.173. */
   const kb=keptBlock(w,{extra:true, kept:false, date:false, ai:true, segment:false, wipe:true});
-  kb.box.classList.add("mt4"); kb.meta.classList.add("mt3");
-  w.append(kb.box, kb.meta);
+  /* решение 17.214 — мета может отсутствовать: с тегом на кадре (17.213) под кадром
+     не остаётся ни одной строки, и `keptBlock` честно возвращает `meta: null`.
+     Обращение к нему без проверки роняло сборку экрана целиком — экран открывался
+     пустым, без кнопок. Та же защита, что поставлена на 06 решением 17.198. */
+  kb.box.classList.add("mt4"); if(kb.meta) kb.meta.classList.add("mt3");
+  w.append(kb.box); if(kb.meta) w.append(kb.meta);
   const a=el("div","stack gap3 mt4");
   a.append(UI.Button({label:"Keep in diary",onTap:()=>{
     S.todayPreset="EXTRA"; S.todayKept=true; saveState();
