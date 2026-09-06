@@ -123,8 +123,8 @@
   --size-sheet-large:720px;      /* компонент Sheet 95:14 */
   --size-effect-tile-h:190px;    /* ux-brief §11 — плитка 165×190 */
   --size-effect-prev-h:108px;    /* ux-brief §11 — превью 145×108 */
-  --size-share-card-w:252px;     /* ux-brief §09 — карточка 9:16 */
-  --size-share-card-h:448px;     /* ux-brief §09 */
+  --size-share-card-w:292px;     /* решение 17.212 — превью крупнее, пропорция 9:16 сохранена */
+  --size-share-card-h:519px;     /* было 252×448 (ux-brief §09) */
   --size-sharecard-mark:26px;    /* решение 17.12 — вордмарк на карточке 252×448, ориентир 24–28 */
   --share-thumb-scale:.214;      /* 96 / 448 — во столько ужата карточка в превью шита.
                                     Ширина при этом 252 × .214 = 54 = --size-share-thumb-day-w */
@@ -1079,7 +1079,10 @@ h1,h2,h3,p,ul,ol{margin:0;padding:0}
    ряд MEANTIME PICKED плюс сетка Recents на .PickTile и .PickGrid */
 
 /* --- 09 карточка шеринга --- */
-.ShareCard{position:relative;width:var(--size-share-card-w);height:var(--size-share-card-h);
+/* решение 17.212 — карточка тянется по месту, но не шире своего токена и не шире
+   экрана: фиксированные 292 переполняли 390 и уводили всю раскладку вправо.
+   Пропорция держится `aspect-ratio`, а не парой чисел — она не разъедется. */
+.ShareCard{position:relative;width:min(var(--size-share-card-w), 100%);aspect-ratio:9/16;height:auto;margin-left:auto;margin-right:auto;
   border-radius:var(--radius-lg);overflow:hidden;margin:0 auto}
 /* решение 17.97 — под подписью стеклянная плашка, а не затемнение во всю карточку.
    Градиент съедал нижнюю треть снимка и читался как часть обработки; плашка занимает
@@ -3187,7 +3190,7 @@ function fitFrameEased(scroll, box, floor, ms){
   });
 }
 
-function keptBlock(w, {extra=false, height="var(--size-frame-portrait)", kept=true, date=true, ai=false, segment=true}={}){
+function keptBlock(w, {extra=false, height="var(--size-frame-portrait)", kept=true, date=true, ai=false, segment=true, wipe=false}={}){
   const box=el("div","KeptFrame");
   /* решение 17.94 — без эффекта переключать нечего: экран показывает проявленный день.
      С купленным эффектом остаются два состояния: дневная обработка и эффект. */
@@ -3199,8 +3202,27 @@ function keptBlock(w, {extra=false, height="var(--size-frame-portrait)", kept=tr
     : null;
   box.style.position="relative"; box.style.borderRadius="var(--radius-lg)"; box.style.overflow="hidden";
   box.style.height=height;
-  box.append(Img.make(extra?effectAsset():"today", null, extra?VERSION_OPTS[2]:VERSION_OPTS[1]),
-             el("div","CornerScrim"), watermarkEl());
+  if(wipe && extra){
+    /* решение 17.211 — вместо переключателя версий по кадру идёт та же шторка, что
+       на карточке дня (17.87 / 17.89): снизу лежит проявленный кадр, сверху въезжает
+       эффект, граница видна полосой. Разница читается движением, а не двумя вкладками,
+       и это тот же приём, что человек уже видел на входе — одно поведение на один смысл.
+       Классы переиспользованы как есть, чтобы такт и кривая совпадали буквально. */
+    const smp=el("div","FilterCard__sample");
+    smp.append(Img.make("today", null, VERSION_OPTS[1]));
+    const dev=el("div","FilterCard__dev");
+    dev.append(Img.make(effectAsset(), null, VERSION_OPTS[2]));
+    smp.append(dev, el("div","FilterCard__edge"));
+    /* решение 17.213 — имя эффекта стоит тегом в правом верхнем углу кадра, тем же
+       компонентом, что на карточке дня. Мета-строка под кадром при этом не нужна:
+       подпись стоит там, где смотрят, — на самом кадре. */
+    const tag=el("div","FilterCard__tag");
+    tag.append(assign(el("span","t-counter-meta c-on-image"), effectUpper()));
+    box.append(smp, el("div","CornerScrim"), tag, watermarkEl());
+  }else{
+    box.append(Img.make(extra?effectAsset():"today", null, extra?VERSION_OPTS[2]:VERSION_OPTS[1]),
+               el("div","CornerScrim"), watermarkEl());
+  }
   const meta=el("div","stack gap1");
   /* решение 17.153 — дата под кадром уходит наверх на 03 (date:false): без купленного
      эффекта мете под кадром нечего показывать. С эффектом маркер платного рендера
@@ -3213,7 +3235,8 @@ function keptBlock(w, {extra=false, height="var(--size-frame-portrait)", kept=tr
      ровно как раньше. */
   if(date){
     meta.append(metaLine((extra?effectUpper()+" · ":"")+fmtMDup(DEMO.today)));
-  }else if(extra){
+  }else if(extra && !wipe){
+    /* решение 17.213 — при шторке имя стоит тегом на кадре, дублировать под ним нечего */
     meta.append(metaLine((ai?"AI · ":"")+effectUpper()));
   }
   /* решение 17.151 — «KEPT» рядом с `DAY N` нарушает правило двух чисел (10.19):
@@ -3535,11 +3558,10 @@ Screens["09"]=s=>{
 
   const a=el("div","stack gap3 mt4");
   /* решение 17 — вместо баннера открывается шит шеринга; событие уходит с адресатом */
+  /* решение 17.212 — на экране одна кнопка: он существует ради шеринга. «Open diary»
+     снята — после 17.210 крестик даёт предсказуемый выход, а дневник достижим
+     таб-баром. Освободившееся место отдано превью карточки. */
   a.append(UI.Button({label:"Share…",onTap:()=>Sheets.share("day")}));
-  /* решение 17.66 — день уже сохранён на 05, «Save image» обещало то, что случилось.
-     Вторая кнопка ведёт туда, где кадр лежит среди накопленного */
-  a.append(UI.Button({label:"Open diary",variant:"secondary",
-    onTap:()=>Router.switchTo("diary")}));
   w.append(a);
 };
 
@@ -3691,9 +3713,9 @@ Screens["14"]=s=>{
      навылет от края до края и той же высоты. Переход 05 → 14 — кросс-фейд, и
      разный размер кадра читался сменой масштаба, хотя фотография та же. Раскладка
      остальных частей (заголовок, одна мета-строка, кнопки) остаётся от 17.173. */
-  const kb=keptBlock(w,{extra:true, kept:false, date:false, ai:true});
-  kb.seg.classList.add("mt4"); kb.box.classList.add("mt3"); kb.meta.classList.add("mt3");
-  w.append(kb.seg, kb.box, kb.meta);
+  const kb=keptBlock(w,{extra:true, kept:false, date:false, ai:true, segment:false, wipe:true});
+  kb.box.classList.add("mt4"); kb.meta.classList.add("mt3");
+  w.append(kb.box, kb.meta);
   const a=el("div","stack gap3 mt4");
   a.append(UI.Button({label:"Keep in diary",onTap:()=>{
     S.todayPreset="EXTRA"; S.todayKept=true; saveState();
