@@ -56,6 +56,7 @@
   --color-bg-primary:#07090F;
   --color-bg-gradient-top:#131C33;
   --color-bg-scrim-bottom:rgba(7,9,15,.92);
+  --color-bg-scrim-top:rgba(19,28,51,.92);    /* решение 17.177 — зеркало нижнего скрима: тот же альфа-канал, цвет верха фонового градиента (--color-bg-gradient-top) */
   --color-surface-raised:#101420;
   --color-surface-day-empty:#141824;
   --color-glass-fill:rgba(255,255,255,.08);
@@ -387,6 +388,31 @@ h1,h2,h3,p,ul,ol{margin:0;padding:0}
   position:absolute;left:0;right:0;bottom:0;height:190px;pointer-events:none;z-index:3;
   background:linear-gradient(180deg,transparent 0%,var(--color-bg-scrim-bottom) 78%);
 }
+/* верхний скрим — решение 17.177, зеркало нижнего (реестр №47). Ставится там же и тем же
+   местом: `scrollBox()` для экранов с таб-баром. До правки содержимое 07 и 11 при скролле
+   уходило под статус-бар встык — на обложке кейса заголовок `Diary` наезжал на 9:41.
+   Геометрия — зеркало нижнего: у того плотная часть занимает 78 % высоты и тает к краю
+   содержимого, здесь плотная часть 47 % сверху и тает вниз. Высота 107 = safe-area (59)
+   плюс `--space-12`: плотная часть кончается на 50 — статус-бар накрыт целиком, включая
+   строку часов, ради которой правка и делается. Цвет — верх фонового градиента экрана
+   (`--color-bg-gradient-top` с той же альфой .92, что у нижнего), поэтому уходящее
+   содержимое растворяется В ФОНЕ, а не в постороннем тёмном пятне.
+   ОТЛИЧИЕ ОТ НИЖНЕГО — включение по скроллу (реестр №47). Постоянный скрим был собран
+   и замерен: при `scrollTop = 0` он затемняет то, что стоит в этой полосе в покое —
+   вордмарк `Meantime` на 03 терял до 119 из 255 на штрихах, заголовок `Diary` на 07
+   сереет сверху. Сдвинуть градиент выше нельзя: между низом статус-бара (59) и первой
+   строкой содержимого (67) остаётся 8 px, и на них градиент превращается в жёсткий край.
+   Внизу такой развилки нет: там над содержимым всегда висит плавающий таб-бар, и подложка
+   нужна ему всегда; вверху до первого скролла закрывать нечего. Это ровно `scrollEdgeEffect`
+   из HIG. Никакого backdrop-filter: нижний скрим его не имеет, и разводить два разных
+   приёма на два края одного экрана значило бы нарушить правило одинакового поведения. */
+.ScrimTop{
+  position:absolute;left:0;right:0;top:0;pointer-events:none;z-index:3;
+  height:calc(var(--size-safe-top) + var(--space-12));
+  background:linear-gradient(180deg,var(--color-bg-scrim-top) 47%,transparent 100%);
+  opacity:0;transition:opacity var(--motion-icon) var(--ease-standard);
+}
+.ScrimTop.is-on{opacity:1}
 
 /* --- статус-бар и home indicator (глобальный chrome) --- */
 .StatusBar{
@@ -958,6 +984,15 @@ h1,h2,h3,p,ul,ol{margin:0;padding:0}
 /* решение 17.140 — видоискатель стоит полосой между двумя тёмными полями, как в камере iOS:
    сверху поле с закрытием, снизу поле со спуском. Раньше кадр начинался от самого верха,
    и тёмным оставался только низ. */
+/* решение 17.183 — переход на `--size-camera-preview-h` (520, то есть 4:3 из 17.33)
+   ПРОБОВАН И ОТКАЧЕН замером. Высота коробки сошлась бы лучше (расхождение с кадром
+   проявления 72 → 32), но глаз в растворении видит не коробку, а нарисованную
+   фотографию, а на 05 она рисуется `background-size:auto 114%` в кадре 488 — то есть
+   556 px высотой. При видоискателе 560 (cover) масштаб содержимого совпадает почти
+   точно (0,7 %), и растворение читается ровным вертикальным сдвигом 39–42 px;
+   при 520 масштаб расходится на 6,5 %, а сдвиг растёт с 53 сверху до 76 снизу —
+   две копии кадра разного размера. Замер: MAD камеры и проявления 38,6 → 47,8.
+   Возврат на 4:3 требует не этой строки, а совмещения кадра 05 с видоискателем. */
 .Camera{--camera-view-h:min(var(--size-hero-h),
   calc(100% - var(--size-camera-top) - var(--size-camera-bar-min)))}
 .Camera__view{position:absolute;top:var(--size-camera-top);left:0;right:0;overflow:hidden;
@@ -992,9 +1027,15 @@ h1,h2,h3,p,ul,ol{margin:0;padding:0}
 /* решение 17.101 — на спуске интерфейс камеры уходит первым, кадр остаётся */
 .Camera__top,.Camera__bar{transition:opacity var(--motion-capture-chrome) var(--ease-accel)}
 .Camera.is-shooting .Camera__top,.Camera.is-shooting .Camera__bar{opacity:0;pointer-events:none}
-/* решение 17.163 — переворот камеры: кнопка справа от спуска, симметрично миниатюре,
-   и зеркальный видоискатель во фронтальном режиме, как в системной камере iOS. */
-.Camera__flip{width:var(--size-tap-min);height:var(--size-tap-min);border-radius:var(--radius-full);
+/* решение 17.163 — переворот камеры: зеркальный видоискатель во фронтальном режиме,
+   как в системной камере iOS.
+   Решение 17.171 — кнопка стоит у ПРАВОГО края панели, а не вплотную к спуску:
+   `justify-self:end` в третьей колонке грида `1fr auto 1fr`. В системной камере iOS
+   нижняя панель читается парой у краёв — миниатюра слева, переключение камеры справа,
+   спуск между ними; без `justify-self` кнопка вставала в начало своей колонки (левый
+   край 231 при ширине 390) и висела на спуске. Отступы от краёв теперь равны
+   `--size-gutter` с обеих сторон, размеры обоих элементов — `--size-tap-min` (44 pt). */
+.Camera__flip{justify-self:end;width:var(--size-tap-min);height:var(--size-tap-min);border-radius:var(--radius-full);
   display:flex;align-items:center;justify-content:center;color:var(--color-text-primary);
   background:var(--color-glass-fill);border:var(--size-hairline) solid var(--color-glass-hairline);
   transition:transform var(--motion-icon) var(--ease-standard)}
@@ -1005,6 +1046,11 @@ h1,h2,h3,p,ul,ol{margin:0;padding:0}
   top:calc(var(--size-camera-top) + var(--camera-view-h));
   padding:0 var(--size-gutter) var(--size-safe-bottom);
   display:grid;grid-template-columns:1fr auto 1fr;align-items:center}
+/* решение 17.175 (реестр №45) — заказанный эффект над спуском. position:absolute:
+   грид панели остаётся трёхколоночным и спуск не съезжает с центра устройства. */
+.Camera__order{
+  position:absolute;left:var(--size-gutter);right:var(--size-gutter);
+  top:var(--space-3);text-align:center;pointer-events:none}
 .Camera__thumb{
   justify-self:start;width:var(--size-tap-min);height:var(--size-tap-min);
   border-radius:var(--radius-md);overflow:hidden;position:relative;
@@ -1282,7 +1328,13 @@ const DEMO = {
      Прежние 14:32:06 приехали дословно из исходного брифа как иллюстрация и
      соответствовали времени 9:27:54 — часам, которых на экране нет. */
   countdownStart:14*3600 + 19*60,     // FREE UPGRADE RENEWS IN 14:19:00 при часах 9:41
-  coinsStart:8,
+  /* решение 17.174 — 12, а не 8. **Отменяет решение 3.2**, где баланс был сознательно
+     снижен с 12 до 8: «12 монет при ценах 2–5 = 3–6 действий, верх диапазона; 8 = 2 дорогих
+     или 4 дешёвых эффекта — ровно рамка "попробовать, но не наесться"». Владелец вернул 12,
+     цена названа в журнале: при 12 это 3 дорогих (◎4) или 6 дешёвых (◎2), рамка «не наесться»
+     ослабляется. Число живёт только здесь — и стартовое состояние `S.coins`, и сброс в
+     `Demo.run()` берут его отсюда, второй копии нет. */
+  coinsStart:12,
   periodEnd:new Date(2026,10,12),   // Nov 12
   weeks:15
 };
@@ -1543,7 +1595,12 @@ const FIXTURES = {
   slow_notice:"Still composing — it’ll be under Recaps when it’s ready"},
 "recap/error":{scenario:"recap",fixture:"error",error_type:"network",
   title:"Couldn’t compose yet",actions:[{id:"retry",label:"Try again",variant:"primary"}]},
-"recap/single":{scenario:"recap",fixture:"single",period:"week",week:6,frames_in:1,of:7,
+/* решение 17.176 — язык доли выровнен с `recap/success`: там строка `5 OF 7 KEPT · 2 MORE
+   ARE ON YOUR PHONE` состоит из доли и пути возврата, здесь доля стоит одна. Разницу теперь
+   держит ДАННОЕ, а не отсутствие поля: `on_phone: 0` сказано явно — у этого сценария
+   доступных дней нет, поэтому и возвращать нечего. До правки поля не было вовсе, и «нет
+   пути возврата» было неотличимо от «поле забыли». Обе копии фикстуры правлены вместе. */
+"recap/single":{scenario:"recap",fixture:"single",period:"week",week:6,frames_in:1,of:7,on_phone:0,
   caption:"One frame this week.",kicker:"WEEK 6 · SEP 7 – SEP 13 · BY MEANTIME",
   stat:"1 OF 7 KEPT",quadrants:[{q:"BL",day:37,asset:"recap-4",luma:0.21,luma_text:0.042,locked:false}]},
 
@@ -2139,6 +2196,11 @@ const Router = {
     const below=this.stack[this.stack.length-1];
     const s=this.build(route);
     const D=MS("--motion-screen"), DZ=MS("--motion-sheet-in");
+    /* решение 17.180 — своя, короткая длительность у непрозрачности зума: существующий
+       токен `--motion-icon` (150 мс), а не доля от DZ. В демо DZ растягивается до 640,
+       а `--motion-icon` не растягивается — и на записи круга верхний экран становится
+       плотным ещё раньше по доле перехода, чем в руках. Это ровно то, что нужно обложке. */
+    const DO=MS("--motion-icon");
     const ease=getComputedStyle(document.documentElement).getPropertyValue("--ease-standard");
     let mode = opts.cover ? "cover" : (opts.dissolve ? "dissolve" : (opts.from ? "zoom" : "slide")), origin=null;
     s.style.willChange="transform,opacity"; if(below) below.el.style.willChange="transform,opacity";
@@ -2154,6 +2216,17 @@ const Router = {
       requestAnimationFrame(()=>{
         s.style.transition="transform "+DZ+"ms "+ease;
         s.style.transform="translateY(0)";
+        /* решение 17.179 — экран под модалкой притухает вместе с её подъёмом. Модалка
+           накрывает СНИЗУ ВВЕРХ, поэтому верхняя полоса нижнего экрана гаснет последней:
+           замер — вордмарк `Meantime` и строка `DAY 40 OF 100` стояли в полную яркость
+           над уже поднявшейся камерой до 440 мс и исчезали скачком. Это и читалось
+           призраком: не полупрозрачность и не сбой композиции, а невыключенный экран.
+           Значение 60 % — то же, что у экрана под push (№1): одинаковое ведёт себя
+           одинаково. Возврат на 100 % — в back(), там же, где модалка уезжает вниз.
+           Режим `dissolve` этой правкой НЕ затронут: там нижний экран гасить нельзя
+           (решение 17.112), иначе сквозь полупрозрачное проявление проступит корневой. */
+        if(below){ below.el.style.transition="opacity "+DZ+"ms "+ease;
+                   below.el.style.opacity=".6"; }
       });
       setTimeout(done, DZ+20);
     }else if(mode==="dissolve"){
@@ -2187,7 +2260,14 @@ const Router = {
       s.style.opacity="0";
       this.el().append(s); void s.offsetWidth;
       requestAnimationFrame(()=>{
-        s.style.transition="transform "+DZ+"ms "+ease+", opacity "+DZ+"ms "+ease;
+        /* решение 17.180 — непрозрачность набирается ВЧЕТВЕРО быстрее масштаба. Раньше обе
+           шли одной длительностью, и все 400 мс верхний экран был полупрозрачным: сквозь
+           разворачивающийся рекап читался нижний дневник, и заметнее всего — заголовок
+           `Diary`, который стоит выше композиции и ни на что в ней не ложится. Порядок
+           слоёв и swapTop ни при чём: 10 лежит поверх 07 и всегда лежал, вопрос был
+           только в его собственной прозрачности в начале перехода. Масштаб не тронут —
+           длительность и кривая зума те же, что были (реестр №18, гейт 13.2). */
+        s.style.transition="transform "+DZ+"ms "+ease+", opacity "+DO+"ms "+ease;
         s.style.transform="scale(1)"; s.style.opacity="1";
       });
       setTimeout(done, DZ+20);
@@ -2210,6 +2290,15 @@ const Router = {
   back(){
     if(this.stack.length<2 || this.busy) return; this.busy=true;
     const top=this.stack.pop(), below=this.stack[this.stack.length-1];
+    /* решение 17.175 — уходя с камеры БЕЗ спуска, снимаем заказанный эффект: иначе
+       следующий обычный снимок оказался бы платным. Крестик, свайп вниз по камере и
+       системный свайп от края ведут все сюда, поэтому сброс стоит один и здесь.
+       Спуск до этого места не доходит: shoot() обнуляет заказ сам и уходит растворением. */
+    if(top.route==="04a") S._pendingEffect=null;
+    /* экран, на который возвращаемся, обязан быть видимым: растворение (17.112) прячет
+       нижний экран в конце перехода, и без этой строки возврат мимо режима dissolve
+       (например с 14, подменённого swapTop) приводил бы на скрытый экран */
+    below.el.style.visibility="";
     const D=MS("--motion-screen"), DZ=MS("--motion-sheet-in");
     const ease=getComputedStyle(document.documentElement).getPropertyValue("--ease-standard");
     void top.el.offsetWidth;
@@ -2226,9 +2315,18 @@ const Router = {
       const easeAccel=getComputedStyle(document.documentElement).getPropertyValue("--ease-accel");
       top.el.style.transition="transform "+OUT+"ms "+easeAccel;
       top.el.style.transform="translateY(100%)";
+      /* решение 17.179 — зеркало притухания на входе: экран возвращается к полной яркости
+         ровно за то время, за которое модалка уезжает */
+      below.el.style.transition="opacity "+OUT+"ms "+ease;
+      below.el.style.opacity="1";
+      setTimeout(()=>{ below.el.style.transition=""; below.el.style.opacity=""; }, OUT+40);
       setTimeout(()=>{ top.el.remove(); this.busy=false; }, OUT+20);
     }else if(top.mode==="zoom" && top.origin){
-      top.el.style.transition="transform "+DZ+"ms "+ease+", opacity "+DZ+"ms "+ease;
+      /* решение 17.180 — возврат зеркалом (гейт G-3): непрозрачность держится первые 60 %
+         и падает за последние 40 %. Уменьшается плотная карточка, а не растворяется
+         полупрозрачная — ровно наоборот тому, как она разворачивалась */
+      const DO=MS("--motion-icon");
+      top.el.style.transition="transform "+DZ+"ms "+ease+", opacity "+DO+"ms "+ease+" "+Math.max(0,DZ-DO)+"ms";
       top.el.style.transform="scale("+top.origin.scale+")"; top.el.style.opacity="0";
       setTimeout(()=>{ top.el.remove(); this.busy=false; }, DZ+20);
     }else{
@@ -2239,12 +2337,35 @@ const Router = {
     this.current=below.route; location.hash="#/"+below.route;
   },
 
-  /* заменить верхний экран без анимации (например 06 → 06a после Keep as today) */
-  swapTop(route){
-    const top=this.stack.pop(); if(top) top.el.remove();
-    const s=this.build(route); this.el().append(s);
-    this.stack.push({route, el:s, mode:"slide"});
+  /* заменить верхний экран без анимации (например 06 → 06a после `Keep in diary` на 14).
+     Решение 17.172 — с `{fade:true}` подмена идёт кросс-фейдом: новый экран ложится
+     поверх старого и набирает непрозрачность, старый снимается после. Нужно там, где
+     экран сменяется САМ, а не по нажатию: мгновенная подмена в такой момент читается
+     сбоем, а слайд соврал бы про переход, которого человек не делал (реестр №44).
+     Возвращает промис, чтобы вызывающий знал, когда кросс-фейд кончился. */
+  swapTop(route, opts){
+    opts=opts||{};
+    const top=this.stack.pop();
+    const s=this.build(route);
     this.current=route; location.hash="#/"+route;
+    if(!opts.fade){
+      if(top) top.el.remove();
+      this.el().append(s);
+      this.stack.push({route, el:s, mode:"slide"});
+      return Promise.resolve();
+    }
+    const D=MS("--motion-menu");
+    const ease=getComputedStyle(document.documentElement).getPropertyValue("--ease-standard");
+    s.style.opacity="0";
+    this.el().append(s); void s.offsetWidth;
+    this.stack.push({route, el:s, mode:"slide"});
+    requestAnimationFrame(()=>{
+      s.style.transition="opacity "+D+"ms "+ease; s.style.opacity="1";
+    });
+    return new Promise(res=>setTimeout(()=>{
+      if(top) top.el.remove();
+      s.style.transition=""; s.style.opacity=""; res();
+    }, D+20));
   }
 };
 
@@ -2338,7 +2459,14 @@ function centerBox(w){
 function scrollBox(s, tabId, flush){
   const w=el("div","Screen__scroll"+(tabId?" Screen__scroll--tab":"")+(flush?" Screen__scroll--flush":""));
   s.append(w);
-  if(tabId){ s.append(el("div","ScrimBottom")); s.append(UI.TabBar(tabId)); }
+  if(tabId){
+    /* решение 17.177 (реестр №47) — верхний скрим включается скроллом: в покое его нет,
+       и ни один экран в состоянии покоя не меняется. Слушатель пассивный, работа в нём —
+       одно сравнение и переключение класса. */
+    const st=el("div","ScrimTop"); s.append(st);
+    w.addEventListener("scroll",()=>{ st.classList.toggle("is-on", w.scrollTop>0); },{passive:true});
+    s.append(el("div","ScrimBottom")); s.append(UI.TabBar(tabId));
+  }
   return w;
 }
 function navBack(label, trailing){
@@ -2398,11 +2526,20 @@ const FRAME_VERSIONS=[
 /* Имя эффекта берётся из плитки каталога, а не из фикстуры (находка QA №2):
    фикстура одна на каталог, кадр тоже один — fx-after, это осознанный срез.
    todayPreset несёт маркер "EXTRA", имя живёт отдельно в effectName.
-   Решение 17.149 — платная пересъёмка (Sheets.confirmCoins с extra:true) записывает
+   Решение 17.149 — платная пересъёмка (buyEffect с extra:true) записывает
    в effectName имя дневного вида DEMO.todayLook, а не оставляет effectName пустым:
    фолбэк "Snow globe" ниже иначе подставлялся везде, где эффект ещё не куплен ни разу,
    и обычная пересъёмка подписывалась как купленный каталожный эффект. */
-const presetId    = n => String(n||"").toLowerCase().replace(/[^a-z]+/g,"_");
+/* решение 17.178 — цифры больше не съедаются. Класс [^a-z] отбрасывал их вместе с
+   пробелами: `Your street in 1995` → `your_street_in_`, `Film 35 #1 + Wes #3` →
+   `film_wes_`. Три из пяти имён теряли то единственное, чем отличались, а хвостовое
+   подчёркивание оставалось от съеденного куска. Теперь [^a-z0-9] и обрезка краевых
+   подчёркиваний. Сопоставимость с историческими данными не нарушена: аналитика пишет
+   в консоль и в кольцевой буфер localStorage, накопленной истории у прототипа нет.
+   Имена событий не тронуты — меняются только значения `preset_id`. Выбор фикстуры от
+   id не зависит (путь — `effect/success`), id только подставляется В фикстуру. */
+const presetId    = n => String(n||"").toLowerCase()
+                          .replace(/[^a-z0-9]+/g,"_").replace(/^_+|_+$/g,"");
 const effectTitle = ()=> S.effectName || "Snow globe";
 /* решение 17.160 — кадр результата следует за купленным эффектом, а не всегда fx-after.
    Платная пересъёмка (extra) кадра не меняет: это тот же дневной вид, поэтому "today". */
@@ -2584,14 +2721,16 @@ Screens["03"]=s=>{
     /* решение 17.148 — строка-нудж «Today’s free upgrade is used · more with coins ›»
        снята, вход в Effects остаётся через таб-бар. Вместо неё вторичная кнопка
        «Another photo · ◎ 2» — та же, что на 05 (17.64, 17.95): тот же helper priceLabel,
-       тот же путь Sheets.confirmCoins({name:"Develop again",price:2,extra:true}) →
-       проявление → 14 → Keep as today. Нехватку монет отдельно не обрабатываем —
-       её ведёт confirmCoins (ветка "you have N" + "Get coins"), как на 05.
+       тот же путь buyEffect({name:"Develop again",price:2,extra:true}) →
+       проявление → 14 → `Keep in diary` (ярлык 17.173). Решение 17.175 — шторки подтверждения между
+       кнопкой и проявлением больше нет: цена стоит на самой кнопке. Нехватку монет
+       отдельно не обрабатываем — её ведёт buyEffect (limit_reached → пакеты монет),
+       как на 05 и на плитке каталога.
        решение 17.8 — `Open diary` здесь дубль: под ней таб-бар с вкладкой DIARY.
        решение 17.69 — частично отменено 17.148 для 03: «Replace photo» (подписочная
        замена кадра) остаётся снятой, но платная пересъёмка (17.95) на 03 теперь есть. */
     a.append(UI.Button({label: priceLabel("Another photo", 2), variant:"secondary",
-      onTap:()=>Sheets.confirmCoins({name:"Develop again",price:2,extra:true})}));
+      onTap:()=>buyEffect({name:"Develop again",price:2,extra:true})}));
     w.append(a);
   }
   centerBox(w);
@@ -2603,20 +2742,38 @@ Screens["03"]=s=>{
 function shoot(source){
   S.pickedFrame="today-original";
   Analytics.track("photo_selected",{source, attempt:S.attempts+1});
-  /* решение 17.162 — кадр снят под выбранный эффект: закрываем камеру и показываем
-     подтверждение с ценой. Списание происходит здесь, когда кадр уже есть. */
-  if(S._pendingEffect){
-    const pe=S._pendingEffect; S._pendingEffect=null;
-    Router.back();
-    setTimeout(()=>Sheets.confirmCoins(pe), AFTER_SHEET());
-    return;
+  /* решение 17.162 — кадр снят под выбранный эффект: списание идёт здесь, когда кадр
+     уже есть, а не авансом. Порядок оплаты 17.162 не меняется.
+     Решение 17.175 — шторки подтверждения между спуском и проявлением больше нет: цена
+     названа дважды до спуска (плитка каталога и полоса над спуском, реестр №45). Спуск
+     сразу покупает и уходит в проявление ТЕМ ЖЕ переходом, что и дневной кадр
+     (`is-shooting` → растворение, 17.101/17.104): раньше камера сначала уезжала вниз,
+     под ней мелькал каталог, и только потом приходила шторка.
+     `stay:true` — покупка не делает своего Router.go, переход ниже общий. */
+  const pe=S._pendingEffect;
+  if(pe){
+    S._pendingEffect=null;
+    if(!buyEffect(pe,{stay:true})){ S._pendingEffect=pe; return; }   /* не хватило монет — кадр не съеден */
+  }else{
+    S._fixture = S._fixtureOverride || "daily-frame/success";
   }
-  S._fixture = S._fixtureOverride || "daily-frame/success";
   /* решение 17.101 — сначала уходит интерфейс камеры, кадр остаётся на месте,
      и только потом приходит проявление. Так переход читается как «снял», а не
      как «один экран растворился в другом» */
   const cam=document.querySelector(".Camera");
-  const go=()=>Router.go("05",{dissolve:true, ms:MS("--motion-capture")});
+  /* Решение 17.175 — после оплаченного спуска камера уходит из стека совсем. Иначе
+     `‹ Effects` на 14 и свайп назад с 05 возвращали бы в видоискатель, за который уже
+     заплачено, а ярлык кнопки обещает каталог. У дневной ветки камера в стеке остаётся
+     как была: там на 05 кнопки назад нет, и свайп назад в видоискатель — прежнее
+     поведение, которого эта правка не касается. */
+  const dropCam=()=>{
+    const i=Router.stack.findIndex(f=>f.route==="04a");
+    if(i>-1){ Router.stack[i].el.remove(); Router.stack.splice(i,1); }
+  };
+  const go=()=>{
+    Router.go("05",{dissolve:true, ms:MS("--motion-capture")});
+    if(pe) setTimeout(dropCam, MS("--motion-capture")+60);
+  };
   if(cam && source==="camera"){
     cam.classList.add("is-shooting");
     setTimeout(go, MS("--motion-capture-chrome"));
@@ -2675,6 +2832,18 @@ Screens["04a"]=s=>{
     Analytics.track("camera_flipped",{facing:S._front?"front":"back"});
   });
   flip.setAttribute("aria-pressed","false");
+  /* решение 17.175 (реестр №45) — спуск не должен быть слепой покупкой: над ним стоит
+     имя заказанного эффекта и его цена, теми же типом и цветом, что цена на плитке
+     каталога и строка `SPENT · LEFT` на 14. Шторки подтверждения больше нет, списание
+     идёт сразу за кадром. Строка лежит абсолютно внутри `.Camera__bar`, поэтому сетка
+     `миниатюра · спуск · переворот` не трогается, видоискатель не перекрывается, а при
+     `is-shooting` строка уходит вместе со всем хромом — она внутри той же панели.
+     Подпись про уход фотографии с телефона здесь НЕ дублируется: она на 05. */
+  if(S._pendingEffect){
+    const ord=el("div","Camera__order t-counter-meta c-accent");
+    ord.textContent = S._pendingEffect.name+" · ◎ "+S._pendingEffect.price;
+    bar.append(ord);
+  }
   bar.append(thumb, shutter, flip);
   w.append(bar);
 
@@ -2706,7 +2875,27 @@ Screens["05"]=s=>{
   ht.style.padding="calc(var(--size-safe-top) + var(--space-3)) var(--size-gutter) var(--space-4)";
   const kick=assign(el("div","t-meta c-tertiary"), fmtMDup(DEMO.today)+(isEffect?" · "+effectUpper():""));
   const title=assign(el("div","t-h1"),"Developing…");
-  ht.append(kick,title);
+  /* решение 17.175 — строка приватности переехала сюда со снятой шторки подтверждения.
+     Место выбрано не «куда-нибудь»: фотография уходит с телефона именно здесь и именно
+     сейчас, а на шторке это было обещание про будущее. Живёт ровно пока идёт проявление —
+     на «готово» и на отказе сворачивается вместе с панелью стадий, одной длительностью
+     и одной кривой с ней, чтобы кадр не прыгнул (17.158). Вторая строка шторки
+     («Effects change what’s in the frame. Your original stays.») сюда НЕ переносилась:
+     она про свойство эффекта, а не про эту секунду, и лежит в бэклоге. */
+  const priv=assign(el("div","t-caption c-tertiary mt2"),
+    "This photo leaves your phone to be developed and is deleted within 24 hours.");
+  ht.append(kick,title,priv);
+  const hidePriv=(ms)=>{
+    if(priv.dataset.gone) return; priv.dataset.gone="1";
+    const ease=getComputedStyle(document.documentElement).getPropertyValue("--ease-standard");
+    const DM=MS("--motion-menu");
+    if(matchMedia("(prefers-reduced-motion:reduce)").matches){ priv.remove(); return; }
+    priv.style.height=priv.offsetHeight+"px"; priv.style.overflow="hidden";
+    void priv.offsetWidth;
+    priv.style.transition="height "+ms+"ms "+ease+", opacity "+DM+"ms "+ease+", margin-top "+ms+"ms "+ease;
+    priv.style.height="0px"; priv.style.opacity="0"; priv.style.marginTop="0px";
+    setTimeout(()=>priv.remove(), ms+40);
+  };
   w.append(ht, hero);
 
   const panel=el("div","stack gap4"); panel.style.padding="var(--space-5) var(--size-gutter) 0";
@@ -2775,6 +2964,7 @@ Screens["05"]=s=>{
         const ease=getComputedStyle(document.documentElement).getPropertyValue("--ease-standard");
         const DM=MS("--motion-menu"), DI=MS("--motion-sheet-in");
         const h0=panel.offsetHeight;                       /* решение 17.44 — высота до смены содержимого */
+        hidePriv(DI);   /* решение 17.175 — приватность сворачивается той же кривой и тем же DI, что панель */
         rs.finish();
         rs.style.transition="opacity "+DM+"ms "+ease; rs.style.opacity="0";
         setTimeout(()=>rs.remove(), DM+20);
@@ -2843,6 +3033,7 @@ Screens["05"]=s=>{
       },
       onFail(f){
         rs.remove();
+        hidePriv(MS("--motion-sheet-in"));   /* решение 17.175 — на отказе проявления тоже нечего обещать */
         /* решение 17.2 — при ошибке верхний слой уходит в ноль: остаётся чистый оригинал,
            кадр никуда не делся. Размывать его обратно было бы неправдой.
            Снятые таймеры — чтобы отложенный старт кросс-фейда не проявил кадр после отказа */
@@ -2897,7 +3088,7 @@ Screens._dailyDone=(box, f)=>{
      Кнопка называет и действие, и цену — торга с самим собой не остаётся.
      helper priceLabel вынесен в общую область (17.148) — используется и на 03. */
   box.append(UI.Button({label: priceLabel("Another photo", 2), variant:"secondary",
-    onTap:()=>Sheets.confirmCoins({name:"Develop again",price:2,extra:true})}));
+    onTap:()=>buyEffect({name:"Develop again",price:2,extra:true})}));
   if(f.result.confidence==="low")
     box.append(UI.Button({label:"Develop again — on us",variant:"text",onTap:()=>{
       Analytics.track("result_regenerated",{reason:"low_confidence"});
@@ -2905,12 +3096,29 @@ Screens._dailyDone=(box, f)=>{
     }}));
   else if(S.attempts>=3)
     box.append(UI.Button({label:"Develop again · ◎ 2",variant:"text",
-      onTap:()=>Sheets.confirmCoins({name:"Develop again",price:2,extra:true})}));
+      onTap:()=>buyEffect({name:"Develop again",price:2,extra:true})}));
 };
+/* Решение 17.172 — промежуточного экрана «See result» больше нет. Кнопка стояла между
+   готовым кадром и экраном результата и не сообщала ничего: человек уже заказал эффект,
+   уже видит его на 05, и всё, что делал тап, — открывал обвязку вокруг того же кадра.
+   У дневной ветки такого шага и не было (`_dailyDone` кладёт действия прямо на 05) —
+   именно эту асимметрию владелец и не принял.
+   Выбран автопереход, а не перенос действий 14 на 05: перенос стоил бы экрана 14 целиком,
+   а на нём живут переключатель версий, строка `SPENT · LEFT` и меню «Develop again /
+   Discard» — содержимое, которого на 05 нет. Кадр держится `--motion-menu` (заголовок и
+   кик успевают встать) + `--motion-reveal-hold` (секунда готового кадра сама по себе),
+   затем 14 приходит кросс-фейдом (реестр №44). Проверка перед подменой обязательна:
+   если зритель за эту секунду ушёл с 05 своим жестом, автопереход не срабатывает.
+   Аналитика не теряется: на открытие 14 событий не шлётся вовсе, все события экрана
+   привязаны к действиям на нём. */
 Screens._effectDone=(box, f)=>{
-  /* находка QA №1 — цена записана при покупке в confirmCoins, здесь её не трогаем */
+  /* находка QA №1 — цена записана при покупке в buyEffect, здесь её не трогаем */
   S.effectPreset=f.result.preset; saveState();
-  box.append(UI.Button({label:"See result",onTap:()=>Router.swapTop("14")}));
+  const screen=box.closest(".Screen");
+  setTimeout(()=>{
+    if(Router.current!=="05" || !screen || !screen.isConnected) return;
+    Router.swapTop("14",{fade:true});
+  }, MS("--motion-menu")+MS("--motion-reveal-hold"));
 };
 Screens._failAction=(id, f)=>{
   if(id==="retry"){ S._fixture = f.scenario==="effect" ? "effect/success" : "daily-frame/success";
@@ -2967,7 +3175,7 @@ function fitFrameEased(scroll, box, floor, ms){
   });
 }
 
-function keptBlock(w, {extra=false, height="var(--size-frame-portrait)", kept=true, date=true}={}){
+function keptBlock(w, {extra=false, height="var(--size-frame-portrait)", kept=true, date=true, ai=false}={}){
   const box=el("div","KeptFrame");
   /* решение 17.94 — без эффекта переключать нечего: экран показывает проявленный день.
      С купленным эффектом остаются два состояния: дневная обработка и эффект. */
@@ -2983,14 +3191,25 @@ function keptBlock(w, {extra=false, height="var(--size-frame-portrait)", kept=tr
      эффекта мете под кадром нечего показывать. С эффектом маркер платного рендера
      (17.149, 9.2) остаётся — имя дневного вида / эффекта, но без даты. На 06/06a
      (date:true, по умолчанию) строка как раньше — дата, при эффекте с именем. */
+  /* решение 17.173 — на 14 день ещё НЕ сохранён, поэтому мета под кадром описывает
+     не запись в дневнике, а происхождение кадра: `AI · <ЭФФЕКТ>`. Приставка приходит
+     параметром вызова (ai:true), как kept:false в 17.151 и date:false в 17.153, —
+     helper остаётся один, а 03 / 06 / 06a не знают об этом параметре и выводят строку
+     ровно как раньше. */
   if(date){
     meta.append(metaLine((extra?effectUpper()+" · ":"")+fmtMDup(DEMO.today)));
   }else if(extra){
-    meta.append(metaLine(effectUpper()));
+    meta.append(metaLine((ai?"AI · ":"")+effectUpper()));
   }
-  /* решение 17.151 — «DAYS KEPT» рядом с `DAY N` нарушает правило двух чисел (10.19):
-     на экранах с хроникой `DAY N OF M` (15.1) эта строка не выводится, kept:false. */
-  if(kept) meta.append(metaLine(DEMO.kept+" DAYS KEPT · "+DEMO.periodLength+"-DAY DIARY","t-counter-meta c-tertiary"));
+  /* решение 17.151 — «KEPT» рядом с `DAY N` нарушает правило двух чисел (10.19):
+     на экранах с хроникой `DAY N OF M` (15.1) эта строка не выводится, kept:false.
+     Решение 17.184 — написание приведено к 07: `37 OF 40 KEPT`, а не `37 DAYS KEPT`.
+     Правка 17.176 меняла текст только на 07, и 06 / 06a остались со старым: переходя
+     06a → `Open diary` → 07, человек видел два написания одного факта подряд, что
+     запрещено словарём (17.111, «одно понятие — одно написание»). Правило 10.19 не
+     нарушено: `DAY N` на 06 и 06a нет (проверено по DOM обоих экранов), а доля
+     `N of M` — один факт, а не два счётчика (уточнение 17.176). */
+  if(kept) meta.append(metaLine(DEMO.kept+" OF "+DEMO.dayIndex+" KEPT · "+DEMO.periodLength+"-DAY DIARY","t-counter-meta c-tertiary"));
   return {seg, box, meta: meta.childElementCount ? meta : null};
 }
 
@@ -3001,7 +3220,7 @@ function keptScreen(s, extra){
      на виду остаются «поделиться» и «открыть дневник», ради которых сюда и приходят */
   const menu = extra ? [
     {label:"Develop again · "+effectPrice()+" coins",
-     onTap:()=>Sheets.confirmCoins({name:effectTitle(),price:effectPrice(),asset:S.effectAsset})},
+     onTap:()=>buyEffect({name:effectTitle(),price:effectPrice(),asset:S.effectAsset})},
     {label:"Discard this one", role:"destructive", onTap:()=>{
       Analytics.track("effect_discarded",{preset_id:presetId(effectTitle())});
       S.todayPreset="upgraded"; saveState(); Router.resetTo("03","06"); }},
@@ -3071,9 +3290,65 @@ Screens["07"]=s=>{
   const hd=el("button","row gap2"); hd.style.marginTop="var(--space-3)";
   hd.style.minHeight="var(--size-tap-min)";   /* решение 17.111 — тап-зона по токену, а не по высоте строки */
   /* решение 17.111 — то же написание, что на сохранённом дне: словарь требует «100-day diary» */
-  hd.append(metaLine(DEMO.kept+" DAYS KEPT · "+DEMO.periodLength+"-DAY DIARY ▾","t-counter-meta c-accent"));
+  /* решение 17.176 — `37 DAYS KEPT` → `37 OF 40 KEPT`. Арифметика не менялась (kept 37 =
+     40 прошедших − 3 пропущенных), менялось чтение: подряд на трёх экранах стояли
+     `Day 40 of 100` (03), `37 days kept` (07) и `5 of 7 kept` (10), и пара 40 / 37 звала
+     вычитать. Доля `N of M` — один факт, как `40 OF 100` в 15.1, а не два счётчика.
+     Переключатель периода, структура, кнопка, тап-зона и Sheets.period(false) не тронуты —
+     поменялся только текст. */
+  hd.append(metaLine(DEMO.kept+" OF "+DEMO.dayIndex+" KEPT · "+DEMO.periodLength+"-DAY DIARY ▾","t-counter-meta c-accent"));
   hd.addEventListener("click",()=>Sheets.period(false));
   w.append(hd);
+
+  /* решение 17.176 (реестр №46) — второй ряд шапки: ГЛАГОЛ, а не счётчик. Три пропущенных
+     дня перестали быть числом в шапке и стали действием; куда именно оно ведёт, экран
+     договаривает шторкой. Ряд выводится только при НАЛИЧИИ пропущенного дня с кадрами
+     (`skipped[day] > 0`) — числа в условии нет: пусто — нет и ряда, пустого места шапка
+     не оставляет. День берём ближайший к сегодняшнему, ровно тот, по чьей пустой клетке
+     человек тапнул бы сам (на демо — 38). Событие и путь — те же, что у тапа по клетке:
+     `missed_day_tapped{days_ago}` без переименования и без новых полей, у неподписчика
+     дальше мягкий пейвол приходит сам по существующему пути. Шеврона нет: он у строки
+     выше и означает «откроется список периодов», а здесь откроется шторка одного дня.
+     ЧАСТЬ ПРО ШЕВРОН РАЗВЁРНУТА решением 17.189 — см. комментарий 17.190 ниже. */
+  /* решение 17.185 — ряд тише первого: `c-accent` → `c-secondary`. Два ряда одного веса
+     читались как два равнозначных действия, хотя первый переключает период, а второй
+     открывает библиотеку телефона. Снижен только цвет: 11/13 — низ типографической шкалы
+     (`t-counter-meta` = `t-meta`), меньшего размера в ней нет, а заводить его запрещено.
+     `c-tertiary` не взят СОЗНАТЕЛЬНО: он дал бы ряду класс `t-counter-meta c-tertiary` —
+     байт в байт тот же, что у НЕнажимаемой строки `37 OF 40 KEPT` на 06 / 06a (17.184),
+     и тот же цвет, что у служебной подписи `RECAPS` 24 px ниже; один вид был бы то
+     кнопкой, то подписью. Контраст на фоне шапки в этой полосе (замер по снимку —
+     градиент даёт здесь 13/18/32 по каналам): secondary 7.6:1, tertiary 4.9:1 — оба
+     проходят 4.5, выбор сделан не контрастом, а различимостью с подписями.
+     Тап-зона `--size-tap-min`, структура, событие и шторка не тронуты.
+     ОТКРЫТЫЙ ВОПРОС ВЛАДЕЛЬЦУ: во всём файле `c-secondary` больше нигде не нажимается —
+     это единственная кнопка в этом цвете, признак нажимаемости держится на глаголе
+     и на месте под акцентным рядом. Правка внесена как рабочий вариант. */
+  /* решение 17.190 (исполнение 17.189, опция C) — шеврон ВОЗВРАЩЁН, цвет остаётся
+     `c-secondary`. После 17.185 признак нажимаемости держался на одном глаголе, и это
+     и был открытый вопрос владельцу; ответ — вернуть шеврон, а не поднять цвет.
+     Глиф `›`, НЕ `▾`, и не выдуман: в файле уже есть ровно одно место, где шеврон
+     означает «откроется шторка» — ряд `Watermark on · Remove with a plan ›` на 09,
+     ведущий в `Sheets.softPaywall`. `▾` строкой выше означает другое — «раскроется
+     список периодов» (17.176); здесь список не раскрывается, открывается шторка
+     одного дня, поэтому `▾` был бы новым смыслом у старого глифа.
+     Приём взят у ряда 1: глиф стоит В ТЕКСТЕ `metaLine`, отдельного span нет —
+     иначе два соседних ряда строились бы по-разному. Класс, цвет и тап-зона 44
+     не тронуты; ширина ряда 183.2 → 191.9, высота, `top` и всё, что ниже, — как было. */
+  const missedDay = Object.keys(DEMO.skipped).map(Number)
+    .filter(d => DEMO.skipped[d] > 0 && d < DEMO.dayIndex)
+    .sort((a,b)=>b-a)[0];
+  if(missedDay){
+    const add=el("button","row gap2");
+    add.style.minHeight="var(--size-tap-min)";
+    add.append(metaLine("ADD FROM YOUR PHONE ›","t-counter-meta c-secondary"));
+    add.addEventListener("click",()=>{
+      Analytics.track("missed_day_tapped",{days_ago:DEMO.dayIndex-missedDay,
+        allowed:S.subscriber?"free":"sub_required"});
+      Sheets.missedDay(missedDay);
+    });
+    w.append(add);
+  }
 
   w.append(assign(el("div","t-meta c-tertiary mt6"),"RECAPS"));
   const shelf=el("div","Shelf flush mt3");
@@ -3335,7 +3610,7 @@ Screens["11"]=s=>{
       if(S.coins<p){ Analytics.track("limit_reached",{limit_type:"coins"}); Sheets.coinPacks(); return; }
       /* кадра дня ещё нет — сначала снимаем, шторка подтверждения придёт после спуска */
       if(!S.todayKept){ S._pendingEffect={name:n,price:p,asset:a}; Router.go("04a",{cover:true}); return; }
-      Sheets.confirmCoins({name:n,price:p,asset:a});
+      buyEffect({name:n,price:p,asset:a});
     }}));
   });
   w.append(grid);
@@ -3343,35 +3618,50 @@ Screens["11"]=s=>{
      сняты снизу каталога: здесь будут фильтры. Обе строки остаются на месте,
      откуда взят приём: кнопка — в шторке покупки монет (Sheets.coinPacks,
      Sheets.whyCoins), подпись про уход фото с телефона — в шторке подтверждения
-     (Sheets.confirmCoins), перед действием, по решению 17.62 */
+     (Sheets.confirmCoins) — но решением 17.175 шторка снята вместе с этой подписью,
+     и подпись переехала на 05, под кикер «Developing…»: там фотография действительно
+     уходит с телефона. Строка про «Effects change what’s in the frame» не переносилась
+     никуда — она в бэклоге (кандидат: подпись сегмента `Developed | <эффект>` на 14) */
 };
 
 /* --- 14 · Результат AI-эффекта ----------------------------------------- */
+/* решение 17.173 — 14 собран раскладкой сохранённого дня (06 / 06a), а не своей.
+   Было: `Hero flush` навылет от края до края, мета одной строкой `AI · <ЭФФЕКТ> ·
+   ◎ N SPENT · M LEFT`, кнопки `Keep as today` / `Share`. Стало: тот же `keptBlock` —
+   кадр в полях `--size-gutter` со скруглением `--radius-lg`, заголовок над ним,
+   сегмент `Developed | <эффект>` на месте.
+   Что снято: строка `◎ N SPENT · M LEFT`. Остаток называется каталогом (чип
+   `◎ N coins` на 11) до траты и строкой на 06a после сохранения; на 14, между этими
+   двумя, он был третьим показом того же числа. Мета остаётся одна и описательная.
+   Заголовок `Ready · Sep 13` — РАБОЧИЙ вариант, на подтверждение владельцу:
+   `Kept · Sep 13` с 06 сюда переносить нельзя, день ещё не сохранён и надпись соврёт;
+   `READY` — слово с кикера 05, то есть уже в словаре продукта.
+   Кнопка `Keep in diary` — та же, что в дневной ветке на 05 (17.85): одно понятие,
+   одно написание (17.111). Вторая кнопка `Share` оставлена как была — вариант замены
+   вынесен владельцу отдельно. */
 Screens["14"]=s=>{
-  const w=scrollBox(s,null,true);
+  const w=scrollBox(s);
   /* решение 17.117 — редкие действия в меню, как на дне с эффектом (17.105) */
-  const top=el("div"); top.append(navBack("Effects", [
+  w.append(navBack("Effects", [
     {label:"Develop again · "+effectPrice()+" coins",
-     onTap:()=>Sheets.confirmCoins({name:effectTitle(),price:effectPrice(),asset:S.effectAsset})},
+     onTap:()=>buyEffect({name:effectTitle(),price:effectPrice(),asset:S.effectAsset})},
     {label:"Discard this one", role:"destructive", onTap:()=>{
       Analytics.track("effect_discarded",{preset_id:presetId(effectTitle())}); Router.tab("effects"); }},
     {label:"Cancel", role:"cancel"}
-  ])); w.append(top);
-  const sg=versionSegment(["Developed",effectTitle()],1,()=>w.querySelector(".Hero"),null,FRAME_VERSIONS.slice(1));
-  sg.classList.add("mt2"); w.append(sg);
-  const hero=el("div","Hero Hero--day flush mt4"); hero.style.marginTop="var(--space-4)";
-  hero.append(Img.make(effectAsset(),null,VERSION_OPTS[2]), el("div","CornerScrim"), watermarkEl());
-  w.append(hero);
-  w.append(metaLine("AI · "+effectUpper()+" · ◎ "+S.effectSpent+" SPENT · "+S.coins+" LEFT","t-counter-meta c-accent mt4"));
+  ]));
+  w.append(assign(el("h1","t-display"),"Ready · "+fmtMD(DEMO.today)));
+  const kb=keptBlock(w,{extra:true, kept:false, date:false, ai:true});
+  kb.seg.classList.add("mt4"); kb.box.classList.add("mt3"); kb.meta.classList.add("mt3");
+  w.append(kb.seg, kb.box, kb.meta);
   const a=el("div","stack gap3 mt4");
-  a.append(UI.Button({label:"Keep as today",onTap:()=>{
+  a.append(UI.Button({label:"Keep in diary",onTap:()=>{
     S.todayPreset="EXTRA"; S.todayKept=true; saveState();
     Analytics.track("effect_kept",{preset_id:presetId(effectTitle())});
     Router.resetTo("03","06a");
   }}));
   a.append(UI.Button({label:"Share",variant:"secondary",onTap:()=>goShare(DEMO.dayIndex,true)}));
   w.append(a);
-  fitFrame(w, hero, 360);
+  fitFrame(w, kb.box, 360);
 };
 
 /* ============================================================================
@@ -3678,56 +3968,47 @@ Sheets.whyCoins = ()=>{
   }});
 };
 
-/* 12 · Подтверждение траты монет */
-Sheets.confirmCoins = ({name, price, extra, asset})=>{
-  /* решение 17.149 — платная пересъёмка (extra:true, вызовы с 05 и 03: «Another photo · ◎ 2»)
-     подписывается именем дневного вида, а не ярлыком действия и не именем, которое
-     ещё не куплено: ярлык кнопки "Develop again"/"Another photo" не годится в заголовок
-     шторки и в preset_id аналитики — иначе effect_confirmed уйдёт с preset_id:"develop_again".
-     Каталожный эффект (extra не передан — плитка на 11 или повторный "Develop again" из меню
-     на 06a/14, который просто переигрывает текущее effectTitle()) держит своё имя как раньше. */
+/* 12 · Покупка эффекта — одна функция на все входы (решение 17.175)
+   Шторки подтверждения больше нет. Цена названа на каждом входе ДО тапа: плитка каталога
+   `◎ N · EXTRA DEVELOP` (11), кнопка `Another photo · ◎ 2` (05 и 03), пункт меню
+   `Develop again · N coins` (06a и 14), полоса над спуском камеры (реестр №45). Шторка
+   повторяла уже прочитанное и стоила лишнего тапа на каждом заказе. Все входы зовут
+   ЭТУ функцию, чтобы не разъехались: списание, событие, имя, цена, кадр и уход
+   в проявление живут в одном месте.
+   Ветка «не хватает монет» тоже здесь и тоже одна на всех: до 17.175 её вела шторка
+   («you have N» + `Get coins`), и события `limit_reached` с 05 / 03 / меню не уходило
+   вовсе — оно было только на плитке каталога.
+   решение 17.149 — платная пересъёмка (`extra:true`, вызовы с 05 и 03) подписывается
+   именем дневного вида, а не ярлыком действия и не именем, которое ещё не куплено:
+   иначе `effect_confirmed` уйдёт с `preset_id:"develop_again"`. Каталожный эффект
+   (`extra` не передан) держит своё имя как раньше.
+   `opts.stay` — для спуска камеры: там переход в проявление свой, «спуск → растворение»
+   (17.101, 17.104), и покупка не должна подменять его обычным push. */
+function buyEffect({name, price, extra, asset}, opts){
+  opts=opts||{};
   const label = extra ? DEMO.todayLook : name;
-  UI.Sheet({detent:"medium", build(b, api){
-    const head=el("div","row gap3");
-    /* решение 17.22 — до запуска обработки показываем оригинал. Ветка эффекта на 05
-       тоже стартует с today-original, так что превью и проявление сходятся. */
-    const th=Img.make("today-original"); th.style.cssText="width:72px;height:72px;border-radius:var(--radius-md);flex:0 0 auto";
-    const tx=el("div","stack gap1");
-    tx.append(assign(el("div","t-h2"),label),
-              assign(el("div","t-caption c-secondary"),"on today’s frame · "+fmtMDup(DEMO.today)),
-              assign(el("div","t-meta c-tertiary"),"EXTRA DEVELOP · BEYOND TODAY’S FREE ONE"));
-    head.append(th,tx); b.append(head);
-    const enough=S.coins>=price;
-    b.append(assign(el("div","t-counter"+(enough?"":" c-error")),
-      enough ? "◎ "+price+" coins → "+(S.coins-price)+" left after" : "◎ "+price+" coins · you have "+S.coins));
-    b.append(assign(el("div","t-caption c-tertiary"),"This photo leaves your phone to be developed and is deleted within 24 hours."),
-             assign(el("div","t-caption c-tertiary"),"Effects change what’s in the frame. Your original stays."));
-    const sp=el("div"); sp.style.flex="1"; b.append(sp);
-    if(enough){
-      b.append(UI.Button({label:"Develop · "+price+" coins",onTap:()=>{
-        Analytics.track("effect_confirmed",{preset_id:presetId(label),
-          price, balance_after:S.coins-price});
-        S.coins-=price; S.effectSpent=price;
-        /* находка QA №2 + решение 17.149 — effectName переходит на label и для каталога,
-           и для пересъёмки: потребители effectTitle()/effectUpper()/effectPrice()
-           (05, 14, 03, 06a, effectFixture) получают правду одним присвоением */
-        S.effectName=label; S.effectPrice=price;
-        /* решение 17.160 — кадр результата берётся с плитки. Пересъёмка (extra) кадра
-           не меняет: null → effectAsset() отдаёт дневной вид. FRAME_VERSIONS[2] — тот же
-           кадр, чтобы третья позиция переключателя показывала купленное, а не fx-after */
-        S.effectAsset = extra ? null : (asset || null);
-        FRAME_VERSIONS[2].src = extra ? "today" : (asset || "fx-after");
-        saveState(); api.close();
-        S._fixture = S._fixtureOverride && S._fixtureOverride.indexOf("effect/")===0
-          ? S._fixtureOverride : "effect/success";
-        setTimeout(()=>Router.go("05"),120);
-      }}));
-    }else{
-      b.append(UI.Button({label:"Get coins",onTap:()=>{ api.close(); setTimeout(Sheets.coinPacks,AFTER_SHEET()); }}));
-    }
-    b.append(UI.Button({label:"Cancel",variant:"text",onTap:api.close}));
-  }});
-};
+  if(S.coins < price){
+    Analytics.track("limit_reached",{limit_type:"coins"});
+    Sheets.coinPacks(); return false;
+  }
+  Analytics.track("effect_confirmed",{preset_id:presetId(label),
+    price, balance_after:S.coins-price});
+  S.coins-=price; S.effectSpent=price;
+  /* находка QA №2 + решение 17.149 — effectName переходит на label и для каталога,
+     и для пересъёмки: потребители effectTitle()/effectUpper()/effectPrice()
+     (05, 14, 03, 06a, effectFixture) получают правду одним присвоением */
+  S.effectName=label; S.effectPrice=price;
+  /* решение 17.160 — кадр результата берётся с плитки. Пересъёмка (extra) кадра
+     не меняет: null → effectAsset() отдаёт дневной вид. FRAME_VERSIONS[2] — тот же
+     кадр, чтобы третья позиция переключателя показывала купленное, а не fx-after */
+  S.effectAsset = extra ? null : (asset || null);
+  FRAME_VERSIONS[2].src = extra ? "today" : (asset || "fx-after");
+  saveState();
+  S._fixture = S._fixtureOverride && S._fixtureOverride.indexOf("effect/")===0
+    ? S._fixtureOverride : "effect/success";
+  if(!opts.stay) Router.go("05");
+  return true;
+}
 
 /* ============================================================================
    ЗАПУСК
@@ -3817,11 +4098,18 @@ const Demo = {
      рядом идёт полоса прогресса. Полоса должна идти по настоящему кругу, а не по
      своему таймеру, поэтому раз в секунду отправляем родительскому окну, где мы.
      Вне рамки не шлём ничего: слать некому. */
-  /* Полный период круга вместе с паузой 400 мс на стыке кругов. Замерено двумя кругами
-     подряд headless-прогоном 390×844: сами круги 32 975 и 32 965 мс, период до следующего
-     круга 33 377 и 33 366 мс. Полоса на странице кейса берёт длительность отсюда, поэтому
-     число обязано быть измеренным, а не прикинутым. */
-  totalMs:33400,   /* 17.165: сценарий «Накопление и итог периода» — замер, а не прикидка */
+  /* Полный период круга вместе с паузой 400 мс на стыке кругов. Замерено headless-прогоном
+     390×844: три круга подряд 38 917 / 39 051 / 39 089 мс, периоды до следующего круга
+     39 317 и 39 452 мс. Полоса на странице кейса берёт длительность отсюда, поэтому число
+     обязано быть измеренным, а не прикинутым.
+     Решение 17.170 — круг вырос с 33 400: ветка платного эффекта (каталог → цена →
+     списание → результат → сохранённый день) стоит ~16 с и не сжимается без потери того,
+     ради чего она добавлена; снятая ветка прошлого дня и сокращённый вдвое пейвол вернули
+     только ~6,5 с. Проявление не резалось — правило 17.165 держится.
+     Решение 17.175 — круг укоротился с 42 100 до 39 500: снята шторка подтверждения траты,
+     а с ней ожидание шторки, выдержка 2 200 мс на ней и тап по `Develop · 2 coins`.
+     Освободившиеся ~2,2 с НЕ перераспределены: ни одна другая выдержка не выросла. */
+  totalMs:39500,   /* 17.165 + 17.170 + 17.175 — замер, а не прикидка */
   t0:0, step:"", beat:null,
 
   tick(){
@@ -3872,6 +4160,14 @@ const Demo = {
     /* зритель перехватил управление — дальше он проходит прототип руками,
        и тайминги обязаны вернуться к значениям 17.27 */
     Object.keys(DEMO_MOTION).forEach(k=>document.documentElement.style.removeProperty(k));
+    /* решение 17.181 — и прозрачность тоже. Круг заканчивается гашением стека
+       (`fade(0)`), и перехват в эти 320 мс оставлял `#stack` на opacity 0 навсегда:
+       `fade` ждёт своего sleep, sleep при остановке отклоняется, и строка возврата
+       никогда не выполнялась. Зритель нажимал — и получал пустое устройство.
+       Замер до правки: через 3,5 с после клика inline `opacity` = "0", computed = 0.
+       Демо не имеет права оставить после себя ни одного своего следа. */
+    const st=document.getElementById("stack");
+    if(st){ st.style.transition=""; st.style.opacity=""; }
     /* последнее сообщение с on:false — по нему полоса на странице гаснет
        и подпись меняется на «управление у вас». В этом весь смысл перехвата */
     if(this.beat){ clearInterval(this.beat); this.beat=null; }
@@ -3916,11 +4212,66 @@ const Demo = {
     if(to===1){ st.style.transition=""; st.style.opacity=""; }
   },
 
-  btn(label){
-    const n=[...document.querySelectorAll(".Button__label")]
+  /* \u0440\u0435\u0448\u0435\u043D\u0438\u0435 17.173 \u2014 \u043D\u0435\u043E\u0431\u044F\u0437\u0430\u0442\u0435\u043B\u044C\u043D\u044B\u0439 \u0432\u0442\u043E\u0440\u043E\u0439 \u0430\u0440\u0433\u0443\u043C\u0435\u043D\u0442: \u043A\u043E\u0440\u0435\u043D\u044C \u043F\u043E\u0438\u0441\u043A\u0430. \u041F\u043E\u0441\u043B\u0435 \u0442\u043E\u0433\u043E \u043A\u0430\u043A
+     \u043A\u043D\u043E\u043F\u043A\u0430 \u043D\u0430 14 \u043F\u043E\u043B\u0443\u0447\u0438\u043B\u0430 \u044F\u0440\u043B\u044B\u043A `Keep in diary`, \u0442\u043E\u0442 \u0436\u0435 \u044F\u0440\u043B\u044B\u043A \u0436\u0438\u0432\u0451\u0442 \u0432 \u0434\u0432\u0443\u0445 \u043C\u0435\u0441\u0442\u0430\u0445 \u043A\u0440\u0443\u0433\u0430
+     (05 \u0432 \u0434\u043D\u0435\u0432\u043D\u043E\u0439 \u0432\u0435\u0442\u043A\u0435 \u0438 14 \u0432 \u0432\u0435\u0442\u043A\u0435 \u044D\u0444\u0444\u0435\u043A\u0442\u0430), \u0430 \u043F\u043E\u0438\u0441\u043A \u0448\u0451\u043B \u043F\u043E \u0432\u0441\u0435\u043C\u0443 \u0434\u043E\u043A\u0443\u043C\u0435\u043D\u0442\u0443 \u0438 \u0431\u0440\u0430\u043B
+     \u043F\u0435\u0440\u0432\u043E\u0435 \u0441\u043E\u0432\u043F\u0430\u0434\u0435\u043D\u0438\u0435 \u0432 \u043F\u043E\u0440\u044F\u0434\u043A\u0435 DOM. \u042D\u043A\u0440\u0430\u043D\u044B \u0442\u0430\u043C \u0440\u0430\u0437\u043D\u044B\u0435, \u0438 \u043F\u0435\u0440\u0435\u043F\u0443\u0442\u0430\u0442\u044C \u0438\u0445 \u0437\u043D\u0430\u0447\u0438\u043B\u043E \u0431\u044B
+     \u043D\u0430\u0436\u0430\u0442\u044C \u043D\u0435 \u0442\u0443 \u043A\u043D\u043E\u043F\u043A\u0443. \u041F\u0435\u0440\u0435\u0434\u0430\u043D \u043A\u043E\u0440\u0435\u043D\u044C \u2014 \u0438\u0449\u0435\u043C \u0441\u0442\u0440\u043E\u0433\u043E \u0432 \u043D\u0451\u043C; \u043A\u043E\u0440\u043D\u044F \u043D\u0435\u0442 \u2014 \u043A\u0430\u043A \u0440\u0430\u043D\u044C\u0448\u0435,
+     \u043F\u043E \u0434\u043E\u043A\u0443\u043C\u0435\u043D\u0442\u0443. \u042F\u0432\u043D\u044B\u0439 null (\u0441\u0435\u043B\u0435\u043A\u0442\u043E\u0440 \u043D\u0435 \u043D\u0430\u0448\u0451\u043B \u044D\u043A\u0440\u0430\u043D) \u041D\u0415 \u0441\u0445\u043B\u043E\u043F\u044B\u0432\u0430\u0435\u0442\u0441\u044F \u0432 \u0434\u043E\u043A\u0443\u043C\u0435\u043D\u0442,
+     \u0438\u043D\u0430\u0447\u0435 \u043E\u0436\u0438\u0434\u0430\u043D\u0438\u0435 \u043C\u043E\u043B\u0447\u0430 \u0432\u0435\u0440\u043D\u0443\u043B\u043E \u0431\u044B \u043A\u043D\u043E\u043F\u043A\u0443 \u0447\u0443\u0436\u043E\u0433\u043E \u044D\u043A\u0440\u0430\u043D\u0430. */
+  btn(label, root){
+    if(arguments.length>1 && !root) return null;
+    const n=[...(root||document).querySelectorAll(".Button__label")]
       .find(x=>x.textContent.replace(/\u00A0/g," ").trim()===label);
     return n ? n.closest(".Button") : null;
   },
+  /* Прокрутка с контролируемой скоростью (решение 17.170, реестр №41). Нативный
+     scrollTo({behavior:"smooth"}) отвергнут замером 17.165: 180 px за 232 ms — 776 px/с
+     против порога дёрганья ~200 px/с, поставленного владельцем, и длительностью он не
+     управляется. Здесь длительность задаётся явно, кривая косинусная: пик скорости
+     ровно π/2 от средней, то есть считается заранее, а не подбирается на глаз. */
+  async scroll(node, to, ms){
+    if(!this.on || !node) throw "stopped";
+    const from=node.scrollTop, d=to-from, t0=performance.now();
+    await new Promise(res=>{
+      const step=()=>{
+        if(!this.on) return res();
+        const k=Math.min(1,(performance.now()-t0)/ms);
+        node.scrollTop = from + d*(0.5-0.5*Math.cos(Math.PI*k));
+        k<1 ? requestAnimationFrame(step) : res();
+      };
+      requestAnimationFrame(step);
+    });
+    if(!this.on) throw "stopped";
+  },
+
+  /* Куда прокрутить дневник — считается по DOM, а не зашито числом: ряд будущих
+     пустых дней должен целиком выйти из-под стекла таб-бара, плюс поле воздуха.
+     Меняется вёрстка поля — цель едет за ней, а не расходится с ней молча. */
+  diaryTarget(sc){
+    const cell=document.querySelector('.DayCell[data-state="future"]');
+    const bar=document.querySelector(".TabBar");
+    if(!sc || !cell || !bar) return 0;
+    const need=cell.getBoundingClientRect().bottom - bar.getBoundingClientRect().top;
+    return Math.max(0, Math.round(sc.scrollTop + need + MS("--space-4")));
+  },
+
+  /* вкладка таб-бара по имени: тап идёт по кнопке, а не по Router.tab() —
+     зритель должен видеть, куда нажали (реестр №30) */
+  tabItem(name){
+    const bar=document.querySelector("#stack .Screen:last-child .TabBar");
+    if(!bar) return null;
+    return [...bar.querySelectorAll(".TabBar__item")]
+      .find(it=>(it.querySelector(".t-meta")||{}).textContent===name) || null;
+  },
+
+  /* плитка каталога по имени пресета: берём ПЕРВУЮ копию в сетке — порядок
+     CATALOG_ORDER детерминирован (реестр №43), значит между прогонами это одна и та же */
+  tile(name){
+    return [...document.querySelectorAll(".EffectTile")]
+      .find(t=>(t.querySelector(".t-h2")||{}).textContent===name) || null;
+  },
+
   /* ждём появления элемента, но не бесконечно — демо не должно зависать */
   async until(fn, limit=9000){
     const t0=Date.now();
@@ -3947,9 +4298,12 @@ const Demo = {
      места — стартовый экран до нажатия, видоискатель, стык кругов — коротки и не растут.
      Длительность круга не назначается сверху, а получается из выдержек: фактическое
      число замерено двумя прогонами подряд и стоит в `totalMs`.
-     За кадром сознательно: переворот камеры, `Another photo · ◎ 2`, каталог эффектов,
-     шеринг, мягкий пейвол пропущенного дня — они подпирают удержание и монетизацию,
-     а не накопление, ради которого собран этот круг. */
+     Решение 17.170 достроило круг веткой платного эффекта (`Change the weather`, ◎2)
+     и сняло ветку прошлого дня: время ушло из повтора («ещё один сохранённый кадр»)
+     в то, чего в круге не было вовсе, — цену, остаток и списание.
+     За кадром сознательно: переворот камеры, `Another photo · ◎ 2`, шеринг,
+     мягкий пейвол пропущенного дня, прошлый день — они либо повторяют уже показанное,
+     либо подпирают удержание, а не накопление, ради которого собран этот круг. */
   async run(){
     this.t0=Date.now(); this.at("today");
     /* экран уже затемнён хвостом прошлого круга; на первом круге гасить нечего */
@@ -3987,38 +4341,79 @@ const Demo = {
     /* 05 — проявление идёт своим ходом: этапы, строка про 24 часа. Темп не трогается
        ни при каком сокращении круга: это и есть превращение (17.28, 17.49) */
     this.at("reveal");
-    await this.until(()=>this.btn("Keep in diary"), 14000);
+    /* корень поиска — экран 05 (17.173): ярлык `Keep in diary` теперь стоит и здесь,
+       и на 14, а круг проходит оба. Ждём появления кнопки именно в дневной ветке. */
+    const at05 = ()=>this.btn("Keep in diary", document.querySelector('#stack .Screen[data-route="05"]'));
+    await this.until(at05, 14000);
     await this.sleep(2200);   /* 17.85: результат стоит сам по себе, показывать нечего */
-    await this.tap(this.btn("Keep in diary"));
+    await this.tap(at05());
 
-    /* 06 — день сохранён: подпись кадра, счётчик, блок TOMORROW */
+    /* 06 — день сохранён: подпись кадра, счётчик, блок TOMORROW. Выдержка короче
+       прежней (было 2500): та же раскладка приходит второй раз на 06a в конце ветки
+       эффекта, и держать её дважды по 2.5 с — платить временем за один и тот же кадр */
     this.at("kept");
-    await this.sleep(2500);          /* сохранённый день со счётчиком (17.43) */
-    await this.tap(await this.until(()=>this.btn("Open diary")));
+    await this.sleep(1800);          /* сохранённый день со счётчиком (17.43) */
 
-    /* 07 — полка итогов и поле периода. Стоим неподвижно при scrollTop = 0: полка,
-       счётчик `37 DAYS KEPT` и вся прожитая часть поля видны одним кадром, целевая
-       ячейка уже в кадре. Скролл 0 → 180 отвергнут замером — реестр №41. */
-    this.at("diary");
-    await this.sleep(3000);          /* поле дней — тезис продукта (17.43) */
-
-    /* День 37 (Sep 10) — сохранённый день между пропусками `+3` и `+1`. Тап по нему
-       рассказывает две вещи разом: прошлый день открывается целиком, и ряд честно
-       показывает, что пропуски видны и ничего не обнуляют. Зум от миниатюры — №18/№42 */
-    await this.tap(await this.until(()=>
-      document.querySelector('.DayCell[data-state="kept"][data-day="37"]')));
-
-    /* 08 — прошлый день во весь экран: кадр, дата, день периода */
-    this.at("day");
-    await this.sleep(3000);
-    /* возврат — зеркальный зум-аут к той же ячейке (гейт G-3). Ждём, пока Router
-       отпустит `busy`: `point()` короче зума, и следующий тап уходил бы в пустоту */
+    /* ── Ветка платного эффекта (решение 17.170) ────────────────────────────────
+       Заняла место прошлого дня. Рассказывает то, чего накопительная ветка не
+       рассказывает: у продукта есть валюта, цена видна до траты, остаток называется
+       до нажатия и после него. Путь идёт ровно тем маршрутом, что и у человека:
+       с сохранённого дня назад на Today (таб-бара на 06 нет — 06 лежит поверх 03),
+       оттуда вкладка Effects. Короткого пути в каталог с 06 в продукте нет, и демо
+       его не выдумывает. */
     await this.tap(await this.until(()=>
       document.querySelector("#stack .Screen:last-child .NavBar__back")));
-    await this.sleep(MS("--motion-sheet-in")+120);
+    await this.until(()=>!Router.busy, 4000);
 
-    /* обратного скролла к полке нет: `scrollTop` пережил зум и вернулся нулём,
-       карточка рекапа стоит в кадре (реестр №41) */
+    /* 11 — каталог: баланс сверху, у каждой плитки цена. Выдержки хватает, чтобы
+       прочитать чип баланса и пару цен; сетка длинная, скроллить её незачем */
+    await this.tap(await this.until(()=>this.tabItem("effects")));
+    this.at("effects");
+    await this.sleep(1700);
+    /* Решение 17.175 — шторки подтверждения больше нет: тап по плитке сразу списывает
+       и уводит в проявление. Шаг `confirm` снят вместе с ней, ожидание шторки и тап
+       по `Develop · 2 coins` убраны. Освободившееся время (выдержка 2 200 мс плюс тап
+       420 мс) НЕ перераспределено: круг просто короче, ни одна другая выдержка не
+       выросла и не сократилась. Цена и остаток по-прежнему называются в круге — цена
+       стоит на самой плитке, остаток приходит строкой `◎ 2 SPENT · 10 LEFT` на 14. */
+    await this.tap(await this.until(()=>this.tile("Change the weather")));
+
+    /* 05 — проявление эффекта. Темп не режется: правило 17.165 держится и здесь.
+       Промежуточной кнопки «See result» больше нет (17.172) — 14 приходит сам */
+    this.at("effectReveal");
+    await this.until(()=>document.querySelector('#stack .Screen[data-route="05"]'), 6000);
+
+    /* 14 — результат: заголовок `Ready · Sep 13`, переключатель «Developed / Change the
+       weather», кадр в полях, мета `AI · CHANGE THE WEATHER`. Строка `◎ 2 SPENT · 10 LEFT`
+       снята решением 17.173: остаток назван чипом каталога до траты и строкой на 06a
+       после сохранения, здесь он был третьим показом того же числа.
+       Кнопка ищется СТРОГО внутри экрана 14 (17.173): её ярлык `Keep in diary` теперь
+       совпадает с ярлыком дневной ветки на 05, и поиск по всему документу мог бы взять
+       чужую кнопку. */
+    const s14 = await this.until(()=>document.querySelector('#stack .Screen[data-route="14"]'), 20000);
+    this.at("effectResult");
+    await this.sleep(1800);
+    await this.tap(await this.until(()=>this.btn("Keep in diary", s14)));
+
+    /* 06a — тот же сохранённый день, но с эффектом и со строкой траты */
+    this.at("effectKept");
+    await this.until(()=>!Router.busy, 4000);
+    await this.sleep(1600);
+    await this.tap(await this.until(()=>this.btn("Open diary")));
+
+    /* 07 — полка итогов и поле периода. Сначала стоим при scrollTop = 0: полка,
+       счётчик `37 OF 40 KEPT` (написание 17.176, распространено на 06 / 06a решением 17.184)
+       и вся прожитая часть поля видны одним кадром. Затем
+       прокрутка на столько, чтобы из-под таб-бара вышел ряд БУДУЩИХ пустых дней:
+       поле обязано показать не только прожитое, но и то, что впереди. Скорость
+       считается, а не подбирается — реестр №41. */
+    this.at("diary");
+    await this.sleep(900);
+    const sc=document.querySelector('#stack .Screen[data-route="07"] .Screen__scroll');
+    await this.scroll(sc, this.diaryTarget(sc), 800);
+    await this.sleep(1400);          /* поле дней — тезис продукта (17.43) */
+
+    /* прокрутка карточку рекапа из кадра не уводит — она осталась выше поля */
     await this.tap(await this.until(()=>document.querySelector(".RecapCard")));
 
     /* 10 — рекап во весь экран, через 600 мс приходит пейвол (решение 13.3) */
@@ -4029,7 +4424,11 @@ const Demo = {
     /* сильный пейвол получает собственную выдержку: раньше шаг `paywall` жил столько же,
        сколько тап, и на полосе прогресса его практически не существовало */
     this.at("paywall");
-    await this.sleep(3700);          /* цены и список успевают прочитаться */
+    /* решение 17.170 — выдержка сокращена вдвое (было 3700). Слова владельца:
+       «очень долгая пауза на боттоме подписок». 1850 — всё ещё дольше любого тапа,
+       то есть шаг на полосе прогресса существует, но пейвол перестал быть самой
+       длинной остановкой круга */
+    await this.sleep(1850);          /* цены и список успевают прочитаться */
     /* Тап по годовому плану убран: он выбран по умолчанию, нажатие ничего не меняло,
        и зритель считывал это как «нажали, а экран не отреагировал». */
     await this.tap(await this.until(()=>this.btn("Not now")));
