@@ -3008,6 +3008,26 @@ Screens["05"]=s=>{
           title.textContent = fmtMD(DEMO.today)+(isEffect?" · "+effectTitle():" · Developed");
           kick.textContent = f.result.confidence==="low" ? "LOW CONFIDENCE" : "READY";
           [title,kick].forEach(n=>{ n.style.opacity="1"; });
+          /* решение 17.215 — на «готово» кадр получает тег с именем обработки в правом
+             верхнем углу и переходит на шторку: тот же вид, что на результате эффекта
+             (14) и на карточке дня. Оба экрана результата показывают одно и то же,
+             значит и выглядят одинаково. До «готово» ничего не трогаем — там идёт
+             проявление, и вмешиваться в него нельзя. */
+          if(!hero.querySelector(".FilterCard__tag")){
+            const tg=el("div","FilterCard__tag");
+            tg.append(assign(el("span","t-counter-meta c-on-image"),
+              isEffect ? effectUpper() : DEMO.todayLook.toUpperCase()));
+            hero.append(tg);
+          }
+          if(!reveal.querySelector(".FilterCard__dev")){
+            reveal.innerHTML="";
+            reveal.classList.add("FilterCard__sample");
+            reveal.append(Img.make("today-original"));
+            const dv=el("div","FilterCard__dev");
+            dv.append(Img.make(isEffect?effectAsset():"today", null,
+                               isEffect?VERSION_OPTS[2]:VERSION_OPTS[1]));
+            reveal.append(dv, el("div","FilterCard__edge"));
+          }
         }, DM);
         /* решение 17.85 — на экране проявления переключателя нет: он показывает
            результат, а разницу человек уже видел на карточке дня, где образец
@@ -3703,41 +3723,45 @@ Screens["11"]=s=>{
    одно написание (17.111). Вторая кнопка `Share` оставлена как была — вариант замены
    вынесен владельцу отдельно. */
 Screens["14"]=s=>{
-  const w=scrollBox(s);
-  /* решение 17.203 — меню ··· снято и здесь: «Develop again» доступен с сохранённого
-     дня, а «Discard» на экране, где день ещё не сохранён, означал бы уход без
-     следа — то же делает кнопка возврата. */
-  w.append(navBack("Effects"));
-  w.append(assign(el("h1","t-display"),"Ready · "+fmtMD(DEMO.today)));
-  /* решение 17.202 — кадр показывается ровно так же, как на экране проявления:
-     навылет от края до края и той же высоты. Переход 05 → 14 — кросс-фейд, и
-     разный размер кадра читался сменой масштаба, хотя фотография та же. Раскладка
-     остальных частей (заголовок, одна мета-строка, кнопки) остаётся от 17.173. */
-  const kb=keptBlock(w,{extra:true, kept:false, date:false, ai:true, segment:false, wipe:true});
-  /* решение 17.214 — мета может отсутствовать: с тегом на кадре (17.213) под кадром
-     не остаётся ни одной строки, и `keptBlock` честно возвращает `meta: null`.
-     Обращение к нему без проверки роняло сборку экрана целиком — экран открывался
-     пустым, без кнопок. Та же защита, что поставлена на 06 решением 17.198. */
-  kb.box.classList.add("mt4"); if(kb.meta) kb.meta.classList.add("mt3");
-  w.append(kb.box); if(kb.meta) w.append(kb.meta);
-  const a=el("div","stack gap3 mt4");
-  a.append(UI.Button({label:"Keep in diary",onTap:()=>{
+  /* решение 17.215 — экран результата эффекта приведён к экрану результата дневной
+     обработки: оба показывают одно и то же — готовый кадр перед сохранением, —
+     значит выглядеть должны одинаково. Раскладка взята с 05: кикер `READY`,
+     заголовок `Sep 13 · <имя>`, кадр навылет от края до края, тег с именем в правом
+     верхнем углу, шторка по кадру. Отличаются только кнопки: на дневном пути вторая —
+     «Another photo», здесь — «Share». Навбар `‹ Effects` снят вместе с раскладкой:
+     на 05 его тоже нет, выход — жест и кнопки. Отменяет 17.173 и 17.202 в части
+     раскладки; шторка (17.211) и тег (17.213) сохраняются. */
+  const w=scrollBox(s,null,true);
+  w.style.padding="0 0 calc(var(--size-safe-bottom) + var(--space-4))";
+
+  const ht=el("div","stack gap1");
+  ht.style.padding="calc(var(--size-safe-top) + var(--space-3)) var(--size-gutter) var(--space-4)";
+  ht.append(assign(el("div","t-meta c-tertiary"),"READY"),
+            assign(el("div","t-h1"), fmtMD(DEMO.today)+" · "+effectTitle()));
+  w.append(ht);
+
+  const hero=el("div","Hero flush");
+  const smp=el("div","FilterCard__sample");
+  smp.append(Img.make("today", null, VERSION_OPTS[1]));
+  const dev=el("div","FilterCard__dev");
+  dev.append(Img.make(effectAsset(), null, VERSION_OPTS[2]));
+  smp.append(dev, el("div","FilterCard__edge"));
+  const tag=el("div","FilterCard__tag");
+  tag.append(assign(el("span","t-counter-meta c-on-image"), effectUpper()));
+  hero.append(smp, el("div","CornerScrim"), tag, watermarkEl());
+  w.append(hero);
+
+  const panel=el("div","stack gap3");
+  panel.style.padding="var(--space-5) var(--size-gutter) 0";
+  panel.append(UI.Button({label:"Keep in diary",onTap:()=>{
     S.todayPreset="EXTRA"; S.todayKept=true; saveState();
     Analytics.track("effect_kept",{preset_id:presetId(effectTitle())});
-    /* решение 17.209 — после сохранения открывается дневник, а не ещё один экран
-       одного дня. Кнопка называется «Keep in diary», и теперь она туда и ведёт:
-       человек видит, как день встал в накопленное — это и есть обещание продукта.
-       Списание монет показывается баннером: на 06a оно жило строкой, а экран
-       из потока ушёл. */
     banner("◎ "+S.effectSpent+" spent · "+S.coins+" left");
     Router.tab("diary");
   }}));
-  a.append(UI.Button({label:"Share",variant:"secondary",onTap:()=>goShare(DEMO.dayIndex,true)}));
-  w.append(a);
-  /* решение 17.202 — подгонки высоты на 14 нет: кадр держит постоянную пропорцию файла
-     (444 при ширине 358 — 0,806), как на экране проявления. С подгонкой размер кадра
-     менялся от того, сколько текста стоит ниже, и кросс-фейд 05 → 14 читался сменой
-     масштаба, хотя фотография одна и та же. Место под кнопки проверено замером. */
+  panel.append(UI.Button({label:"Share",variant:"secondary",onTap:()=>goShare(DEMO.dayIndex,true)}));
+  w.append(panel);
+  fitFrame(w, hero, 360);
 };
 
 /* ============================================================================
