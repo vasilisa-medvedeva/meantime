@@ -175,7 +175,8 @@
   /* решение 17.85 — выдержки показа дельты сняты вместе с ним: разницу теперь
      показывает образец на карточке дня, у него свой такт --motion-sample-cycle */
   --ease-standard:cubic-bezier(.32,.72,0,1);
-  --ease-crossfade:cubic-bezier(.45,0,.55,1); /* решение 17.50 — симметричная кривая для смены кадра: без рывка на старте */
+  --ease-crossfade:cubic-bezier(.45,0,.55,1); /* симметричная кривая подмены версии кадра (реестр №33, .Frame--fade):
+                                                 на проявлении 05 откачена решением 17.154, здесь остаётся */
   --ease-sheet:cubic-bezier(.34,1.2,.64,1);
   --ease-accel:cubic-bezier(.3,0,.8,.15);
 
@@ -991,6 +992,14 @@ h1,h2,h3,p,ul,ol{margin:0;padding:0}
 /* решение 17.101 — на спуске интерфейс камеры уходит первым, кадр остаётся */
 .Camera__top,.Camera__bar{transition:opacity var(--motion-capture-chrome) var(--ease-accel)}
 .Camera.is-shooting .Camera__top,.Camera.is-shooting .Camera__bar{opacity:0;pointer-events:none}
+/* решение 17.163 — переворот камеры: кнопка справа от спуска, симметрично миниатюре,
+   и зеркальный видоискатель во фронтальном режиме, как в системной камере iOS. */
+.Camera__flip{width:var(--size-tap-min);height:var(--size-tap-min);border-radius:var(--radius-full);
+  display:flex;align-items:center;justify-content:center;color:var(--color-text-primary);
+  background:var(--color-glass-fill);border:var(--size-hairline) solid var(--color-glass-hairline);
+  transition:transform var(--motion-icon) var(--ease-standard)}
+.Camera__flip[aria-pressed="true"]{transform:rotateY(180deg)}
+.Camera.is-front .Camera__view{transform:scaleX(-1)}
 .Camera__bar{
   position:absolute;left:0;right:0;bottom:0;z-index:3;
   top:calc(var(--size-camera-top) + var(--camera-view-h));
@@ -1286,6 +1295,7 @@ const S = {
   effectPreset:null,
   effectSpent:0,
   effectName:null,        // имя эффекта из плитки каталога, либо имя дневного вида для платной пересъёмки (находка QA №2, решение 17.149)
+  effectAsset:null,       // кадр купленного эффекта (fx-anime / fx-1995 / fx-weather / fx-snow); null у платной пересъёмки — она даёт дневной вид (решение 17.160)
   effectPrice:0,
   entered:false,
   countdown:DEMO.countdownStart,
@@ -1568,6 +1578,12 @@ const FIXTURES = {
 
 const AI = {
   cache:{},
+  /* Синхронный доступ к фикстуре: кэш, затем встроенная копия. Нужен там, где экран
+     обязан быть скомпонован ДО вставки в стек — если содержимое приходит промисом,
+     раскладка меняется уже на глазах, посреди перехода (реестр №1: экран въезжает
+     готовым). Встроенная копия равна файловой: `lint-fixtures.js` сверяет обе и
+     вызывается из `publish.sh`, так что синхронный путь не расходится с `load()`. */
+  peek(path){ return this.cache[path] || FIXTURES[path] || null; },
   async load(path){
     if(this.cache[path]) return this.cache[path];
     try{
@@ -2384,6 +2400,9 @@ const FRAME_VERSIONS=[
    и обычная пересъёмка подписывалась как купленный каталожный эффект. */
 const presetId    = n => String(n||"").toLowerCase().replace(/[^a-z]+/g,"_");
 const effectTitle = ()=> S.effectName || "Snow globe";
+/* решение 17.160 — кадр результата следует за купленным эффектом, а не всегда fx-after.
+   Платная пересъёмка (extra) кадра не меняет: это тот же дневной вид, поэтому "today". */
+const effectAsset = ()=> S.effectAsset || "today";
 const effectUpper = ()=> effectTitle().toUpperCase();
 const effectPrice = ()=> S.effectPrice || 4;
 const isExtra     = ()=> S.todayPreset==="EXTRA";
@@ -2395,11 +2414,11 @@ const priceLabel  = (text, price)=>[document.createTextNode(text+" · "), el("sp
    в ~25 с, а человек, идущий прототипом руками, обязан получить прежние длительности:
    рендер, который «думает» полсекунды, читается как подделка.
    Порог снизу — кросс-фейд проявления: он идёт `latency_ms − --motion-reveal-hold`,
-   при 0.6 это 1800 мс, то есть выше 1500, ниже которых разница между «до» и «после»
+   то есть 3500 − 1000 = 2500 мс — выше 1500, ниже которых разница между «до» и «после»
    перестаёт читаться и переключатель теряет смысл (решения 17.2, 15.6).
    Три стадии рендера при этом остаются различимы: 540 · 1260 · 600 мс. */
 const DEMO_PACE = {
-  /* решение 17.28 — кросс-фейд 2.5 с: latency − --motion-reveal-hold(600) = 2500.
+  /* решение 17.28 — кросс-фейд 2.5 с: latency − --motion-reveal-hold(1000) = 2500.
      Главный кадр продукта: зритель должен увидеть, как результат наезжает на оригинал,
      а не как он мигает. В руках остаются прежние 4000 / 3.4 с. */
   latency:3500,
@@ -2580,6 +2599,14 @@ Screens["03"]=s=>{
 function shoot(source){
   S.pickedFrame="today-original";
   Analytics.track("photo_selected",{source, attempt:S.attempts+1});
+  /* решение 17.162 — кадр снят под выбранный эффект: закрываем камеру и показываем
+     подтверждение с ценой. Списание происходит здесь, когда кадр уже есть. */
+  if(S._pendingEffect){
+    const pe=S._pendingEffect; S._pendingEffect=null;
+    Router.back();
+    setTimeout(()=>Sheets.confirmCoins(pe), AFTER_SHEET());
+    return;
+  }
   S._fixture = S._fixtureOverride || "daily-frame/success";
   /* решение 17.101 — сначала уходит интерфейс камеры, кадр остаётся на месте,
      и только потом приходит проявление. Так переход читается как «снял», а не
@@ -2620,7 +2647,25 @@ Screens["04a"]=s=>{
   const shutter=el("button","Camera__shutter");
   shutter.setAttribute("aria-label","Take a photo");
   shutter.addEventListener("click",()=>shoot("camera"));
-  bar.append(thumb, shutter, el("div"));
+  /* решение 17.163 — переворот камеры. Правило 17.19 «нерабочих кнопок нет» соблюдено:
+     кнопка делает то, что делает системная — зеркалит видоискатель и переключает
+     состояние. Съёмка идёт по той же паре кадров: селфи-ассета в `assets/` нет,
+     и пока его нет, режим меняет вид видоискателя, а не сюжет снимка. */
+  const flip=el("button","Camera__flip");
+  flip.setAttribute("aria-label","Switch camera");
+  flip.innerHTML='<svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">'+
+    '<path d="M4 8.5A2.5 2.5 0 016.5 6h2L10 4h4l1.5 2h2A2.5 2.5 0 0120 8.5v8a2.5 2.5 0 01-2.5 2.5h-11A2.5 2.5 0 014 16.5v-8z" '+
+    'stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>'+
+    '<path d="M9.5 12.5a2.5 2.5 0 014.6-1.3M14.5 12.5a2.5 2.5 0 01-4.6 1.3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>'+
+    '<path d="M13.6 9.9l.5 1.3 1.3-.5M10.4 15.1l-.5-1.3-1.3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  flip.addEventListener("click",()=>{
+    S._front=!S._front;
+    w.classList.toggle("is-front", S._front);
+    flip.setAttribute("aria-pressed", S._front ? "true" : "false");
+    Analytics.track("camera_flipped",{facing:S._front?"front":"back"});
+  });
+  flip.setAttribute("aria-pressed","false");
+  bar.append(thumb, shutter, flip);
   w.append(bar);
 
   /* свайп вниз закрывает — тот же жест, что у шторок (реестр №7) */
@@ -2639,7 +2684,7 @@ Screens["05"]=s=>{
   /* решение 17.2 — снизу настоящий оригинал, чёткий с первого кадра;
      сверху результат, пока прозрачный. Резкость больше не изображает проявку. */
   const before=Img.make("today-original");
-  const after = isEffect ? Img.make("fx-after",null,VERSION_OPTS[2])
+  const after = isEffect ? Img.make(effectAsset(),null,VERSION_OPTS[2])
                          : Img.make("today",   null,VERSION_OPTS[1]);
   after.classList.add("Reveal__after");
   reveal.append(before, after);
@@ -2658,7 +2703,7 @@ Screens["05"]=s=>{
   panel.style.background="var(--color-bg-primary)";   /* решение 17.46 — панель непрозрачна: ничего под ней не просвечивает ни в один момент проявления */
   w.append(panel);
 
-  AI.load(path).then(raw=>{
+  const develop = raw=>{
     const fx = demoPace(effectFixture(raw));
     if(!fx){ panel.append(assign(el("div","t-body c-error"),"Fixture not found: "+path)); return; }
     const stages=fx.stages||[{id:"reading",label:"Reading your frame",ms:600}];
@@ -2674,23 +2719,36 @@ Screens["05"]=s=>{
     const dur = fx.latency_ms || MS("--motion-render-fast");
     /* решение 17.2 — оригинал стоит чётким --motion-reveal-hold, затем верхний слой
        набирает непрозрачность за остаток рендера: кадр и подпись доходят вместе */
-    const hold = MS("--motion-reveal-hold");
-    /* решение 17.50 — кросс-фейд по симметричной кривой и только с декодированным кадром:
-       раньше «после» вспыхивало внутри уже полупрозрачного слоя, если файл догружался
-       во время проявления, а кривая --ease-standard отдавала 70 % смены первой трети времени.
-       Длительность считаем от оставшегося: кадр и подпись «готово» по-прежнему сходятся. */
+    /* реестр №28 — при «уменьшить движение» проявление остаётся, но сжимается до 1 с.
+       Сжимаем движение, а не сценарий: --motion-render-fast в этом режиме равен 1000,
+       выдержка растягивается до dur − 1000, кросс-фейд идёт последнюю секунду и кончается
+       там же, где и раньше. Длительности фикстур, стадии и автодемо не меняются, «готово»
+       по-прежнему приходит вместе с кадром (17.42). Раньше эта ветка была мёртвой:
+       latency_ms есть у всех фикстур, и токен из медиазапроса не читался никем. */
+    const reduceMotion = matchMedia("(prefers-reduced-motion:reduce)").matches;
+    const hold = reduceMotion ? Math.max(0, dur - MS("--motion-render-fast"))
+                              : MS("--motion-reveal-hold");
+    /* решение 17.50 — кросс-фейд стартует только с декодированным кадром: раньше «после»
+       вспыхивало внутри уже полупрозрачного слоя, если файл догружался во время проявления.
+       Длительность считаем от оставшегося: кадр и подпись «готово» по-прежнему сходятся.
+       Решение 17.154 (опция B) откатило кривую: симметричная --ease-crossfade удваивала
+       время «призрака» текста с 423 до 882 мс, проявление снова идёт по --ease-standard. */
     const tFade0=Date.now();
     const startFade=()=>{
       const left=Math.max(MS("--motion-menu"), dur-(Date.now()-tFade0));
-      after.style.transition="opacity "+left+"ms var(--ease-crossfade)";
+      after.style.transition="opacity "+left+"ms var(--ease-standard)";
       void after.offsetWidth; after.style.opacity="1";
     };
     const afterImg=after.querySelector(".Frame__img");
-    setTimeout(()=>{
+    let revealIv=null, revealCap=null;
+    const revealT=setTimeout(()=>{
       if(afterImg.classList.contains("is-in")) return startFade();
-      const cap=setTimeout(()=>{ clearInterval(iv); startFade(); }, Math.max(0, dur-hold-MS("--motion-menu")));
-      const iv=setInterval(()=>{ if(afterImg.classList.contains("is-in")){ clearInterval(iv); clearTimeout(cap); startFade(); } }, 40);
+      revealCap=setTimeout(()=>{ clearInterval(revealIv); startFade(); }, Math.max(0, dur-hold-MS("--motion-menu")));
+      revealIv=setInterval(()=>{ if(afterImg.classList.contains("is-in")){ clearInterval(revealIv); clearTimeout(revealCap); startFade(); } }, 40);
     }, hold);
+    /* проявление снимается целиком там, где показывать нечего: без этого выдержка
+       доигрывала и «после» наезжало на оригинал уже после отказа (реестр №22) */
+    const stopReveal=()=>{ clearTimeout(revealT); clearTimeout(revealCap); clearInterval(revealIv); };
 
     const ctl = AI.run(fx,{
       onStage(i,st){
@@ -2711,13 +2769,21 @@ Screens["05"]=s=>{
         rs.style.transition="opacity "+DM+"ms "+ease; rs.style.opacity="0";
         setTimeout(()=>rs.remove(), DM+20);
         [title,kick].forEach(n=>{ n.style.transition="opacity "+DM+"ms "+ease; n.style.opacity="0"; });
+        /* решение 17.108 — у сценария «обработка не пришла» результата нет вовсе:
+           дальше по коду читались f.result.confidence и f.result.preset и роняли экран.
+           Проверка стоит ДО сведения слоёв: у этой фикстуры нет и latency_ms, поэтому
+           «готово» приходит мгновенно — и экран успевал показать обработанный кадр,
+           которого не было. Без результата верхний слой остаётся прозрачным, оригинал
+           стоит как стоял, проявление снимается (реестр №22, как при ошибке). */
+        if(!f.result){
+          stopReveal();
+          after.style.transition=""; after.style.opacity="0";
+          Screens._dailyMissing(actions, f, title, kick); return;
+        }
         /* проявка кончилась — сводим два слоя в один: дальше кадром правит переключатель */
         after.style.opacity="1"; setTimeout(()=>{ after.style.transition=""; }, DM);
         after.classList.remove("Reveal__after");
         if(before.parentNode) before.remove();
-        /* решение 17.108 — у сценария «обработка не пришла» результата нет вовсе:
-           дальше по коду читались f.result.confidence и f.result.preset и роняли экран */
-        if(!f.result){ Screens._dailyMissing(actions, f, title, kick); return; }
         const small = !!(f.result && f.result.delta==="small");
         if(small){
           const ph=after.querySelector(".Frame__ph");
@@ -2757,13 +2823,19 @@ Screens["05"]=s=>{
         panel.style.transition="height "+DI+"ms "+ease; panel.style.height=h1+"px";
         setTimeout(()=>{ panel.style.transition=""; panel.style.height=""; panel.style.overflow=""; }, DI+40);
         /* решение 17.140 — кадр стоит между двумя полями, и на коротком экране он отдаёт
-           высоту так же, как на сохранённом дне (17.117): иначе нижняя кнопка срезалась */
+           высоту так же, как на сохранённом дне (17.117): иначе нижняя кнопка срезалась.
+           Гейт 17.158 (второй скачок кадра на «готово» одним жестом с панелью) — открыт:
+           доводка кадра той же кривой, что и синхронно с панелью, на low-confidence (−84 px)
+           даёт пик скорости ~0.85 px/ms — выше проверочного порога ~0.5, читается рывком,
+           не доводкой. Не применено, см. project-state.md. */
         setTimeout(()=>fitFrame(w, hero, 360), DI+60);
       },
       onFail(f){
         rs.remove();
         /* решение 17.2 — при ошибке верхний слой уходит в ноль: остаётся чистый оригинал,
-           кадр никуда не делся. Размывать его обратно было бы неправдой */
+           кадр никуда не делся. Размывать его обратно было бы неправдой.
+           Снятые таймеры — чтобы отложенный старт кросс-фейда не проявил кадр после отказа */
+        stopReveal();
         after.style.transition="opacity var(--motion-menu) var(--ease-standard)";
         after.style.opacity="0";
         title.textContent=f.title; kick.textContent="";
@@ -2771,9 +2843,19 @@ Screens["05"]=s=>{
         actions.append(assign(el("div","t-body c-error"), f.body||""));
         (f.actions||[]).forEach(a=>actions.append(UI.Button({label:a.label,variant:a.variant,
           onTap:()=>Screens._failAction(a.id, f)})));
+        /* решение 17.158 — на отказе панель встаёт мгновенно (без доводки высоты, как на
+           «готово»), fitFrame раньше не звался вовсе — отсюда overflow 43 из 17.156.
+           Подгонка та же, что при первичной сборке экрана: мгновенная, без анимации */
+        fitFrame(w, hero, 360);
       }
     });
-  });
+  };
+  /* Фикстура берётся синхронно: панель стадий и подгонка кадра (fitFrame) обязаны
+     отработать в сборке экрана, до вставки в стек — как на 06 / 08 / 14. Пока это
+     висело на промисе, кадр успевал показаться в полную высоту токена и ужимался
+     на 24 px уже посреди перехода. Асинхронный путь остаётся запасным. */
+  const known = AI.peek(path);
+  if(known) develop(known); else AI.load(path).then(develop);
 };
 /* Обработка не пришла: кадр остаётся как есть, дневная порция не тратится.
    Заголовок и кнопки берём из фикстуры — это единственный экран без результата. */
@@ -2834,7 +2916,15 @@ Screens._failAction=(id, f)=>{
 /* решение 17.117 — кадр подгоняется под экран: если содержимому не хватает места,
    фотография отдаёт ровно столько высоты, сколько нужно, но не ниже пола.
    Так на большом экране кадр остаётся в пропорциях снимка, а на маленьком
-   последняя кнопка не оказывается срезанной нижним краем. */
+   последняя кнопка не оказывается срезанной нижним краем.
+   Контракт: вызывать в конце сборки экрана, ДО вставки в стек. Замер идёт в rAF
+   (раньше нечего мерить — экран не в потоке), и этот rAF приходит в тот же кадр,
+   в котором Router стартует переход: высота встаёт до первой отрисовки. Вызов из
+   промиса или таймера ломает это — экран уже нарисован, и подгонка читается как
+   скачок. Исключение одно: повторная подгонка на 05 после «готово», когда экран
+   уже стоит и содержимое сменилось по-настоящему.
+   Гейт 17.158 (доводка кадра одним жестом с панелью на «готово») открыт — не применён,
+   см. комментарий у вызова в Screens["05"].onDone и project-state.md. */
 function fitFrame(scroll, box, floor){
   requestAnimationFrame(()=>{
     const over = scroll.scrollHeight - scroll.clientHeight;
@@ -2853,7 +2943,7 @@ function keptBlock(w, {extra=false, height="var(--size-frame-portrait)", kept=tr
     : null;
   box.style.position="relative"; box.style.borderRadius="var(--radius-lg)"; box.style.overflow="hidden";
   box.style.height=height;
-  box.append(Img.make(extra?"fx-after":"today", null, extra?VERSION_OPTS[2]:VERSION_OPTS[1]),
+  box.append(Img.make(extra?effectAsset():"today", null, extra?VERSION_OPTS[2]:VERSION_OPTS[1]),
              el("div","CornerScrim"), watermarkEl());
   const meta=el("div","stack gap1");
   /* решение 17.153 — дата под кадром уходит наверх на 03 (date:false): без купленного
@@ -2878,7 +2968,7 @@ function keptScreen(s, extra){
      на виду остаются «поделиться» и «открыть дневник», ради которых сюда и приходят */
   const menu = extra ? [
     {label:"Develop again · "+effectPrice()+" coins",
-     onTap:()=>Sheets.confirmCoins({name:effectTitle(),price:effectPrice()})},
+     onTap:()=>Sheets.confirmCoins({name:effectTitle(),price:effectPrice(),asset:S.effectAsset})},
     {label:"Discard this one", role:"destructive", onTap:()=>{
       Analytics.track("effect_discarded",{preset_id:presetId(effectTitle())});
       S.todayPreset="upgraded"; saveState(); Router.resetTo("03","06"); }},
@@ -3033,11 +3123,17 @@ Screens["08"]=s=>{
 function shareCard(ctx, mini){
   const c=el("div","ShareCard"+(mini?" ShareCard--mini":" mt4"));
   c.append(Img.make(ctx.asset, null, ctx.opts));
-  const t=el("div","ShareCard__text stack gap2");
-  t.append(assign(el("div","t-counter-meta c-on-image"),
-    "DAY "+ctx.index+(ctx.extra?" · "+effectUpper():"")+" · "+fmtMDup(ctx.date)));
-  if(!S.subscriber) t.append(assign(el("div","ShareCard__mark t-logo c-on-image"),"Meantime"));
-  c.append(t);
+  /* решение 17.161 — у подписчика карточка уходит чистой: снимается не только вордмарк,
+     но и строка дня, и стеклянная подложка под ней. Подложка существует ради читаемости
+     подписи; без подписи она — тёмная полоса поверх фотографии без причины.
+     Владелец: «когда убираем вотермарку, то и дату, и подложку убираем». */
+  if(!S.subscriber){
+    const t=el("div","ShareCard__text stack gap2");
+    t.append(assign(el("div","t-counter-meta c-on-image"),
+      "DAY "+ctx.index+(ctx.extra?" · "+effectUpper():"")+" · "+fmtMDup(ctx.date)));
+    t.append(assign(el("div","ShareCard__mark t-logo c-on-image"),"Meantime"));
+    c.append(t);
+  }
   return c;
 }
 
@@ -3049,7 +3145,7 @@ function shareCtx(){
   const extra = isToday && (S._shareExtra || isExtra());
   return {
     index:i, date:dayDate(i), extra,
-    asset: extra ? "fx-after" : (isToday ? "today" : frameOf(i)),
+    asset: extra ? effectAsset() : (isToday ? "today" : frameOf(i)),
     opts:  extra ? VERSION_OPTS[2] : (isToday ? VERSION_OPTS[1] : null)
   };
 }
@@ -3177,19 +3273,23 @@ Screens["11"]=s=>{
   w.append(assign(el("h1","t-display"),"Effects"));
   w.append(UI.BalanceChip({coins:S.coins,sub:S.subscriber,onGet:()=>Sheets.coinPacks()}));
   w.querySelector(".BalanceChip").classList.add("mt4");
+  /* решение 17.162 — каталог открыт с первого захода: цены видны до применения,
+     и это же правило продукта. Без кадра дня плитка не гаснет, а ведёт снимать:
+     монеты списываются после того, как кадр есть, а не авансом. */
   w.append(assign(el("div","t-body c-secondary mt4"),
     S.todayKept ? "Develop today’s frame again with an effect — another world, another look."
-                : "Effects develop today’s kept frame again. Keep one first."));
+                : "Pick an effect and shoot — it develops the frame you take."));
   const grid=el("div"); grid.style.cssText="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3)";
   grid.classList.add("mt4");
   [["Anime world",3,"fx-anime"],["Your street in 1995",4,"fx-1995"],
    ["Change the weather",2,"fx-weather"],["Snow globe",4,"fx-snow"]].forEach(([n,p,a])=>{
-    const state = !S.todayKept ? "not-enough" : (S.coins<p ? "not-enough":"default");
+    const state = S.coins<p ? "not-enough" : "default";
     Analytics.track("effect_price_seen",{preset_id:presetId(n),price:p});
     grid.append(UI.EffectTile({name:n,price:p,asset:a,state,onTap:()=>{
-      if(!S.todayKept){ banner("Keep today’s frame first"); return; }
       if(S.coins<p){ Analytics.track("limit_reached",{limit_type:"coins"}); Sheets.coinPacks(); return; }
-      Sheets.confirmCoins({name:n,price:p});
+      /* кадра дня ещё нет — сначала снимаем, шторка подтверждения придёт после спуска */
+      if(!S.todayKept){ S._pendingEffect={name:n,price:p,asset:a}; Router.go("04a",{cover:true}); return; }
+      Sheets.confirmCoins({name:n,price:p,asset:a});
     }}));
   });
   w.append(grid);
@@ -3205,7 +3305,7 @@ Screens["14"]=s=>{
   /* решение 17.117 — редкие действия в меню, как на дне с эффектом (17.105) */
   const top=el("div"); top.append(navBack("Effects", [
     {label:"Develop again · "+effectPrice()+" coins",
-     onTap:()=>Sheets.confirmCoins({name:effectTitle(),price:effectPrice()})},
+     onTap:()=>Sheets.confirmCoins({name:effectTitle(),price:effectPrice(),asset:S.effectAsset})},
     {label:"Discard this one", role:"destructive", onTap:()=>{
       Analytics.track("effect_discarded",{preset_id:presetId(effectTitle())}); Router.tab("effects"); }},
     {label:"Cancel", role:"cancel"}
@@ -3213,7 +3313,7 @@ Screens["14"]=s=>{
   const sg=versionSegment(["Developed",effectTitle()],1,()=>w.querySelector(".Hero"),null,FRAME_VERSIONS.slice(1));
   sg.classList.add("mt2"); w.append(sg);
   const hero=el("div","Hero Hero--day flush mt4"); hero.style.marginTop="var(--space-4)";
-  hero.append(Img.make("fx-after",null,VERSION_OPTS[2]), el("div","CornerScrim"), watermarkEl());
+  hero.append(Img.make(effectAsset(),null,VERSION_OPTS[2]), el("div","CornerScrim"), watermarkEl());
   w.append(hero);
   w.append(metaLine("AI · "+effectUpper()+" · ◎ "+S.effectSpent+" SPENT · "+S.coins+" LEFT","t-counter-meta c-accent mt4"));
   const a=el("div","stack gap3 mt4");
@@ -3532,7 +3632,7 @@ Sheets.whyCoins = ()=>{
 };
 
 /* 12 · Подтверждение траты монет */
-Sheets.confirmCoins = ({name, price, extra})=>{
+Sheets.confirmCoins = ({name, price, extra, asset})=>{
   /* решение 17.149 — платная пересъёмка (extra:true, вызовы с 05 и 03: «Another photo · ◎ 2»)
      подписывается именем дневного вида, а не ярлыком действия и не именем, которое
      ещё не куплено: ярлык кнопки "Develop again"/"Another photo" не годится в заголовок
@@ -3565,6 +3665,11 @@ Sheets.confirmCoins = ({name, price, extra})=>{
            и для пересъёмки: потребители effectTitle()/effectUpper()/effectPrice()
            (05, 14, 03, 06a, effectFixture) получают правду одним присвоением */
         S.effectName=label; S.effectPrice=price;
+        /* решение 17.160 — кадр результата берётся с плитки. Пересъёмка (extra) кадра
+           не меняет: null → effectAsset() отдаёт дневной вид. FRAME_VERSIONS[2] — тот же
+           кадр, чтобы третья позиция переключателя показывала купленное, а не fx-after */
+        S.effectAsset = extra ? null : (asset || null);
+        FRAME_VERSIONS[2].src = extra ? "today" : (asset || "fx-after");
         saveState(); api.close();
         S._fixture = S._fixtureOverride && S._fixtureOverride.indexOf("effect/")===0
           ? S._fixtureOverride : "effect/success";
