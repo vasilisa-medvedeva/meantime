@@ -677,7 +677,11 @@ h1,h2,h3,p,ul,ol{margin:0;padding:0}
   background:var(--color-glass-specular);
 }
 .Sheet[data-detent="medium"]{height:var(--size-sheet-medium)}
-.Sheet[data-detent="large"]{height:var(--size-sheet-large)}
+/* решение 17.206 — большая шторка не выше устройства. `.Device` на мобильном равен
+   вьюпорту и режет по `overflow:hidden`, а 720 больше 667 на iPhone 6: верхние 53 px
+   уходили выше нуля вместе с грабером, заголовком и рядом `Cancel · Photos · Add`.
+   Потолок — высота устройства минус safe-top, чтобы грабер оставался достижим. */
+.Sheet[data-detent="large"]{height:min(var(--size-sheet-large), calc(100% - var(--size-safe-top)))}
 /* решение 17.70 — шторка не режет содержимое: если оно выше среднего роста,
    шторка тянется до него, но не выше большого. Два токена остаются границами */
 .Sheet[data-detent="fit"]{height:auto;min-height:var(--size-sheet-medium);max-height:var(--size-sheet-large)}
