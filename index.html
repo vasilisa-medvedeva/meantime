@@ -3236,12 +3236,15 @@ function keptScreen(s, extra){
   ] : null;
   w.append(navBack("Today", menu));
   w.append(assign(el("h1","t-display"),"Kept · "+fmtMD(DEMO.today)));
-  const kb=keptBlock(w,{extra});
+  /* решение 17.198 — дата под кадром снята: она уже стоит в заголовке `Kept · Sep 13`
+     строкой выше. При купленном эффекте строка остаётся, но без даты — одним именем
+     эффекта: это маркер платного дня (17.149), его терять нельзя. */
+  const kb=keptBlock(w,{extra, date:false});
   if(kb.seg) kb.seg.classList.add("mt4");
-  kb.box.classList.add(kb.seg ? "mt3" : "mt4"); kb.meta.classList.add("mt3");
-  if(extra) kb.meta.append(metaLine("◎ "+S.effectSpent+" SPENT · "+S.coins+" LEFT","t-counter-meta c-accent"));
+  kb.box.classList.add(kb.seg ? "mt3" : "mt4"); if(kb.meta) kb.meta.classList.add("mt3");
+  if(extra && kb.meta) kb.meta.append(metaLine("◎ "+S.effectSpent+" SPENT · "+S.coins+" LEFT","t-counter-meta c-accent"));
   if(kb.seg) w.append(kb.seg);
-  w.append(kb.box, kb.meta);
+  w.append(kb.box); if(kb.meta) w.append(kb.meta);
   fitFrame(w, kb.box, 330);
 
   /* решение 17.194 — блок TOMORROW снят с 06/06a: тот же блок стоит на 03 в состоянии
