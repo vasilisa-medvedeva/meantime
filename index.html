@@ -3234,7 +3234,10 @@ function keptScreen(s, extra){
       S.todayPreset="upgraded"; saveState(); Router.resetTo("03","06"); }},
     {label:"Cancel", role:"cancel"}
   ] : null;
-  w.append(navBack("Today", menu));
+  /* решение 17.203 — меню ··· снято: на экране результата и сохранённого дня
+     оно прятало редкие действия, но само читалось как «здесь есть ещё что-то»,
+     чего на этих экранах нет. */
+  w.append(navBack("Today"));
   w.append(assign(el("h1","t-display"),"Kept · "+fmtMD(DEMO.today)));
   /* решение 17.198 — дата под кадром снята: она уже стоит в заголовке `Kept · Sep 13`
      строкой выше. При купленном эффекте строка остаётся, но без даты — одним именем
@@ -3282,6 +3285,20 @@ function segment(items, sel, onChange){
        садилась на рамку дорожки и читалась удвоенной линией. */
     ind.style.left=(r.left-gr.left-g.clientLeft)+"px"; ind.style.width=r.width+"px";
   }
+  /* решение 17.201 — подложка переставляется, когда меняется ширина сегмента.
+     Она ставилась один раз при сборке, а текст в этот момент измерен запасным
+     начертанием: приходил SF Pro, надпись становилась шире, сегмент рос — подложка
+     оставалась прежней, и длинный ярлык («Film 35 #1 + Wes #3») вылезал за её край.
+     Два источника пересчёта: готовность шрифтов и наблюдатель за размером. */
+  if(document.fonts && document.fonts.ready) document.fonts.ready.then(()=>place(g.index));
+  if(window.ResizeObserver){
+    let w0=0;
+    new ResizeObserver(es=>{
+      const w1=es[0].contentRect.width;
+      if(Math.abs(w1-w0)<0.5) return;
+      w0=w1; place(g.index);
+    }).observe(g);
+  }
   /* Внешнее переключение: нужно показу дельты (17.32), чтобы подложка ехала вместе
      с кадром и теми же длительностями. Иначе контрол врёт: кадр показывает одно,
      подпись другое — и заодно теряется подсказка, что переключатель вообще есть. */
@@ -3300,8 +3317,11 @@ function segment(items, sel, onChange){
 Screens["07"]=s=>{
   const w=scrollBox(s,"diary",true);
   w.append(assign(el("h1","t-display"),"Diary"));
-  const hd=el("button","row gap2"); hd.style.marginTop="var(--space-3)";
-  hd.style.minHeight="var(--size-tap-min)";   /* решение 17.111 — тап-зона по токену, а не по высоте строки */
+  /* решение 17.205 — верх экрана компактнее: ряд с долей прижат к заголовку
+     (space-3 → space-2) и стал ниже. Тап-зона 44 pt сохранена не высотой строки,
+     а вертикальным полем: визуально ряд занимает меньше, палец попадает так же. */
+  const hd=el("button","row gap2"); hd.style.marginTop="var(--space-2)";
+  hd.style.minHeight="0"; hd.style.paddingTop="var(--space-2)"; hd.style.paddingBottom="var(--space-2)";
   /* решение 17.111 — то же написание, что на сохранённом дне: словарь требует «100-day diary» */
   /* решение 17.176 — `37 DAYS KEPT` → `37 OF 40 KEPT`. Арифметика не менялась (kept 37 =
      40 прошедших − 3 пропущенных), менялось чтение: подряд на трёх экранах стояли
@@ -3359,7 +3379,7 @@ Screens["07"]=s=>{
      (`missed_day_tapped` → `Sheets.missedDay`). Разворачивает 17.176 (второй ряд),
      17.185 (его вес) и 17.190 (шеврон) — все три относились к снятому элементу. */
 
-  w.append(assign(el("div","t-meta c-tertiary mt6"),"RECAPS"));
+  w.append(assign(el("div","t-meta c-tertiary mt4"),"RECAPS"));
   const shelf=el("div","Shelf flush mt3");
   AI.load(S._recapFixture || "recap/success").then(fx=>{
     /* решение 17.109 — рекап мог не собраться: показываем причину и повтор,
@@ -3384,7 +3404,9 @@ Screens["07"]=s=>{
   });
   w.append(shelf);
 
-  w.append(metaLine("100 DAYS · AUG 5 → NOV 12 · 15 WEEKS","t-counter-meta c-tertiary mt6"));
+  /* решение 17.205 — строка `100 DAYS · AUG 5 → NOV 12 · 15 WEEKS` снята: период
+     назван строкой под заголовком, даты — в шторке периода, а число недель
+     не отвечает ни на один вопрос человека перед полем дней. */
   const wh=el("div","WeekHead mt4");
   ["M","T","W","T","F","S","S"].forEach(d=>wh.append(assign(el("span","t-meta"),d)));
   w.append(wh);
@@ -3590,12 +3612,9 @@ Screens["11"]=s=>{
   w.append(assign(el("h1","t-display"),"Effects"));
   w.append(UI.BalanceChip({coins:S.coins,sub:S.subscriber,onGet:()=>Sheets.coinPacks()}));
   w.querySelector(".BalanceChip").classList.add("mt4");
-  /* решение 17.162 — каталог открыт с первого захода: цены видны до применения,
-     и это же правило продукта. Без кадра дня плитка не гаснет, а ведёт снимать:
-     монеты списываются после того, как кадр есть, а не авансом. */
-  w.append(assign(el("div","t-body c-secondary mt4"),
-    S.todayKept ? "Develop today’s frame again with an effect — another world, another look."
-                : "Pick an effect and shoot — it develops the frame you take."));
+  /* решение 17.200 — пояснительная строка под чипом баланса снята. Её добавила
+     не спецификация, а правка 17.162; экран объясняется плитками с ценами,
+     а строка занимала место и не читалась. Новую не заводить без запроса. */
   const grid=el("div"); grid.style.cssText="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3)";
   grid.classList.add("mt4");
   /* решение 17.167 — заглушка под будущий длинный каталог. Настоящего списка
@@ -3650,15 +3669,15 @@ Screens["11"]=s=>{
    вынесен владельцу отдельно. */
 Screens["14"]=s=>{
   const w=scrollBox(s);
-  /* решение 17.117 — редкие действия в меню, как на дне с эффектом (17.105) */
-  w.append(navBack("Effects", [
-    {label:"Develop again · "+effectPrice()+" coins",
-     onTap:()=>buyEffect({name:effectTitle(),price:effectPrice(),asset:S.effectAsset})},
-    {label:"Discard this one", role:"destructive", onTap:()=>{
-      Analytics.track("effect_discarded",{preset_id:presetId(effectTitle())}); Router.tab("effects"); }},
-    {label:"Cancel", role:"cancel"}
-  ]));
+  /* решение 17.203 — меню ··· снято и здесь: «Develop again» доступен с сохранённого
+     дня, а «Discard» на экране, где день ещё не сохранён, означал бы уход без
+     следа — то же делает кнопка возврата. */
+  w.append(navBack("Effects"));
   w.append(assign(el("h1","t-display"),"Ready · "+fmtMD(DEMO.today)));
+  /* решение 17.202 — кадр показывается ровно так же, как на экране проявления:
+     навылет от края до края и той же высоты. Переход 05 → 14 — кросс-фейд, и
+     разный размер кадра читался сменой масштаба, хотя фотография та же. Раскладка
+     остальных частей (заголовок, одна мета-строка, кнопки) остаётся от 17.173. */
   const kb=keptBlock(w,{extra:true, kept:false, date:false, ai:true});
   kb.seg.classList.add("mt4"); kb.box.classList.add("mt3"); kb.meta.classList.add("mt3");
   w.append(kb.seg, kb.box, kb.meta);
@@ -3670,7 +3689,10 @@ Screens["14"]=s=>{
   }}));
   a.append(UI.Button({label:"Share",variant:"secondary",onTap:()=>goShare(DEMO.dayIndex,true)}));
   w.append(a);
-  fitFrame(w, kb.box, 360);
+  /* решение 17.202 — подгонки высоты на 14 нет: кадр держит постоянную пропорцию файла
+     (444 при ширине 358 — 0,806), как на экране проявления. С подгонкой размер кадра
+     менялся от того, сколько текста стоит ниже, и кросс-фейд 05 → 14 читался сменой
+     масштаба, хотя фотография одна и та же. Место под кнопки проверено замером. */
 };
 
 /* ============================================================================
@@ -3685,8 +3707,11 @@ Sheets.period = (isStart)=>{
               ["This year","Runs to the end of the year · your recap composes on Dec 31"]];
   let sel=1;
   UI.Sheet({detent:"medium", build(b, api){
-    b.append(assign(el("div","t-h1"),"How long is this diary?"),
-             assign(el("div","t-caption c-secondary"),"Change it any time from Diary."));
+    /* решение 17.204 — поясняющие строки сняты: «Change it any time from Diary» и
+       «Progress counts the days you keep. It never goes down». Обе объясняли то, что
+       человек и так видит, и их никто не читает. Даты периода оставлены — это данные,
+       а не пояснение: они меняются при выборе и отвечают на вопрос «до какого числа». */
+    b.append(assign(el("div","t-h1"),"How long is this diary?"));
     const sub=el("div","stack gap1");
     const seg=segment(opts.map(o=>o[0]), sel, (i)=>{ sel=i; fill(); });
     b.append(seg, sub);
@@ -3694,7 +3719,6 @@ Sheets.period = (isStart)=>{
       sub.append(assign(el("div","t-caption c-secondary"),"Starts today · Aug 5"),
                  assign(el("div","t-caption c-secondary"),opts[sel][1])); }
     fill();
-    b.append(assign(el("div","t-caption c-tertiary"),"Progress counts the days you keep. It never goes down."));
     const sp=el("div"); sp.style.flex="1"; b.append(sp);
     b.append(UI.Button({label:isStart?"Start":"Save",onTap:()=>{
       S.period=opts[sel][0];
