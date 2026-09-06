@@ -2702,7 +2702,7 @@ Screens["03"]=s=>{
        Уточнение 17.153: date:false — дата уже стоит наверху (хроника), под кадром без
        эффекта меты нет вовсе (kb.meta === null); Tomorrow ниже несёт свой mt3, ритм
        от кадра не меняется, «пустого» узла не вставляем. */
-    const kb=keptBlock(w,{extra:isExtra(), height:"var(--size-frame-today)", kept:false, date:false});   /* 300, решение 17.8 */
+    const kb=keptBlock(w,{extra:isExtra(), height:"var(--size-frame-today)", kept:false, date:false, segment:false});   /* 300, решения 17.8 и 17.196 */
     if(kb.seg) kb.seg.classList.add("mt4");
     kb.box.classList.add(kb.seg ? "mt3" : "mt4");
     if(kb.meta) kb.meta.classList.add("mt3");
@@ -2882,9 +2882,12 @@ Screens["05"]=s=>{
      и одной кривой с ней, чтобы кадр не прыгнул (17.158). Вторая строка шторки
      («Effects change what’s in the frame. Your original stays.») сюда НЕ переносилась:
      она про свойство эффекта, а не про эту секунду, и лежит в бэклоге. */
-  const priv=assign(el("div","t-caption c-tertiary mt2"),
-    "This photo leaves your phone to be developed and is deleted within 24 hours.");
-  ht.append(kick,title,priv);
+  /* решение 17.193 — подпись под заголовком снята: на экране проявления она
+     соревновалась с кадром за внимание в тот единственный момент, ради которого
+     экран существует. Перенос сюда был следствием 17.175 (снятой шторки), а не
+     самостоятельным решением. Скрытие оставлено пустым, чтобы не разбирать hidePriv. */
+  const priv=el("div"); priv.style.display="none";
+  ht.append(kick,title);
   const hidePriv=(ms)=>{
     if(priv.dataset.gone) return; priv.dataset.gone="1";
     const ease=getComputedStyle(document.documentElement).getPropertyValue("--ease-standard");
@@ -3175,11 +3178,14 @@ function fitFrameEased(scroll, box, floor, ms){
   });
 }
 
-function keptBlock(w, {extra=false, height="var(--size-frame-portrait)", kept=true, date=true, ai=false}={}){
+function keptBlock(w, {extra=false, height="var(--size-frame-portrait)", kept=true, date=true, ai=false, segment=true}={}){
   const box=el("div","KeptFrame");
   /* решение 17.94 — без эффекта переключать нечего: экран показывает проявленный день.
      С купленным эффектом остаются два состояния: дневная обработка и эффект. */
-  const seg = extra
+  /* решение 17.196 — переключатель версий строится не всегда: на 03 его нет.
+     Вкладка Today — витрина дня, а не место разбирательства с версиями кадра;
+     сравнить оригинал с обработкой можно на 06a и на 14, куда ведут кнопки. */
+  const seg = (segment && extra)
     ? versionSegment(["Developed", effectTitle()], 1, ()=>box, null, FRAME_VERSIONS.slice(1))
     : null;
   box.style.position="relative"; box.style.borderRadius="var(--radius-lg)"; box.style.overflow="hidden";
@@ -3209,7 +3215,9 @@ function keptBlock(w, {extra=false, height="var(--size-frame-portrait)", kept=tr
      запрещено словарём (17.111, «одно понятие — одно написание»). Правило 10.19 не
      нарушено: `DAY N` на 06 и 06a нет (проверено по DOM обоих экранов), а доля
      `N of M` — один факт, а не два счётчика (уточнение 17.176). */
-  if(kept) meta.append(metaLine(DEMO.kept+" OF "+DEMO.dayIndex+" KEPT · "+DEMO.periodLength+"-DAY DIARY","t-counter-meta c-tertiary"));
+  /* решение 17.195 — знаменатель приведён к 07: период, а не прожитые дни.
+     17.184 свело написание двух экранов, и смена знаменателя обязана идти в обоих. */
+  if(kept) meta.append(metaLine(DEMO.kept+" OF "+DEMO.periodLength+" DAYS KEPT","t-counter-meta c-tertiary"));
   return {seg, box, meta: meta.childElementCount ? meta : null};
 }
 
@@ -3236,11 +3244,9 @@ function keptScreen(s, extra){
   w.append(kb.box, kb.meta);
   fitFrame(w, kb.box, 330);
 
-  const tm=el("div","Tomorrow mt3");
-  const tl=el("div","stack"); tl.style.flex="1";
-  tl.append(assign(el("div","t-meta c-tertiary"),"TOMORROW"), assign(el("div","t-h2"),DEMO.upgradeTomorrow));
-  tm.append(tl, tomorrowCounter());
-  w.append(tm);
+  /* решение 17.194 — блок TOMORROW снят с 06/06a: тот же блок стоит на 03 в состоянии
+     «сохранено», куда ведёт таб-бар, и на push-экране он дублировал уже виденное.
+     Триггер из 15.1 не потерян — он живёт на входе, где и был задуман. */
 
   const a=el("div","stack gap2 mt4");
   a.append(UI.Button({label:"Share today",onTap:()=>goShare(DEMO.dayIndex)}));
@@ -3267,7 +3273,11 @@ function segment(items, sel, onChange){
   function place(i){
     const items2=g.querySelectorAll(".Segment__item");
     const r=items2[i].getBoundingClientRect(), gr=g.getBoundingClientRect();
-    ind.style.left=(r.left-gr.left)+"px"; ind.style.width=r.width+"px";
+    /* решение 17.192 — `left` у абсолютной подложки отсчитывается от padding-бокса,
+       а разница getBoundingClientRect — от border-бокса: рамка дорожки учитывалась
+       дважды и сдвигала таблетку вправо на волосок. На правом сегменте её рамка
+       садилась на рамку дорожки и читалась удвоенной линией. */
+    ind.style.left=(r.left-gr.left-g.clientLeft)+"px"; ind.style.width=r.width+"px";
   }
   /* Внешнее переключение: нужно показу дельты (17.32), чтобы подложка ехала вместе
      с кадром и теми же длительностями. Иначе контрол врёт: кадр показывает одно,
@@ -3296,7 +3306,11 @@ Screens["07"]=s=>{
      вычитать. Доля `N of M` — один факт, как `40 OF 100` в 15.1, а не два счётчика.
      Переключатель периода, структура, кнопка, тап-зона и Sheets.period(false) не тронуты —
      поменялся только текст. */
-  hd.append(metaLine(DEMO.kept+" OF "+DEMO.dayIndex+" KEPT · "+DEMO.periodLength+"-DAY DIARY ▾","t-counter-meta c-accent"));
+  /* решение 17.195 — знаменатель доли: период, а не прожитые дни. `37 OF 40` требовало
+     знать, что 40 — это сегодняшний день периода, и звало вычитать. `37 OF 100` читается
+     как прогресс по дневнику: пропуск просто не считается сохранённым днём, отдельного
+     числа потерь нет нигде. Знаменатель совпал с `DAY 40 OF 100` на 03 — оба про период. */
+  hd.append(metaLine(DEMO.kept+" OF "+DEMO.periodLength+" DAYS KEPT ▾","t-counter-meta c-accent"));
   hd.addEventListener("click",()=>Sheets.period(false));
   w.append(hd);
 
@@ -3335,20 +3349,12 @@ Screens["07"]=s=>{
      Приём взят у ряда 1: глиф стоит В ТЕКСТЕ `metaLine`, отдельного span нет —
      иначе два соседних ряда строились бы по-разному. Класс, цвет и тап-зона 44
      не тронуты; ширина ряда 183.2 → 191.9, высота, `top` и всё, что ниже, — как было. */
-  const missedDay = Object.keys(DEMO.skipped).map(Number)
-    .filter(d => DEMO.skipped[d] > 0 && d < DEMO.dayIndex)
-    .sort((a,b)=>b-a)[0];
-  if(missedDay){
-    const add=el("button","row gap2");
-    add.style.minHeight="var(--size-tap-min)";
-    add.append(metaLine("ADD FROM YOUR PHONE ›","t-counter-meta c-secondary"));
-    add.addEventListener("click",()=>{
-      Analytics.track("missed_day_tapped",{days_ago:DEMO.dayIndex-missedDay,
-        allowed:S.subscriber?"free":"sub_required"});
-      Sheets.missedDay(missedDay);
-    });
-    w.append(add);
-  }
+  /* решение 17.195 — ряд `ADD FROM YOUR PHONE` снят. Он появился в 17.176 как способ
+     назвать пропуски действием, а не числом; со знаменателем «период» называть нечего:
+     пропуск не считается сохранённым днём и в шапке не фигурирует. Вход в догрузку
+     не потерян — пустая клетка поля по-прежнему тапабельна и ведёт тем же путём
+     (`missed_day_tapped` → `Sheets.missedDay`). Разворачивает 17.176 (второй ряд),
+     17.185 (его вес) и 17.190 (шеврон) — все три относились к снятому элементу. */
 
   w.append(assign(el("div","t-meta c-tertiary mt6"),"RECAPS"));
   const shelf=el("div","Shelf flush mt3");
