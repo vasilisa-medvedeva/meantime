@@ -3093,7 +3093,7 @@ Screens._dailyDone=(box, f)=>{
     /* решение 17.111 — событие лимита уходит только когда лимит действительно исчерпан:
        по каталогу метрик это третья попытка за день, а не любое сохранение */
     if(S.attempts>=3) Analytics.track("limit_reached",{limit_type:"daily_renders"});
-    Router.resetTo("03","06");
+    Router.tab("diary");
   }}));
   /* решение 17.95 — цена стоит на кнопке всегда, а не появляется с третьей попытки:
      дневная порция уже потрачена на этот кадр, любая пересъёмка идёт за монеты.
@@ -3136,7 +3136,7 @@ Screens._failAction=(id, f)=>{
   if(id==="retry"){ S._fixture = f.scenario==="effect" ? "effect/success" : "daily-frame/success";
     Router.swapTop("05"); return; }
   if(id==="nofilter"){ S.todayKept=true; S.todayPreset="none"; saveState();
-    Analytics.track("day_kept",{with_filter:false,restored:false}); Router.resetTo("03","06"); return; }
+    Analytics.track("day_kept",{with_filter:false,restored:false}); Router.tab("diary"); return; }
   if(id==="another"){ Router.back(); Sheets.gallery("library"); return; }
   if(id==="back"){ Router.tab("effects"); return; }
 };
@@ -3240,7 +3240,7 @@ function keptScreen(s, extra){
      onTap:()=>buyEffect({name:effectTitle(),price:effectPrice(),asset:S.effectAsset})},
     {label:"Discard this one", role:"destructive", onTap:()=>{
       Analytics.track("effect_discarded",{preset_id:presetId(effectTitle())});
-      S.todayPreset="upgraded"; saveState(); Router.resetTo("03","06"); }},
+      S.todayPreset="upgraded"; saveState(); Router.tab("diary"); }},
     {label:"Cancel", role:"cancel"}
   ] : null;
   /* решение 17.203 — меню ··· снято: на экране результата и сохранённого дня
@@ -3512,7 +3512,11 @@ Screens["09"]=s=>{
   const n=el("div","NavBar");
   const x=el("button","NavBar__back"); x.textContent="✕"; x.style.fontSize="20px";
   x.style.minWidth="var(--size-tap-min)"; x.style.justifyContent="flex-start";   /* решение 17.111 */
-  x.addEventListener("click",()=>Router.back());
+  /* решение 17.210 — крестик ведёт на вкладку Today, а не «назад по стеку». После
+     17.209 карточка шеринга открывается из разных мест, и «назад» приводило то в
+     дневник, то на день; закрытие модального экрана должно давать одно предсказуемое
+     место. Второй выход — кнопка «Open diary» — остаётся явным и подписанным. */
+  x.addEventListener("click",()=>Router.tab("today"));
   n.append(x, assign(el("div","NavBar__title t-h2"),"Share"));
   w.append(n);
 
@@ -3694,7 +3698,13 @@ Screens["14"]=s=>{
   a.append(UI.Button({label:"Keep in diary",onTap:()=>{
     S.todayPreset="EXTRA"; S.todayKept=true; saveState();
     Analytics.track("effect_kept",{preset_id:presetId(effectTitle())});
-    Router.resetTo("03","06a");
+    /* решение 17.209 — после сохранения открывается дневник, а не ещё один экран
+       одного дня. Кнопка называется «Keep in diary», и теперь она туда и ведёт:
+       человек видит, как день встал в накопленное — это и есть обещание продукта.
+       Списание монет показывается баннером: на 06a оно жило строкой, а экран
+       из потока ушёл. */
+    banner("◎ "+S.effectSpent+" spent · "+S.coins+" left");
+    Router.tab("diary");
   }}));
   a.append(UI.Button({label:"Share",variant:"secondary",onTap:()=>goShare(DEMO.dayIndex,true)}));
   w.append(a);
