@@ -2786,7 +2786,7 @@ Screens["03"]=s=>{
        решение 17.69 — частично отменено 17.148 для 03: «Replace photo» (подписочная
        замена кадра) остаётся снятой, но платная пересъёмка (17.95) на 03 теперь есть. */
     a.append(UI.Button({label: priceLabel("Another photo", 2), variant:"secondary",
-      onTap:()=>buyEffect({name:"Develop again",price:2,extra:true})}));
+      onTap:()=>reshoot()}));
     w.append(a);
   }
   centerBox(w);
@@ -2795,6 +2795,18 @@ Screens["03"]=s=>{
 
 /* Один вход в проявление на все три источника: спуск камеры, галерея, библиотека.
    Кадр всегда `today-original` — единственная настоящая пара «до / после» (решения 17.1, 17.19). */
+/* решение 17.232 — «Another photo» открывает камеру, а не переобрабатывает тот же кадр.
+   Кнопка обещала новый снимок, а вызывала повторное проявление старого: подпись и
+   действие разошлись, когда 17.175 сняла шторку подтверждения, где стояло честное
+   «Develop again». Чинится поведение, а не подпись: по решению 4.3 замена кадра дня и
+   задумывалась пересъёмкой. Механизм тот же, что у каталога (17.162): заказ кладётся
+   в `_pendingEffect`, камера показывает полосу с ценой, списание идёт после спуска —
+   монеты не берутся за кадр, которого ещё нет. Кнопка «Develop again · ◎ 2» на третьей
+   попытке не тронута: она называет повторную обработку и делает ровно её. */
+function reshoot(){
+  S._pendingEffect={name:DEMO.todayLook, price:2, extra:true};
+  Router.go("04a",{cover:true});
+}
 function shoot(source){
   S.pickedFrame="today-original";
   Analytics.track("photo_selected",{source, attempt:S.attempts+1});
@@ -3197,7 +3209,7 @@ Screens._dailyDone=(box, f)=>{
      Кнопка называет и действие, и цену — торга с самим собой не остаётся.
      helper priceLabel вынесен в общую область (17.148) — используется и на 03. */
   box.append(UI.Button({label: priceLabel("Another photo", 2), variant:"secondary",
-    onTap:()=>buyEffect({name:"Develop again",price:2,extra:true})}));
+    onTap:()=>reshoot()}));
   if(f.result.confidence==="low")
     box.append(UI.Button({label:"Develop again — on us",variant:"text",onTap:()=>{
       Analytics.track("result_regenerated",{reason:"low_confidence"});
@@ -3224,10 +3236,17 @@ Screens._effectDone=(box, f)=>{
   /* находка QA №1 — цена записана при покупке в buyEffect, здесь её не трогаем */
   S.effectPreset=f.result.preset; saveState();
   const screen=box.closest(".Screen");
+  /* решение 17.231 — переход на результат идёт сразу после кросс-фейда, без выдержки.
+     Прежние `--motion-menu + --motion-reveal-hold` (1250 мс) держали на экране
+     проявления состояние «готово», у которого после 17.218 и 17.172 не осталось ни
+     кикера, ни кнопок, ни навигации: зритель видел голый кадр без единого элемента
+     управления, а через секунду с лишним — тот же кадр, но с заголовком и кнопками.
+     Выдержка имела смысл, пока на 05 стояли слово READY и кнопка «See result»;
+     сейчас держать нечего. Остаётся `--motion-menu` — время самого кросс-фейда. */
   setTimeout(()=>{
     if(Router.current!=="05" || !screen || !screen.isConnected) return;
     Router.swapTop("14",{fade:true});
-  }, MS("--motion-menu")+MS("--motion-reveal-hold"));
+  }, MS("--motion-menu"));
 };
 Screens._failAction=(id, f)=>{
   if(id==="retry"){ S._fixture = f.scenario==="effect" ? "effect/success" : "daily-frame/success";
