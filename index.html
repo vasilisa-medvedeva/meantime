@@ -1362,6 +1362,7 @@ const S = {
   effectName:null,        // имя эффекта из плитки каталога, либо имя дневного вида для платной пересъёмки (находка QA №2, решение 17.149)
   effectAsset:null,       // кадр купленного эффекта (fx-anime / fx-1995 / fx-weather / fx-snow); null у платной пересъёмки — она даёт дневной вид (решение 17.160)
   effectPrice:0,
+  restored:[],            // догруженные пропущенные дни (решение 17.225), индексы дней периода
   entered:false,
   countdown:DEMO.countdownStart,
   onboarded:false
@@ -1372,9 +1373,19 @@ const DOW   = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 function dayDate(i){ const d=new Date(DEMO.periodStart); d.setDate(d.getDate()+i-1); return d; }
 function fmtMD(d){ return MONTH[d.getMonth()]+" "+d.getDate(); }
 function fmtMDup(d){ return (MONTH[d.getMonth()]+" "+d.getDate()).toUpperCase(); }
+/* решение 17.225 — догруженные пропущенные дни. Живут в `S`, а не в `DEMO`: `DEMO` —
+   неизменная таблица демо-состояния, а это результат действия человека, и он обязан
+   переживать `saveState()` наравне с монетами и `todayKept`. Перезагрузка чистит всё
+   состояние целиком (17.4) — это норма, а не потеря. */
+const isRestored = i => (S.restored||[]).indexOf(i)>-1;
+/* Сохранённых дней в периоде: постоянное число демо плюс догруженные. Три места
+   считали `DEMO.kept` напрямую (03, 06/06a, 07) и после догрузки разошлись бы
+   с полем дней. Число по-прежнему одно, просто теперь оно считается. */
+const keptCount  = ()=> DEMO.kept + (S.restored||[]).length;
 function dayState(i){
   if(i===DEMO.dayIndex) return S.todayKept ? (isExtra() ? "kept-extra":"kept") : "today";
   if(i>DEMO.dayIndex) return "future";
+  if(isRestored(i)) return "kept";      /* решение 17.225 — день вернулся в дневник */
   /* решение 17.21 — доступ к датам выдан по умолчанию, метки +N видны всегда */
   if(i in DEMO.skipped) return DEMO.skipped[i]>0 ? "skipped-available" : "skipped-empty";
   return "kept";
@@ -1398,6 +1409,12 @@ function firstKeptOfMonth(i){
    Последняя ячейка (день 40) несёт кадр сегодняшнего дня, а не `day-37` — решение 17.7. */
 function frameOf(i){
   if(i===DEMO.dayIndex) return "today";
+  /* решение 17.225 — у догруженного дня своего файла нет и не будет: `assets/` собран
+     из Figma побайтно (17.7), новых кадров правка не добывает. Берём кадр ближайшего
+     СОХРАНЁННОГО дня слева — тот же снимок встаёт в поле дважды, и это названо
+     в журнале, а не замолчано. Альтернатива «пустая клетка с состоянием kept»
+     соврала бы сильнее: день объявлен сохранённым, а показывать нечего. */
+  if(isRestored(i)){ for(let j=i-1;j>=1;j--) if(!(j in DEMO.skipped) && !isRestored(j)) return frameOf(j); return null; }
   if(i>DEMO.dayIndex || (i in DEMO.skipped)) return null;   /* будущее и пропуски кадра не имеют */
   let n=i;
   if(i>12) n--;
@@ -2132,10 +2149,27 @@ const Router = {
     return s;
   },
 
+  /* решение 17.227 — общее место снятия экрана со стека. Заказанный эффект
+     (`S._pendingEffect`) обязан жить ровно столько, сколько жив видоискатель: иначе
+     следующий обычный снимок молча оказывается платным. До правки сброс стоял только
+     в `back()` — крестик и системный свайп через него проходят, а `tab()`, `reset()`
+     (в том числе вход `?screen=`), `resetTo()`, `switchTo()` и `swapTop()` — нет.
+     Пальцем это сегодня недостижимо, но заряжено, и чинится там, где кадры со стека
+     снимаются, а не в каждом выходе по отдельности.
+     Оплаченный спуск сюда не попадает: `shoot()` обнуляет заказ САМ до `buyEffect`
+     и вынимает камеру из стека своим `dropCam()` — этот путь не тронут. */
+  release(frames){
+    if(!frames) return;
+    (Array.isArray(frames)?frames:[frames]).forEach(f=>{
+      if(f && f.route==="04a") S._pendingEffect=null;
+    });
+  },
+
   /* корень таба — без анимации содержимого (HIG, реестр №4) */
   tab(id){
     const route=this.root[id];
     if(this.stack.length===1 && this.current===route) return;
+    this.release(this.stack);
     this.stack.forEach(f=>f.el.remove());
     const s=this.build(route);
     this.el().append(s);
@@ -2162,6 +2196,7 @@ const Router = {
         top.el.style.transform="translateX(-30%)"; top.el.style.opacity=".6"; }
     });
     setTimeout(()=>{
+      this.release(old);
       old.forEach(f=>f.el.remove());
       const r=this.build(rootRoute); this.el().insertBefore(r, s);
       this.stack=[{route:rootRoute, el:r, mode:"root"},{route, el:s, mode:"slide"}];
@@ -2188,6 +2223,7 @@ const Router = {
         top.el.style.transform="translateX(-30%)"; top.el.style.opacity=".6"; }
     });
     setTimeout(()=>{
+      this.release(old);
       old.forEach(f=>f.el.remove());
       this.stack=[{route, el:s, mode:"root"}];
       s.style.transition=""; s.style.willChange=""; this.busy=false;
@@ -2196,6 +2232,7 @@ const Router = {
   },
 
   reset(route){
+    this.release(this.stack);
     this.stack.forEach(f=>f.el.remove());
     const s=this.build(route); this.el().append(s);
     this.stack=[{route, el:s, mode:"root"}];
@@ -2304,9 +2341,10 @@ const Router = {
     const top=this.stack.pop(), below=this.stack[this.stack.length-1];
     /* решение 17.175 — уходя с камеры БЕЗ спуска, снимаем заказанный эффект: иначе
        следующий обычный снимок оказался бы платным. Крестик, свайп вниз по камере и
-       системный свайп от края ведут все сюда, поэтому сброс стоит один и здесь.
-       Спуск до этого места не доходит: shoot() обнуляет заказ сам и уходит растворением. */
-    if(top.route==="04a") S._pendingEffect=null;
+       системный свайп от края ведут все сюда.
+       Решение 17.227 — сама строка переехала в `release()`: `back()` был не
+       единственным выходом с 04a, а сброс стоял только в нём. */
+    this.release(top);
     /* экран, на который возвращаемся, обязан быть видимым: растворение (17.112) прячет
        нижний экран в конце перехода, и без этой строки возврат мимо режима dissolve
        (например с 14, подменённого swapTop) приводил бы на скрытый экран */
@@ -2358,6 +2396,7 @@ const Router = {
   swapTop(route, opts){
     opts=opts||{};
     const top=this.stack.pop();
+    this.release(top);                       /* решение 17.227 */
     const s=this.build(route);
     this.current=route; location.hash="#/"+route;
     if(!opts.fade){
@@ -2674,7 +2713,7 @@ Screens["03"]=s=>{
      число совпало с дневником (17.195), и пара 40/37, которую правило 10.19
      запрещало сводить, больше не существует нигде. Отменяет хронику из 15.1
      в части числа: день недели и дата остаются, порядковый номер дня уходит. */
-  w.append(metaLine(fmtMDup(DEMO.today)+" · "+DEMO.kept+" OF "+DEMO.periodLength,"t-counter-meta c-secondary mt3"));
+  w.append(metaLine(fmtMDup(DEMO.today)+" · "+keptCount()+" OF "+DEMO.periodLength,"t-counter-meta c-secondary mt3"));
   if(!S.todayKept){
     /* день ещё не снят — плотная карточка дня с макета 104:47, без изменений */
     const card=el("div","FilterCard mt5");
@@ -3027,7 +3066,18 @@ Screens["05"]=s=>{
               isEffect ? effectUpper() : DEMO.todayLook.toUpperCase()));
             hero.append(tg);
           }
-          if(!reveal.querySelector(".FilterCard__dev")){
+          /* решение 17.229 — шторка на 05 только в дневной ветке. В платной 05 живёт
+             после «готово» ровно --motion-menu + --motion-reveal-hold (замер: 1397 мс
+             в темпе демо), а потом 17.172 уводит кросс-фейдом на 14, где по 17.211
+             стоит своя такая же шторка. Замер до правки: занавес на 05 успевал войти
+             (вход 15 % цикла = 810 мс) и обрывался на фазе 1000 мс из 5400, то есть
+             18,5 %, а на 14 стартовал с нуля — в кросс-фейде две шторки в фазах 18,5 %
+             и 0 %, и зритель видел один и тот же занавес дважды подряд. Теперь в
+             платной ветке кадр результата стоит неподвижно, шторку несёт 14. Вид
+             экранов (17.215) не меняется: тег с именем на 05 остаётся в обеих ветках —
+             он не анимирован. В дневной ветке 05 и есть экран результата, там шторка
+             живёт как жила. */
+          if(!isEffect && !reveal.querySelector(".FilterCard__dev")){
             reveal.innerHTML="";
             reveal.classList.add("FilterCard__sample");
             reveal.append(Img.make("today-original"));
@@ -3076,6 +3126,22 @@ Screens["05"]=s=>{
       },
       onFail(f){
         rs.remove();
+        /* решение 17.223 — монеты возвращаются, раз экран обещает «No coins spent».
+           Фикстуры сбоя (`effect/error·refusal·empty`) несут `charged:false` — поле
+           заведено ровно под ответ «списали или нет», и до этой правки его никто не
+           читал: `buyEffect` снимал цену авансом, отказ говорил «ничего не списано»,
+           а баланс оставался меньше. Порядок оплаты 17.162 (авансом, до кадра) НЕ
+           тронут — он стоит открытым гейтом владельца; здесь чинится только возврат.
+           `effect_confirmed` остаётся как был, иначе метрики потеряют факт списания;
+           возврат — отдельное событие с теми же тремя полями, чтобы пара «списано /
+           возвращено» сходилась. Успешные фикстуры поля `charged` не несут — строгое
+           сравнение с false оставляет их в покое. */
+        if(f.charged===false && S.effectSpent>0){
+          const back=S.effectSpent;
+          S.coins+=back; S.effectSpent=0; saveState();
+          Analytics.track("effect_refunded",{preset_id:presetId(effectTitle()),
+            price:back, balance_after:S.coins});
+        }
         hidePriv(MS("--motion-sheet-in"));   /* решение 17.175 — на отказе проявления тоже нечего обещать */
         /* решение 17.2 — при ошибке верхний слой уходит в ноль: остаётся чистый оригинал,
            кадр никуда не делся. Размывать его обратно было бы неправдой.
@@ -3277,7 +3343,7 @@ function keptBlock(w, {extra=false, height="var(--size-frame-portrait)", kept=tr
      `N of M` — один факт, а не два счётчика (уточнение 17.176). */
   /* решение 17.195 — знаменатель приведён к 07: период, а не прожитые дни.
      17.184 свело написание двух экранов, и смена знаменателя обязана идти в обоих. */
-  if(kept) meta.append(metaLine(DEMO.kept+" OF "+DEMO.periodLength+" DAYS KEPT","t-counter-meta c-tertiary"));
+  if(kept) meta.append(metaLine(keptCount()+" OF "+DEMO.periodLength+" DAYS KEPT","t-counter-meta c-tertiary"));
   return {seg, box, meta: meta.childElementCount ? meta : null};
 }
 
@@ -3393,7 +3459,7 @@ Screens["07"]=s=>{
      знать, что 40 — это сегодняшний день периода, и звало вычитать. `37 OF 100` читается
      как прогресс по дневнику: пропуск просто не считается сохранённым днём, отдельного
      числа потерь нет нигде. Знаменатель совпал с `DAY 40 OF 100` на 03 — оба про период. */
-  hd.append(metaLine(DEMO.kept+" OF "+DEMO.periodLength+" DAYS KEPT ▾","t-counter-meta c-accent"));
+  hd.append(metaLine(keptCount()+" OF "+DEMO.periodLength+" DAYS KEPT ▾","t-counter-meta c-accent"));
   hd.addEventListener("click",()=>Sheets.period(false));
   w.append(hd);
 
@@ -3771,6 +3837,19 @@ Screens["14"]=s=>{
   }}));
   panel.append(UI.Button({label:"Share",variant:"secondary",onTap:()=>goShare(DEMO.dayIndex,true)}));
   w.append(panel);
+  /* решение 17.226 — выход жестом вниз. После 17.215 навбар `‹ Effects` был снят
+     вместе с раскладкой, таб-бара здесь нет, меню `···` снято 17.203 — и экран стал
+     тупиком: оплаченный результат нельзя было ни отменить, ни покинуть, кроме двух
+     кнопок действия. Жест — тот же `dragToDismiss`, что у камеры и у шторок
+     (реестр №7): порог 25 % высоты или скорость > 0.5 px/мс, ниже порога — откат.
+     Новый приём не заводится, меню не возвращается, раскладка 17.215 не тронута.
+     Обработчик — тот же, что был у снятого навбара и у действия `back` на отказе
+     (`Screens._failAction`): `Router.tab("effects")`, событий у него не было и нет.
+     `Router.back()` здесь не годится: 14 приходит подменой верхнего экрана
+     (`swapTop`), и под ним лежит то, с чего покупали, — каталог, дневник или
+     ничего после снятой камеры (17.175). Вкладка называется явно, чтобы выход
+     не зависел от того, каким из шести входов эффект был куплен. */
+  dragToDismiss(s, ()=>Router.tab("effects"));
   fitFrame(w, hero, 360);
 };
 
@@ -4033,21 +4112,39 @@ function storeKit(sheetApi){
 }
 
 /* Точка пропуска (идея 16 · решения 10.7, 10.8) */
+/* решение 17.224 — пейвол подписчику не показывается. Шторка ветвилась только на
+   кнопке, а `paywall_shown`, ряд планов и `paywall_dismissed` уходили безусловно:
+   человеку, который уже платит, продавали то, что у него есть. Заголовок и подпись
+   те же — они про день, а не про подписку; у подписчика шторка становится ровно
+   действием «вернуть день», у неподписчика не меняется ничем.
+   решение 17.225 — `Bring it in` действительно возвращает день: до этой правки
+   кнопка показывала баннер и на этом заканчивалась — клетка оставалась пустой,
+   счётчик не рос, события не уходило, хотя `day_kept` уже несёт `restored`. */
 Sheets.missedDay = (i)=>{
-  const d=dayDate(i), n=DEMO.skipped[i];
-  Analytics.track("paywall_shown",{type:"soft",trigger:"missed_day"});
+  const d=dayDate(i), n=DEMO.skipped[i], sub=S.subscriber;
+  if(!sub) Analytics.track("paywall_shown",{type:"soft",trigger:"missed_day"});
   UI.Sheet({detent:"medium", build(b, api){
     b.append(assign(el("div","t-h1"),"You took "+n+" photo"+(n>1?"s":"")+" on "+fmtMD(d)+"."),
              assign(el("div","t-body c-secondary"),
                "Bring one into the diary — it gets that day’s upgrade."));
-    b.append(plansRow());
+    if(!sub) b.append(plansRow());
     const sp=el("div"); sp.style.flex="1"; b.append(sp);
-    b.append(UI.Button({label:S.subscriber?"Bring it in":"Continue with a plan",onTap:()=>{
-      if(S.subscriber){ api.close(); banner(fmtMD(d)+" kept · with that day’s upgrade"); return; }
+    b.append(UI.Button({label:sub?"Bring it in":"Continue with a plan",onTap:()=>{
+      if(sub){
+        if(!isRestored(i)){ S.restored=(S.restored||[]).concat([i]); saveState();
+          Analytics.track("day_kept",{with_filter:true,restored:true}); }
+        api.close();
+        banner(fmtMD(d)+" kept · with that day’s upgrade");
+        /* поле дней перерисовывается после ухода шторки: клетка обязана стать `kept`
+           и там, где на неё смотрят, — на самом дневнике, а не только в модели */
+        setTimeout(()=>{ if(Router.current==="07") Router.swapTop("07"); },AFTER_SHEET());
+        return;
+      }
       Analytics.track("upgrade_clicked",{placement:"missed_day"}); api.close(); setTimeout(Sheets.plan,AFTER_SHEET());
     }}));
     b.append(UI.Button({label:"Not now",variant:"text",onTap:()=>{
-      Analytics.track("paywall_dismissed",{type:"soft"}); api.close(); }}));
+      if(!sub) Analytics.track("paywall_dismissed",{type:"soft"});
+      api.close(); }}));
   }});
 };
 
@@ -4228,7 +4325,17 @@ const Demo = {
      дня и ожидание кнопки `Open diary`, 17.220 убрал 200 мс с хвоста дневника.
      ВАЖНО: `var TOTAL` на странице кейса (`site/case/index.html`) — независимый фолбэк
      до первого сообщения отсюда, он всё ещё 39 500 и разошёлся с этим числом. */
-  totalMs:34650,   /* 17.165 + 17.170 + 17.175 + 17.219 — замер, а не прикидка */
+  /* Решение 17.228 — круг перемерен после снятия прокрутки дневника (ответ владельца
+     на гейт 17.221). Два независимых прогона по три круга в headless 390×844:
+     33 881 / 33 876 / 33 877 и 33 889 / 33 886 / 33 885 мс от `today` до `today`
+     (в число входит пауза 400 мс на стыке кругов), разброс 13 мс. Прежние 34 650
+     описывали круг с 800-миллисекундной прокруткой, которой больше нет. Экран рекапа
+     этой правкой НЕ сокращён: физический минимум его видимости замерен и не влезает
+     в просимые ~4 с при неприкосновенном пейволе 1 850 — решение за владельцем,
+     4575/4592 оставлены как были.
+     ВАЖНО: `var TOTAL` на странице кейса (`site/case/index.html`) — независимый фолбэк
+     до первого сообщения отсюда, он всё ещё 39 500 и разошёлся с этим числом. */
+  totalMs:29900,   /* 17.165 + 17.170 + 17.175 + 17.219 + 17.228 — замер, а не прикидка */
   t0:0, step:"", beat:null,
 
   tick(){
@@ -4361,6 +4468,11 @@ const Demo = {
      перебор ровно в один кадр; запас 350 мс — это ~21 кадр, промахнуться нечем.
      Таймер намеренно НЕ кладётся в this.timers: `stop()` их гасит, а погашенная
      страховка вернула бы то же зависание. Следа он не оставляет — тело проверяет `on`. */
+  /* Решение 17.228 — КРУГ АВТОДЕМО ЭТОЙ ПРОКРУТКОЙ БОЛЬШЕ НЕ ХОДИТ: шаг снят с шага
+     `diary`, потому что замером 17.221 движение вышло 7 px за 800 мс. Метод и его
+     страховочный таймер остаются действующими для ручного прохода и для QA, снят
+     только вызов из круга — ровно так же, как в 17.170 поступили с веткой прошлого
+     дня (реестр №42). */
   async scroll(node, to, ms){
     if(!this.on || !node) throw "stopped";
     const from=node.scrollTop, d=to-from, t0=performance.now();
@@ -4382,6 +4494,8 @@ const Demo = {
   /* Куда прокрутить дневник — считается по DOM, а не зашито числом: ряд будущих
      пустых дней должен целиком выйти из-под стекла таб-бара, плюс поле воздуха.
      Меняется вёрстка поля — цель едет за ней, а не расходится с ней молча. */
+  /* Решение 17.228 — кругом не используется вместе со `scroll`; расчёт цели по DOM
+     остаётся на месте для ручного прохода и QA, удалять его нечего */
   diaryTarget(sc){
     const cell=document.querySelector('.DayCell[data-state="future"]');
     const bar=document.querySelector(".TabBar");
@@ -4442,8 +4556,12 @@ const Demo = {
     this.t0=Date.now(); this.at("today");
     /* экран уже затемнён хвостом прошлого круга; на первом круге гасить нечего */
     /* сброс в начало */
+    /* решение 17.225 — `restored` обнуляется вместе с остальным: круг не подписчик
+       (`subscriber:false`) и ветку пропущенного дня не проходит, но если зритель
+       догрузил день руками и перезапустил демо, поле дней обязано начаться с нуля,
+       как монеты и `todayKept` */
     Object.assign(S,{todayKept:false,todayPreset:null,attempts:0,subscriber:false,
-      coins:DEMO.coinsStart,onboarded:true});
+      restored:[],coins:DEMO.coinsStart,onboarded:true});
     S._fixtureOverride=null; S._fixture="daily-frame/success"; S._recapFixture="recap/success";
     S._viewDay=null;
     document.querySelectorAll("#sheetLayer .Sheet,#sheetLayer .Scrim,.StoreKit").forEach(n=>n.remove());
@@ -4553,14 +4671,18 @@ const Demo = {
        владельца. Хвостовая выдержка урезана до 1000: 600 + 800 + 1000 + 420 = 2820,
        замерено 2823. Дневник в круге появляется дважды, и второй показ не должен быть
        длиннее того, ради чего он открыт, — поля дней. */
+    /* решение 17.228 — прокрутка дневника из круга снята. Замер 17.221 показал, что
+       после 17.205 и 17.195 цель `diaryTarget` выходит 7 px при доступных 441: шаг
+       стоил 800 мс и двигал кадр на семь точек — зритель не видел движения, а
+       обещание реестра №41 («ряд будущих пустых дней целиком выходит из-под
+       таб-бара») выполняется теперь и без прокрутки. Гейт закрыт ответом владельца.
+       `Demo.scroll` и `Demo.diaryTarget` НЕ удалены — как и №42 при снятии шага
+       прошлого дня, паттерн остаётся действующим для ручного прохода и для QA,
+       снят только шаг круга. Освободившиеся 800 мс НЕ перераспределены: замер
+       видимости 07 (не суммы слагаемых — урок 17.220) уложился в обещание владельца
+       и без добавки, числа — в реестре №41. */
     this.at("diary");
     await this.sleep(600);
-    const sc=document.querySelector('#stack .Screen[data-route="07"] .Screen__scroll')
-             || document.querySelector('#stack .Screen:last-child [class*="Screen__scroll"]');
-    /* решение 17.216 — прокрутка не обязана удаться: если контейнер или ряд будущих
-       дней не найдены, шаг пропускается, а круг идёт дальше. Раньше исключение здесь
-       обрывало `run()` молча, и демо вставало на дневнике до конца. */
-    if(sc){ try{ await this.scroll(sc, this.diaryTarget(sc), 800); }catch(e){} }
     await this.sleep(1000);
 
     /* прокрутка карточку рекапа из кадра не уводит — она осталась выше поля */
@@ -4572,7 +4694,16 @@ const Demo = {
 
     /* 10 — рекап во весь экран, через 600 мс приходит пейвол (решение 13.3) */
     this.at("recap");
-    await this.sleep(5800);          /* композиция периода: это картинка, а не текст (17.165) */
+    /* решение 17.228, второй проход — выдержка срезана 5800 → 2650. Замер первого
+       прохода: видимость экрана 10 по двум кругам 9751 / 9765 мс — самая длинная
+       остановка круга, и почти вся она проходила ПОД пейволом: шторка встаёт на
+       600-й мс от появления 10 (13.3) и оседает к 984-му, дальше этот sleep держал
+       не композицию, а лист подписки. Пейвол 1850 (17.170) не тронут. Числа взяты
+       замером видимости 10, а не суммой слагаемых (урок 17.220): счётчик шага и
+       видимость экрана расходятся. Пол при неприкосновенном пейволе — 4694 мс,
+       просьба владельца ~4 с в него не влезает; ночным режимом принят коридор
+       5800–6200 с максимумом композиции. */
+    await this.sleep(2650);          /* композиция периода: это картинка, а не текст (17.165) */
     await this.until(()=>document.querySelector("#sheetLayer .Sheet"), 4000);
 
     /* сильный пейвол получает собственную выдержку: раньше шаг `paywall` жил столько же,
@@ -4589,7 +4720,12 @@ const Demo = {
 
     /* круг заканчивается кадром, а не ценником: бит на чистой композиции */
     this.at("recap");
-    await this.sleep(1500);
+    /* решение 17.228, второй проход — финальный бит срезан 1500 → 900: минимальный
+       осмысленный такт, а не выдержка. 480 из них уходят на --motion-sheet-out (темп
+       демо), то есть на уход пейвола, и 420 остаются чистой композиции — целый такт
+       --motion-menu. Ниже опускать нельзя: кадр без шторки перестанет читаться как
+       «вернулись к коллажу». Всё, что удалось снять сверх этого, отдано композиции. */
+    await this.sleep(900);
     await this.fade(0);                 /* гасим сразу, без паузы на пустом экране */
   }
 };
